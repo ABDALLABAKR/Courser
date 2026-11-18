@@ -13,6 +13,7 @@ const path = require('path');
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d; };
 const PAGE = arg('page', 'index.html'), AUDIO = arg('audio', null);
 const WIDTH = +arg('width', 3840), HEIGHT = +arg('height', Math.round(WIDTH * 9 / 16));
+const START = +arg('start', 0), END_S = arg('end', null);
 const FPS = +arg('fps', 30), WORKERS = +arg('workers', 3), CRF = arg('crf', '14');
 let DURATION = 40, FRAMES = Math.round(DURATION * FPS);
 const OUT = path.resolve(arg('out', `subatomic-${WIDTH >= 3840 ? "4k" : HEIGHT + "p"}.mp4`));
@@ -26,7 +27,7 @@ const URL = 'file://' + path.join(__dirname, PAGE) + `?render&w=${WIDTH}&h=${HEI
     await p.goto(URL); await p.waitForFunction('window.__ready === true', null, { timeout: 120000 });
     return p;
   }));
-  DURATION = await pages[0].evaluate(() => window.__DURATION || 30); FRAMES = Math.round(DURATION * FPS);
+  DURATION = await pages[0].evaluate(() => window.__DURATION || 30); FRAMES = Math.round((END_S ? +END_S : DURATION) * FPS);
 
   const ff = spawn('ffmpeg', ['-y', '-hide_banner', '-loglevel', 'error',
     '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'png', '-i', '-',
@@ -39,15 +40,15 @@ const URL = 'file://' + path.join(__dirname, PAGE) + `?render&w=${WIDTH}&h=${HEI
   const slots = new Array(FRAMES);
   const ready = Array.from({ length: FRAMES }, () => { let r; const pr = new Promise(res => (r = res)); return { pr, r }; });
   const t0 = Date.now();
-  let written = 0;
+  let written = START;
   pages.forEach(async (p, k) => {
-    for (let f = k; f < FRAMES; f += WORKERS) {
+    for (let f = START + k; f < FRAMES; f += WORKERS) {
       while (f - written > WORKERS * 6) await new Promise(r => setTimeout(r, 20)); // bound memory
       const d = await p.evaluate(t => window.__renderFrame(t), f / FPS);
       slots[f] = Buffer.from(d.slice(d.indexOf(',') + 1), 'base64'); ready[f].r();
     }
   });
-  for (let f = 0; f < FRAMES; f++) {
+  for (let f = START; f < FRAMES; f++) {
     await ready[f].pr;
     if (!ff.stdin.write(slots[f])) await new Promise(r => ff.stdin.once('drain', r));
     slots[f] = null; written = f + 1;
