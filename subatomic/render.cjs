@@ -11,11 +11,12 @@ const { spawn } = require('child_process');
 const path = require('path');
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d; };
-const WIDTH = +arg('width', 3840), HEIGHT = Math.round(WIDTH * 9 / 16);
+const PAGE = arg('page', 'index.html'), AUDIO = arg('audio', null);
+const WIDTH = +arg('width', 3840), HEIGHT = +arg('height', Math.round(WIDTH * 9 / 16));
 const FPS = +arg('fps', 30), WORKERS = +arg('workers', 3), CRF = arg('crf', '14');
 let DURATION = 40, FRAMES = Math.round(DURATION * FPS);
 const OUT = path.resolve(arg('out', `subatomic-${WIDTH >= 3840 ? "4k" : HEIGHT + "p"}.mp4`));
-const URL = 'file://' + path.join(__dirname, 'index.html') + `?render&w=${WIDTH}&h=${HEIGHT}`;
+const URL = 'file://' + path.join(__dirname, PAGE) + `?render&w=${WIDTH}&h=${HEIGHT}`;
 
 (async () => {
   const browser = await chromium.launch();
@@ -29,6 +30,7 @@ const URL = 'file://' + path.join(__dirname, 'index.html') + `?render&w=${WIDTH}
 
   const ff = spawn('ffmpeg', ['-y', '-hide_banner', '-loglevel', 'error',
     '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'png', '-i', '-',
+    ...(AUDIO ? ['-i', path.resolve(AUDIO), '-map', '0:v', '-map', '1:a', '-c:a', 'aac', '-b:a', '256k', '-shortest'] : []),
     '-c:v', 'libx264', '-preset', 'slow', '-crf', CRF, '-tune', 'film',
     '-pix_fmt', 'yuv420p', '-profile:v', 'high', '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709',
     '-movflags', '+faststart', OUT], { stdio: ['pipe', 'inherit', 'inherit'] });

@@ -1,0 +1,823 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Subatomic Universe (9:16)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; color: #eaf4ff; font-family: Inter, system-ui, sans-serif; }
+  #stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #000; }
+  canvas { display: block; background: #000; }
+  #ui { position: fixed; left: 0; right: 0; bottom: 0; padding: 18px 24px 22px; display: flex; gap: 16px; align-items: center;
+    background: linear-gradient(to top, rgba(0,0,0,.8), rgba(0,0,0,0)); transition: opacity .5s ease;
+    font: 300 12px/1 "JetBrains Mono", monospace; letter-spacing: .12em; }
+  #ui.hidden { opacity: 0; pointer-events: none; }
+  #ui button { background: none; border: 1px solid rgba(255,255,255,.4); color: #fff; width: 38px; height: 38px; border-radius: 50%; cursor: pointer; font-size: 13px; flex: none; }
+  #scrub { flex: 1; accent-color: #ff7ad9; min-width: 0; }
+  #time { min-width: 110px; text-align: right; opacity: .8; }
+  body.render #ui { display: none; }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="c"></canvas></div>
+<div id="ui">
+  <button id="play" aria-label="Play / pause">❚❚</button>
+  <input id="scrub" type="range" min="0" max="101.7" step="0.01" value="0" aria-label="Timeline">
+  <span id="time">00.00 / 40.00</span>
+</div>
+<script>
+(() => {
+'use strict';
+/* =====================================================================
+   THE SUBATOMIC UNIVERSE — A Colorful Journey into Matter
+   40 s deterministic motion-graphics film. renderFrame(t) is a pure
+   function of time. Logical canvas 1920×1080, scaled to any output.
+   Story: carbon atom → dive into a proton → it dissolves and a neutron
+   forms → the neutron β-decays, emitting an electron → the electron
+   settles into a cloud around the remaining proton → nucleons gather
+   into carbon again.
+   ===================================================================== */
+const params = new URLSearchParams(location.search);
+const RENDER = params.has('render');
+const DURATION = 101.7; window.__DURATION = DURATION; window.__ASPECT = [9, 16];
+const LW = 1080, LH = 1920;
+/* ---- narration sync: video time v → story time t (the original 40 s film timeline).
+   Anchors sit on voice-over cues; monotone cubic interpolation keeps speed changes smooth. ---- */
+const MAP = [[0, 0], [18.0, 6.1], [21.4, 8.5], [34.8, 15.0], [38.0, 18.7], [51.0, 24.6], [53.8, 26.9], [64.0, 28.4],
+             [70.0, 30.6], [74.4, 33.4], [83.0, 36.4], [96.0, 38.0], [101.7, 40.0]];
+const MAPM = (() => { const n = MAP.length, d = [], m = new Array(n);
+  for (let i = 0; i < n - 1; i++) d.push((MAP[i + 1][1] - MAP[i][1]) / (MAP[i + 1][0] - MAP[i][0]));
+  m[0] = d[0]; m[n - 1] = d[n - 2]; for (let i = 1; i < n - 1; i++) m[i] = d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2;
+  for (let i = 0; i < n - 1; i++) { if (d[i] === 0) { m[i] = m[i + 1] = 0; continue; } const a = m[i] / d[i], b = m[i + 1] / d[i], h = a * a + b * b; if (h > 9) { const k = 3 / Math.sqrt(h); m[i] = k * a * d[i]; m[i + 1] = k * b * d[i]; } }
+  return m; })();
+function storyT(v) {
+  if (v <= 0) return 0; if (v >= MAP[MAP.length - 1][0]) return MAP[MAP.length - 1][1];
+  let i = 0; while (v > MAP[i + 1][0]) i++;
+  const [x0, y0] = MAP[i], [x1, y1] = MAP[i + 1], h = x1 - x0, s2 = (v - x0) / h, s3 = s2 * s2 * s2, sq = s2 * s2;
+  return (2 * s3 - 3 * sq + 1) * y0 + (s3 - 2 * sq + s2) * h * MAPM[i] + (-2 * s3 + 3 * sq) * y1 + (s3 - sq) * h * MAPM[i + 1];
+}
+let AT = 0; // ambient (real) time for flowing motion
+const N_CLOUD = +params.get('n') || (RENDER ? 26000 : 18000);
+const N_SWARM = RENDER ? 5200 : 3600;
+const N_BOKEH = RENDER ? 1500 : 1000;
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const fg = document.createElement('canvas'); const fctx = fg.getContext('2d');
+let W = 0, H = 0, S = 1, FOCAL = 1;
+let C = fctx; // current drawing context for foreground helpers
+
+/* ---------- helpers ---------- */
+const clamp = (x, a = 0, b = 1) => x < a ? a : x > b ? b : x;
+const lerp = (a, b, k) => a + (b - a) * k;
+const ss = (a, b, x) => { const k = clamp((x - a) / (b - a)); return k * k * (3 - 2 * k); };
+const sm5 = k => { k = clamp(k); return k * k * k * (k * (k * 6 - 15) + 10); };
+const easeInOut = k => { k = clamp(k); return k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; };
+const easeOut3 = k => { k = clamp(k); return 1 - Math.pow(1 - k, 3); };
+const win = (t, a, b, fi, fo) => ss(a, a + fi, t) * (1 - ss(b - fo, b, t));
+const frac = x => x - Math.floor(x);
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function gauss(R) { let u = 0; while (u === 0) u = R(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * R()); }
+const hash = n => frac(Math.sin(n * 127.1 + 311.7) * 43758.5453);
+function chan(keys, t, ease = easeInOut) {
+  if (t <= keys[0][0]) return keys[0][1];
+  for (let i = 0; i < keys.length - 1; i++) { const [t0, v0] = keys[i], [t1, v1] = keys[i + 1]; if (t <= t1) return lerp(v0, v1, ease((t - t0) / (t1 - t0))); }
+  return keys[keys.length - 1][1];
+}
+const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const rgba = (c, a) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${clamp(a).toFixed(4)})`;
+const mixc = (a, b, k) => [lerp(a[0], b[0], k), lerp(a[1], b[1], k), lerp(a[2], b[2], k)];
+
+/* ---------- hydrogen-like orbitals ---------- */
+function laguerre(k, a, x) { if (k === 0) return 1; let L0 = 1, L1 = 1 + a - x; for (let j = 1; j < k; j++) { const L2 = ((2 * j + 1 + a - x) * L1 - (j + a) * L0) / (j + 1); L0 = L1; L1 = L2; } return L1; }
+function legendre(l, m, x) { let pmm = 1; if (m > 0) { const s = Math.sqrt(Math.max(0, (1 - x) * (1 + x))); let f = 1; for (let i = 1; i <= m; i++) { pmm *= f * s; f += 2; } }
+  if (l === m) return pmm; let p1 = x * (2 * m + 1) * pmm; if (l === m + 1) return p1; let pl = 0;
+  for (let ll = m + 2; ll <= l; ll++) { pl = ((2 * ll - 1) * x * p1 - (ll + m - 1) * pmm) / (ll - m); pmm = p1; p1 = pl; } return pl; }
+function psi(n, l, m, x, y, z) { const r = Math.hypot(x, y, z), rho = 2 * r / n;
+  const R = Math.pow(rho, l) * Math.exp(-rho / 2) * laguerre(n - l - 1, 2 * l + 1, rho); const ct = r > 0 ? z / r : 1, am = Math.abs(m);
+  let Y = legendre(l, am, ct); if (m > 0) Y *= Math.cos(am * Math.atan2(y, x)); else if (m < 0) Y *= Math.sin(am * Math.atan2(y, x)); return R * Y; }
+// rejection-sample |ψ|²; writes into arrays at offset, with radial scale; orbital z → world y
+function sampleInto(out, off, count, n, l, m, scale, seed, rmax) {
+  // proposal: r uniform in [0,rmax], direction uniform → accept ∝ r²|ψ|² (exact |ψ|² sampling in 3D)
+  const R = rng(seed); let maxW = 0, maxD = 0;
+  const dir = () => { const cz = R() * 2 - 1, th = R() * 6.283185, sr = Math.sqrt(1 - cz * cz); return [sr * Math.cos(th), sr * Math.sin(th), cz]; };
+  for (let i = 0; i < 60000; i++) { const r = R() * rmax, d = dir(); const v = psi(n, l, m, r * d[0], r * d[1], r * d[2]); const w = r * r * v * v; if (w > maxW) maxW = w; if (v * v > maxD) maxD = v * v; }
+  maxW *= 1.05; let k = 0, guard = 0;
+  while (k < count && guard++ < 2e7) {
+    const r = R() * rmax, d = dir(), x = r * d[0], y = r * d[1], z = r * d[2];
+    const v = psi(n, l, m, x, y, z), w = r * r * v * v;
+    if (R() * maxW < w) { const i = off + k; out.X[i] = x * scale; out.Y[i] = z * scale; out.Z[i] = y * scale; out.D[i] = Math.min(1, Math.pow(v * v / maxD, 0.6)); out.SG[i] = v >= 0 ? 1 : -1; k++; }
+  }
+}
+function newCloud(n) { return { X: new Float32Array(n), Y: new Float32Array(n), Z: new Float32Array(n), D: new Float32Array(n), SG: new Int8Array(n) }; }
+function normalise(cl, target) {
+  const r = []; for (let i = 0; i < cl.X.length; i++) r.push(Math.hypot(cl.X[i], cl.Y[i], cl.Z[i])); r.sort((a, b) => a - b);
+  const sc = target / r[Math.floor(r.length * 0.93)]; for (let i = 0; i < cl.X.length; i++) { cl.X[i] *= sc; cl.Y[i] *= sc; cl.Z[i] *= sc; }
+}
+// shuffle so particle i of every layout is a random member (staggering looks organic)
+function shuffleCloud(cl, seed) { const R = rng(seed); const n = cl.X.length;
+  for (let i = n - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); for (const k of ['X', 'Y', 'Z', 'D', 'SG']) { const t = cl[k][i]; cl[k][i] = cl[k][j]; cl[k][j] = t; } } }
+
+/* ---------- colours ---------- */
+const COL = {
+  white: [255, 255, 255], gold: [255, 214, 92], orange: [255, 128, 40], red: [255, 70, 50], pink: [255, 70, 190], magenta: [235, 60, 255],
+  violet: [140, 80, 255], blue: [60, 120, 255], cyan: [80, 230, 255], teal: [40, 225, 200], emerald: [30, 210, 130], ice: [200, 235, 255],
+};
+const PROTON_C = [255, 110, 52], NEUTRON_C = [52, 214, 205], UP_C = [255, 214, 80], DOWN_C = [255, 72, 196], ELECTRON_C = [120, 170, 255];
+// scene palettes (dark → bright) for the flowing background
+const PAL = [
+  ['#05052a', '#1638c8', '#6a22e0', '#e02a9e', '#ff7ad6'].map(hex),                 // 1 blue / violet / magenta
+  ['#2a0402', '#9e1a0c', '#e2531a', '#ff9a24', '#ffd451'].map(hex),                 // 2 red / orange / gold
+  ['#01122a', '#06506e', '#0a9a78', '#18d6c4', '#7af5e2'].map(hex),                 // 3 deep blue / emerald / turquoise
+  ['#060630', '#1a3cff', '#7422ff', '#e02ad0', '#ff74e0'].map(hex),                 // 4 electric blue / violet / neon pink
+  ['#0b0630', '#2a48ff', '#a42cff', '#ff3a9e', '#ff9a2a', '#ffd84f', '#1ce0c8'].map(hex), // 5 all of them
+];
+const SCENE_ACCENT = [COL.magenta, COL.orange, COL.teal, COL.pink, COL.gold];
+function sceneWeights(t) {
+  const w = [
+    1 - ss(6.2, 8.4, t),
+    ss(6.2, 8.4, t) * (1 - ss(15.0, 17.4, t)),
+    ss(15.0, 17.4, t) * (1 - ss(24.4, 26.4, t)),
+    ss(24.4, 26.4, t) * (1 - ss(33.4, 35.6, t)),
+    ss(33.4, 35.6, t),
+  ];
+  const s = w.reduce((a, b) => a + b, 0) || 1; return w.map(v => v / s);
+}
+
+/* ---------- precomputed data ---------- */
+let CLOUD_C, CLOUD_H, PM, SW, BK, NUCL, SEL = 0;
+const R0 = 0.115; // nucleon radius inside the (enlarged) nucleus
+function init() {
+  const R = rng(2024);
+  // carbon-like multi-electron cloud: 1s core + 2s + 2p_x + 2p_z (effective-charge scaled)
+  CLOUD_C = newCloud(N_CLOUD);
+  const q = Math.floor(N_CLOUD * 0.12), rest = N_CLOUD - q, a = Math.floor(rest / 3), b = a, c = rest - a - b;
+  sampleInto(CLOUD_C, 0, q, 1, 0, 0, 1 / 5.7, 1, 8);
+  sampleInto(CLOUD_C, q, a, 2, 0, 0, 1 / 3.1, 2, 22);
+  sampleInto(CLOUD_C, q + a, b, 2, 1, 1, 1 / 3.1, 3, 18);
+  sampleInto(CLOUD_C, q + a + b, c, 2, 1, 0, 1 / 3.1, 4, 18);
+  normalise(CLOUD_C, 1.55); shuffleCloud(CLOUD_C, 9);
+  // hydrogen 2p_z (excited state: a cloud with visible structure)
+  CLOUD_H = newCloud(N_CLOUD); sampleInto(CLOUD_H, 0, N_CLOUD, 2, 1, 0, 1, 5, 18); normalise(CLOUD_H, 1.35); shuffleCloud(CLOUD_H, 10);
+  PM = { u: new Float32Array(N_CLOUD), u2: new Float32Array(N_CLOUD), ph: new Float32Array(N_CLOUD), fr: new Float32Array(N_CLOUD),
+         sx: new Float32Array(N_CLOUD), sy: new Float32Array(N_CLOUD), sz: new Float32Array(N_CLOUD), gx: new Float32Array(N_CLOUD), gy: new Float32Array(N_CLOUD), gz: new Float32Array(N_CLOUD) };
+  for (let i = 0; i < N_CLOUD; i++) {
+    PM.u[i] = R(); PM.u2[i] = R(); PM.ph[i] = R() * 6.283; PM.fr[i] = 0.6 + R() * 2;
+    const th = R() * 6.283, cz = R() * 2 - 1, sr = Math.sqrt(1 - cz * cz), rad = 2.5 + R() * 4.5; // scattered start
+    PM.sx[i] = rad * sr * Math.cos(th); PM.sy[i] = rad * cz * 0.7; PM.sz[i] = rad * sr * Math.sin(th);
+    PM.gx[i] = gauss(R); PM.gy[i] = gauss(R); PM.gz[i] = gauss(R);
+  }
+  // swarm used for proton → neutron transformation
+  SW = { ux: new Float32Array(N_SWARM), uy: new Float32Array(N_SWARM), uz: new Float32Array(N_SWARM), cx: new Float32Array(N_SWARM), cy: new Float32Array(N_SWARM), cz: new Float32Array(N_SWARM), u: new Float32Array(N_SWARM), ph: new Float32Array(N_SWARM) };
+  for (let i = 0; i < N_SWARM; i++) {
+    const th = R() * 6.283, cz = R() * 2 - 1, sr = Math.sqrt(1 - cz * cz);
+    SW.ux[i] = sr * Math.cos(th); SW.uy[i] = cz; SW.uz[i] = sr * Math.sin(th);
+    const rad = 1.4 + Math.abs(gauss(R)) * 0.9; SW.cx[i] = SW.ux[i] * rad + gauss(R) * 0.3; SW.cy[i] = SW.uy[i] * rad * 0.8 + gauss(R) * 0.3; SW.cz[i] = SW.uz[i] * rad + gauss(R) * 0.3;
+    SW.u[i] = R(); SW.ph[i] = R() * 6.283;
+  }
+  // floating background particles
+  BK = [];
+  for (let i = 0; i < N_BOKEH; i++) {
+    const th = R() * 6.283, cz = R() * 2 - 1, sr = Math.sqrt(1 - cz * cz), rad = 2.2 + Math.pow(R(), 0.8) * 14;
+    BK.push({ x: rad * sr * Math.cos(th), y: rad * cz * 0.75, z: rad * sr * Math.sin(th), b: R(), ph: R() * 6.283, vx: (R() - .5) * .12, vy: (R() - .25) * .08, vz: (R() - .5) * .1, ci: Math.floor(R() * 3) });
+  }
+  // carbon-12 nucleus: 6 protons + 6 neutrons, relaxed packing
+  const P = []; for (let i = 0; i < 12; i++) P.push([gauss(R) * 0.1, gauss(R) * 0.1, gauss(R) * 0.1]);
+  const d0 = 2 * R0 * 0.93;
+  for (let it = 0; it < 600; it++) {
+    for (let i = 0; i < 12; i++) for (let j = i + 1; j < 12; j++) {
+      const dx = P[j][0] - P[i][0], dy = P[j][1] - P[i][1], dz = P[j][2] - P[i][2], d = Math.hypot(dx, dy, dz) || 1e-4;
+      if (d < d0) { const m = (d0 - d) / d * 0.5; P[i][0] -= dx * m; P[i][1] -= dy * m; P[i][2] -= dz * m; P[j][0] += dx * m; P[j][1] += dy * m; P[j][2] += dz * m; }
+    }
+    for (const p of P) { p[0] *= 0.985; p[1] *= 0.985; p[2] *= 0.985; }
+  }
+  const cx = P.reduce((a, p) => a + p[0], 0) / 12, cy = P.reduce((a, p) => a + p[1], 0) / 12, czz = P.reduce((a, p) => a + p[2], 0) / 12;
+  NUCL = P.map((p, i) => { const r2 = rng(100 + i); const th = r2() * 6.283, el = (r2() - 0.5) * 1.6;
+    return { x: p[0] - cx, y: p[1] - cy, z: p[2] - czz, type: [0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1][i],
+      fx: Math.cos(th) * Math.cos(el) * 6, fy: Math.sin(el) * 4, fz: Math.sin(th) * Math.cos(el) * 6, bow: r2() - 0.5, del: r2() }; });
+}
+
+/* ---------- sprites ---------- */
+let GLOW = {}, BALL = {}, NOISE;
+function makeGlow(rgb, size) {
+  const c = document.createElement('canvas'); c.width = c.height = size; const g = c.getContext('2d');
+  const gr = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  for (let k = 0; k <= 16; k++) { const x = k / 16, a = Math.exp(-x * x * 5.2) * (x >= 1 ? 0 : 1), wm = Math.exp(-x * x * 22);
+    gr.addColorStop(x, `rgba(${Math.round(lerp(rgb[0], 255, wm))},${Math.round(lerp(rgb[1], 255, wm))},${Math.round(lerp(rgb[2], 255, wm))},${a.toFixed(4)})`); }
+  g.fillStyle = gr; g.fillRect(0, 0, size, size); return c;
+}
+function makeBall(rgb, size) { // shaded, lit sphere with rim light
+  const c = document.createElement('canvas'); c.width = c.height = size; const g = c.getContext('2d'); const r = size / 2;
+  g.beginPath(); g.arc(r, r, r * 0.98, 0, Math.PI * 2); g.clip();
+  const gr = g.createRadialGradient(r * 0.62, r * 0.58, r * 0.04, r, r, r);
+  gr.addColorStop(0, rgba(mixc(rgb, [255, 255, 255], 0.85), 1)); gr.addColorStop(0.28, rgba(mixc(rgb, [255, 255, 255], 0.25), 1));
+  gr.addColorStop(0.7, rgba(rgb, 1)); gr.addColorStop(1, rgba(mixc(rgb, [0, 0, 0], 0.55), 1));
+  g.fillStyle = gr; g.fillRect(0, 0, size, size);
+  const rim = g.createRadialGradient(r * 1.15, r * 1.25, r * 0.6, r, r, r);
+  rim.addColorStop(0, 'rgba(255,255,255,0)'); rim.addColorStop(0.85, 'rgba(255,255,255,0)'); rim.addColorStop(1, rgba(mixc(rgb, [255, 255, 255], 0.5), 0.55));
+  g.globalCompositeOperation = 'lighter'; g.fillStyle = rim; g.fillRect(0, 0, size, size);
+  return c;
+}
+function makeNoise() { const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'); const id = g.createImageData(256, 256); const R = rng(77);
+  for (let i = 0; i < id.data.length; i += 4) { const v = R() * 255; id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 255; } g.putImageData(id, 0, 0); return c; }
+
+/* ---------- camera ---------- */
+const cam = { tx: 0, ty: 0, tz: 0, dist: 9, cy: 1, sy: 0, cp: 1, sp: 0, ox: 0, oy: 0, yaw: 0 };
+const E_POS = [1.05, 1.2, 0.6];
+const K_DIST = [[0, 10], [6.0, 5.7], [8.4, 4.75], [24.5, 4.75], [26.0, 5.9], [28.4, 5.9], [30.6, 5.4], [34.0, 5.4], [36.0, 5.9], [40, 12.5]];
+const K_PITCH = [[0, 0.12], [6, 0.16], [8.6, 0.36], [24.4, 0.36], [26.2, 0.16], [30.5, 0.22], [34, 0.22], [37, 0.32]];
+const K_OX = [[0, 0], [40, 0]];
+const K_OY = [[0, -190], [6.0, -190], [8.4, -250], [33.6, -250], [35.4, -190]];
+function yawRate(t) { return 0.16 * (1 - ss(6, 8.4, t)) + 0.07 * ss(6, 8.4, t) * (1 - ss(24.2, 26, t)) + 0.1 * ss(24.2, 26, t) * (1 - ss(33, 35, t)) + 0.14 * ss(33, 35, t); }
+const yawCache = [];
+function yawAt(t) { const dt = 1 / 240;
+  if (!yawCache.length) { let acc = 0; yawCache.push(0); for (let i = 1; i <= DURATION / dt + 2; i++) { acc += yawRate(storyT((i - 0.5) * dt)) * dt; yawCache.push(acc); } }
+  const n = Math.floor(t / dt); return lerp(yawCache[Math.min(n, yawCache.length - 1)], yawCache[Math.min(n + 1, yawCache.length - 1)], (t - n * dt) / dt) - 0.5; }
+function setCamera(t) {
+  const fol = ss(25.1, 26.9, t) * (1 - ss(28.3, 30.6, t)) * 0.82;
+  cam.tx = E_POS[0] * fol; cam.ty = E_POS[1] * fol; cam.tz = E_POS[2] * fol;
+  cam.dist = chan(K_DIST, t); cam.yaw = yawAt(AT); const pitch = chan(K_PITCH, t) + 0.012 * Math.sin(t * 0.43);
+  cam.cy = Math.cos(cam.yaw); cam.sy = Math.sin(cam.yaw); cam.cp = Math.cos(pitch); cam.sp = Math.sin(pitch);
+  cam.ox = chan(K_OX, t); cam.oy = chan(K_OY, t);
+}
+let PX = 0, PY = 0, PD = 0, PZ = 0;
+function project(x, y, z) {
+  const dx = x - cam.tx, dy = y - cam.ty, dz = z - cam.tz;
+  const x1 = dx * cam.cy - dz * cam.sy, z1 = dx * cam.sy + dz * cam.cy;
+  const y2 = dy * cam.cp - z1 * cam.sp, z2 = dy * cam.sp + z1 * cam.cp;
+  const d = cam.dist - z2; if (d < 0.12) return false;
+  PD = d; PZ = z2; PX = W * 0.5 + cam.ox * S + FOCAL * x1 / d; PY = H * 0.5 + cam.oy * S - FOCAL * y2 / d; return true;
+}
+// camera-space z of a direction (for facing tests)
+function viewZ(x, y, z) { const z1 = x * cam.sy + z * cam.cy; return y * cam.sp + z1 * cam.cp; }
+
+/* ---------- drawing primitives (foreground context C) ---------- */
+function glow(x, y, rL, a, rgbKey) { if (a <= 0.002) return; const r = rL * S; C.globalAlpha = Math.min(1, a); C.drawImage(GLOW[rgbKey], x - r, y - r, 2 * r, 2 * r); }
+function glowPx(x, y, rPx, a, rgbKey) { if (a <= 0.002) return; C.globalAlpha = Math.min(1, a); C.drawImage(GLOW[rgbKey], x - rPx, y - rPx, 2 * rPx, 2 * rPx); }
+function streak(x, y, len, th, a, key) { if (a <= 0.002) return; C.globalAlpha = Math.min(1, a); C.drawImage(GLOW[key], x - len * S, y - th * S, 2 * len * S, 2 * th * S); }
+const PASSES = [[12, 0.05], [5, 0.14], [2, 0.4], [0.85, 0.9]];
+function line3D(pts, al, rgb, alphaScale = 1, widthScale = 1, passes = PASSES, core = [255, 255, 255]) {
+  const n = pts.length / 3, sx = new Float32Array(n), sy = new Float32Array(n), ok = new Uint8Array(n);
+  for (let i = 0; i < n; i++) if (project(pts[i * 3], pts[i * 3 + 1], pts[i * 3 + 2])) { sx[i] = PX; sy[i] = PY; ok[i] = 1; }
+  C.lineCap = 'round'; C.lineJoin = 'round'; C.globalAlpha = 1; const CH = 6;
+  passes.forEach(([w, a], pi) => {
+    const col = pi === passes.length - 1 ? mixc(rgb, core, 0.7) : rgb; C.lineWidth = Math.max(0.6, w * S * widthScale);
+    for (let s = 0; s < n - 1; s += CH) {
+      const e = Math.min(n - 1, s + CH); let am = 0; for (let k = s; k <= e; k++) am += al[k]; am /= (e - s + 1);
+      const A = am * a * alphaScale; if (A < 0.002) continue;
+      C.strokeStyle = rgba(col, A); C.beginPath(); let pen = false;
+      for (let k = s; k <= e; k++) { if (!ok[k]) { pen = false; continue; } if (!pen) { C.moveTo(sx[k], sy[k]); pen = true; } else C.lineTo(sx[k], sy[k]); }
+      C.stroke();
+    }
+  });
+}
+
+/* ---------- background: flowing colour field ---------- */
+const bgS = document.createElement('canvas'), bgM = document.createElement('canvas');
+const bgSc = bgS.getContext('2d'), bgMc = bgM.getContext('2d');
+const BW = 135, BH = 240; bgS.width = BW; bgS.height = BH; const ASP = LW / LH;
+let bgData = null;
+function ramp(pal, v) { const n = pal.length - 1; const f = clamp(v) * n; const i = Math.min(n - 1, Math.floor(f)), k = f - i; const a = pal[i], b = pal[i + 1];
+  return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k]; }
+function background(t, wts, fade) {
+  if (!bgData) bgData = bgSc.createImageData(BW, BH);
+  const d = bgData.data;
+  const fx = 0.5 + cam.ox / LW, fy = 0.5 + cam.oy / LH;
+  const act = []; wts.forEach((w, i) => { if (w > 0.002) act.push([w, PAL[i]]); });
+  const S5 = wts[4];
+  for (let y = 0; y < BH; y++) {
+    const v0 = y / BH;
+    for (let x = 0; x < BW; x++) {
+      const u = x / BW * ASP, v = v0;
+      const q1 = Math.sin(u * 2.1 + t * 0.33) + Math.sin(v * 3.4 - t * 0.26 + u * 1.3);
+      const q2 = Math.sin(v * 2.6 + t * 0.21 + q1 * 0.8) + 0.6 * Math.sin(u * 3.1 - t * 0.17);
+      const f = 0.5 + 0.5 * Math.sin(u * 1.6 + v * 1.2 + q1 * 0.95 + q2 * 0.75 + t * 0.28 + S5 * u * 1.4);
+      const band = Math.pow(0.5 + 0.5 * Math.sin((u * 3 - v * 2.2) * 2.6 + q1 * 2.1 - t * 1.05), 14);
+      const band2 = Math.pow(0.5 + 0.5 * Math.sin((u * 1.4 + v * 3.1) * 2.2 + q2 * 1.7 + t * 0.8), 18);
+      const dx = (x / BW - fx) * ASP, dy = v - fy, rr = dx * dx + dy * dy;
+      const lum = (0.42 + 0.22 * Math.sin(u * 2.4 - v * 1.8 + q2 + t * 0.37)) * (0.62 + 0.45 * Math.exp(-rr / 0.16)) * (1 - 0.55 * Math.min(1, rr * 0.9));
+      let r = 0, g = 0, b = 0;
+      for (const [w, pal] of act) {
+        const c = ramp(pal, f * 0.78 + 0.05), hi = pal[pal.length - 1], mid = pal[Math.floor(pal.length / 2)];
+        r += w * (c[0] * lum + hi[0] * band * 0.32 + mid[0] * band2 * 0.22);
+        g += w * (c[1] * lum + hi[1] * band * 0.32 + mid[1] * band2 * 0.22);
+        b += w * (c[2] * lum + hi[2] * band * 0.32 + mid[2] * band2 * 0.22);
+      }
+      const i = (y * BW + x) * 4; d[i] = r * fade; d[i + 1] = g * fade; d[i + 2] = b * fade; d[i + 3] = 255;
+    }
+  }
+  bgSc.putImageData(bgData, 0, 0);
+  bgMc.filter = 'blur(3px)'; bgMc.drawImage(bgS, -8, -8, bgM.width + 16, bgM.height + 16); bgMc.filter = 'none';
+  ctx.imageSmoothingQuality = 'high'; ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  ctx.drawImage(bgM, 0, 0, W, H);
+}
+
+/* ---------- screen-space geometric / energy overlays (on main ctx) ---------- */
+function overlays(t, wts, fade, center) {
+  const g = ctx; g.globalCompositeOperation = 'lighter'; g.lineCap = 'round';
+  const [cx, cy] = center;
+  // flowing energy ribbons
+  const accent = wts.reduce((acc, w, i) => mixc(acc, SCENE_ACCENT[i], w), [0, 0, 0]).map((v, i) => v); // weighted
+  let ac = [0, 0, 0]; wts.forEach((w, i) => { ac[0] += SCENE_ACCENT[i][0] * w; ac[1] += SCENE_ACCENT[i][1] * w; ac[2] += SCENE_ACCENT[i][2] * w; });
+  for (let j = 0; j < 7; j++) {
+    const base = (0.18 + 0.11 * j) * LH, amp = 40 + 30 * Math.sin(j * 1.7), sp = 0.25 + 0.06 * j;
+    const col = j % 3 === 0 ? COL.white : ac;
+    for (const [lw, a] of [[10, 0.03], [3, 0.07], [1, 0.16]]) {
+      g.strokeStyle = rgba(col, a * fade * (0.6 + 0.4 * Math.sin(t * 0.5 + j))); g.lineWidth = lw * S; g.beginPath();
+      for (let k = 0; k <= 48; k++) { const x = k / 48 * LW; const y = base + amp * Math.sin(x * 0.0021 + t * sp + j * 1.3) + 0.5 * amp * Math.sin(x * 0.0047 - t * sp * 1.6 + j);
+        if (k === 0) g.moveTo(x * S, y * S); else g.lineTo(x * S, y * S); }
+      g.stroke();
+    }
+  }
+  // S1 / S5: rotating concentric polygons
+  const pa = (wts[0] * 0.9 + wts[4] * 0.7) * fade;
+  if (pa > 0.01) {
+    const shapes = [[3, 300, 0.12], [6, 380, -0.08], [6, 470, 0.05], [12, 560, -0.03]];
+    shapes.forEach(([n, r, sp], si) => {
+      const rot = t * sp + si; g.strokeStyle = rgba(si % 2 ? COL.pink : COL.cyan, 0.16 * pa); g.lineWidth = 1.1 * S; g.beginPath();
+      for (let k = 0; k <= n; k++) { const a = rot + k / n * Math.PI * 2; const x = cx + Math.cos(a) * r * S, y = cy + Math.sin(a) * r * S * 0.92; if (k === 0) g.moveTo(x, y); else g.lineTo(x, y); }
+      g.stroke();
+      for (let k = 0; k < n; k++) { const a = rot + k / n * Math.PI * 2; C = g; glowPx(cx + Math.cos(a) * r * S, cy + Math.sin(a) * r * S * 0.92, 7 * S, 0.5 * pa, 'white'); }
+    });
+    C = fctx;
+  }
+  // S2: swirling logarithmic spirals around the proton
+  const sa = wts[1] * fade;
+  if (sa > 0.01) {
+    for (let arm = 0; arm < 9; arm++) {
+      const off = arm / 9 * Math.PI * 2 + t * 0.35;
+      for (const [lw, a, col] of [[8, 0.05, COL.gold], [2.2, 0.14, COL.orange], [0.9, 0.3, COL.gold]]) {
+        g.strokeStyle = rgba(col, a * sa); g.lineWidth = lw * S; g.beginPath();
+        for (let k = 0; k <= 70; k++) { const th = k / 70 * 4.2; const r = 330 * Math.exp(0.32 * th); const x = cx + Math.cos(off + th) * r * S, y = cy + Math.sin(off + th) * r * S * 0.8;
+          if (k === 0) g.moveTo(x, y); else g.lineTo(x, y); }
+        g.stroke();
+      }
+    }
+  }
+  // S3 (+S5): hexagonal lattice with an outward energy pulse
+  const ha = (wts[2] + wts[4] * 0.45) * fade;
+  if (ha > 0.01) {
+    const sz = 64, hw = Math.sqrt(3) * sz, drift = t * 12; const pulseR = frac((t - 18.5) / 1.6) * 1300;
+    for (let row = -1; row < LH / (sz * 1.5) + 2; row++) for (let col = -1; col < LW / hw + 2; col++) {
+      const hx = col * hw + (row % 2 ? hw / 2 : 0) - (drift % hw), hy = row * sz * 1.5 + ((drift * 0.4) % (sz * 1.5)) - sz;
+      const dd = Math.hypot(hx * S - cx, hy * S - cy) / S;
+      const pulse = Math.exp(-Math.pow((dd - pulseR) / 90, 2)) * (wts[2] > 0.3 ? 1 : 0.3);
+      const a = ha * (0.06 + 0.5 * pulse) * Math.exp(-dd / 900);
+      if (a < 0.006) continue;
+      g.strokeStyle = rgba(pulse > 0.3 ? COL.ice : COL.teal, a); g.lineWidth = (1 + 1.5 * pulse) * S; g.beginPath();
+      for (let k = 0; k <= 6; k++) { const an = Math.PI / 6 + k * Math.PI / 3; const x = (hx + Math.cos(an) * sz * 0.96) * S, y = (hy + Math.sin(an) * sz * 0.96) * S; if (k === 0) g.moveTo(x, y); else g.lineTo(x, y); }
+      g.stroke();
+    }
+  }
+  // S4: interference ripples
+  const ra = wts[3] * fade;
+  if (ra > 0.01) {
+    const srcs = [[cx - 260 * S, cy], [cx + 260 * S, cy]];
+    srcs.forEach(([sx, sy], si) => {
+      for (let k = 0; k < 9; k++) { const r = (frac(t * 0.22 + k / 9) * 1500) * S; const a = ra * 0.16 * (1 - frac(t * 0.22 + k / 9));
+        g.strokeStyle = rgba(si ? COL.pink : COL.cyan, a); g.lineWidth = 1.4 * S; g.beginPath(); g.ellipse(sx, sy, r, r * 0.86, 0, 0, Math.PI * 2); g.stroke(); }
+    });
+  }
+  g.globalAlpha = 1;
+}
+
+/* ---------- hadron model (proton / neutron) ---------- */
+// quark motion inside a hadron of radius 1 (model space, then scaled)
+const Q_BASE = [[0.44, 0.14, 0.12], [-0.3, 0.3, -0.24], [-0.12, -0.36, 0.3]];
+function quarkPos(i, t) {
+  const b = Q_BASE[i], sp = 0.3 * t, cs = Math.cos(sp), sn = Math.sin(sp);
+  const x = b[0] + 0.07 * Math.sin(t * 1.7 + i * 2.1), y = b[1] + 0.07 * Math.sin(t * 2.3 + i * 1.3), z = b[2] + 0.07 * Math.sin(t * 1.9 + i * 0.7);
+  return [x * cs - z * sn, y, x * sn + z * cs];
+}
+function shell(t, rgb, alpha, open, scale, phic) {
+  if (alpha <= 0.003) return;
+  const R = scale; if (!project(0, 0, 0)) return; const cxp = PX, cyp = PY, rs = FOCAL * R / PD;
+  C.globalCompositeOperation = 'source-over';
+  // inner volume (dark tinted, gives depth & contrast)
+  let gr = C.createRadialGradient(cxp, cyp, 0, cxp, cyp, rs);
+  gr.addColorStop(0, rgba(mixc(rgb, [0, 0, 0], 0.6), 0.55 * alpha)); gr.addColorStop(1, rgba(mixc(rgb, [0, 0, 0], 0.8), 0.6 * alpha));
+  C.globalAlpha = 1; C.fillStyle = gr; C.beginPath(); C.arc(cxp, cyp, rs, 0, Math.PI * 2); C.fill();
+  C.globalCompositeOperation = 'lighter';
+  gr = C.createRadialGradient(cxp, cyp, 0, cxp, cyp, rs); gr.addColorStop(0, rgba(rgb, 0.16 * alpha)); gr.addColorStop(0.6, rgba(rgb, 0.05 * alpha)); gr.addColorStop(1, rgba(rgb, 0.0));
+  C.fillStyle = gr; C.beginPath(); C.arc(cxp, cyp, rs, 0, Math.PI * 2); C.fill();
+  const half = open * 0.95, p1 = phic - half, p2 = phic + half;
+  const inWedge = (x, y, z) => { if (open < 0.01 || y < 0) return false; let a = Math.atan2(z, x) - phic; a = Math.atan2(Math.sin(a), Math.cos(a)); return Math.abs(a) < half; };
+  // latitude / longitude lattice
+  const pass = [[5, 0.08], [1.6, 0.35], [0.7, 0.7]];
+  for (let li = -5; li <= 5; li++) {
+    const la = li * Math.PI / 12, cy0 = Math.sin(la) * R, rr = Math.cos(la) * R; const pts = [], al = [];
+    for (let k = 0; k <= 96; k++) { const a = k / 96 * Math.PI * 2; const x = Math.cos(a) * rr, z = Math.sin(a) * rr; pts.push(x, cy0, z);
+      const f = viewZ(x, cy0, z) / R; al.push(inWedge(x, cy0, z) ? 0 : (f > 0 ? 0.55 : 0.18)); }
+    line3D(pts, al, rgb, alpha, 1, pass);
+  }
+  for (let mi = 0; mi < 24; mi++) {
+    const a = mi / 24 * Math.PI * 2; const pts = [], al = [];
+    for (let k = 0; k <= 64; k++) { const la = -Math.PI / 2 + k / 64 * Math.PI; const x = Math.cos(la) * Math.cos(a) * R, y = Math.sin(la) * R, z = Math.cos(la) * Math.sin(a) * R; pts.push(x, y, z);
+      const f = viewZ(x, y, z) / R; al.push(inWedge(x, y, z) ? 0 : (f > 0 ? 0.45 : 0.14)); }
+    line3D(pts, al, rgb, alpha, 1, pass);
+  }
+  // cut faces of the opened wedge
+  if (open > 0.01) {
+    const face = poly => { C.beginPath(); let first = true; for (let k = 0; k < poly.length; k += 3) { if (!project(poly[k], poly[k + 1], poly[k + 2])) continue; if (first) { C.moveTo(PX, PY); first = false; } else C.lineTo(PX, PY); } C.closePath(); };
+    const hot = mixc(rgb, [255, 255, 255], 0.55);
+    const fill = () => { const g2 = C.createRadialGradient(cxp, cyp, 0, cxp, cyp, rs); g2.addColorStop(0, rgba(hot, 0.26 * alpha * open)); g2.addColorStop(0.7, rgba(rgb, 0.12 * alpha * open)); g2.addColorStop(1, rgba(rgb, 0.06 * alpha * open)); C.fillStyle = g2; C.fill(); };
+    for (const ph of [p1, p2]) { const poly = [0, 0, 0]; for (let k = 0; k <= 24; k++) { const th = k / 24 * Math.PI / 2; poly.push(R * Math.cos(th) * Math.cos(ph), R * Math.sin(th), R * Math.cos(th) * Math.sin(ph)); } face(poly); fill();
+      const edge = [], ea = []; for (let k = 0; k < poly.length / 3; k++) { edge.push(poly[k * 3], poly[k * 3 + 1], poly[k * 3 + 2]); ea.push(1); } edge.push(0, 0, 0); ea.push(1);
+      line3D(edge, ea, hot, alpha * open * 0.8, 1, [[4, 0.12], [1.2, 0.6]]); }
+    const bot = [0, 0, 0]; for (let k = 0; k <= 24; k++) { const ph = p1 + (p2 - p1) * k / 24; bot.push(R * Math.cos(ph), 0, R * Math.sin(ph)); } face(bot); fill();
+  }
+  // fresnel rim
+  gr = C.createRadialGradient(cxp, cyp, rs * 0.78, cxp, cyp, rs * 1.12);
+  gr.addColorStop(0, rgba(rgb, 0)); gr.addColorStop(0.62, rgba(mixc(rgb, [255, 255, 255], 0.35), 0.55 * alpha)); gr.addColorStop(1, rgba(rgb, 0));
+  C.fillStyle = gr; C.beginPath(); C.arc(cxp, cyp, rs * 1.12, 0, Math.PI * 2); C.fill();
+  glowPx(cxp, cyp, rs * 2.0, 0.12 * alpha, rgb === PROTON_C ? 'proton' : 'neutron');
+}
+function quarks(t, alpha, scale, flavMix, labelA) {
+  if (alpha <= 0.003) return;
+  const Q = [0, 1, 2].map(i => quarkPos(i, t).map(v => v * scale));
+  const J = [(Q[0][0] + Q[1][0] + Q[2][0]) / 3, (Q[0][1] + Q[1][1] + Q[2][1]) / 3, (Q[0][2] + Q[1][2] + Q[2][2]) / 3];
+  C.globalCompositeOperation = 'lighter';
+  // gluon flux tubes forming a Y-junction
+  Q.forEach((q, i) => {
+    const pts = [], al = []; const dx = J[0] - q[0], dy = J[1] - q[1], dz = J[2] - q[2];
+    let nx = dy, ny = -dx, nz = 0; const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl;
+    const mx = dy * nz - dz * ny, my = dz * nx - dx * nz, mz = dx * ny - dy * nx, ml = Math.hypot(mx, my, mz) || 1;
+    for (let k = 0; k <= 50; k++) { const s = k / 50, env = Math.sin(Math.PI * s) * 0.045 * scale, w = s * 26 + t * 9 + i * 2;
+      pts.push(q[0] + dx * s + (nx * Math.sin(w) + mx / ml * Math.cos(w)) * env, q[1] + dy * s + (ny * Math.sin(w) + my / ml * Math.cos(w)) * env, q[2] + dz * s + (mz / ml * Math.cos(w)) * env); al.push(1); }
+    line3D(pts, al, [255, 140, 230], alpha * 0.85, 1, [[9, 0.06], [3, 0.2], [1, 0.75]]);
+  });
+  if (project(J[0], J[1], J[2])) glowPx(PX, PY, 34 * S, 0.25 * alpha, 'pinkw');
+  // sea of short-lived virtual quark pairs
+  for (let j = 0; j < 34; j++) {
+    const slot = Math.floor(t * 2.2 + j * 0.37), f = frac(t * 2.2 + j * 0.37), h1 = hash(slot * 13 + j), h2 = hash(slot * 7 + j * 3), h3 = hash(slot * 5 + j * 11);
+    const rr = 0.75 * Math.cbrt(h1) * scale, th = h2 * 6.283, cz = h3 * 2 - 1, sr = Math.sqrt(1 - cz * cz);
+    if (project(rr * sr * Math.cos(th), rr * cz, rr * sr * Math.sin(th))) glowPx(PX, PY, 9 * S * (FOCAL / PD) / 330, 0.55 * alpha * Math.sin(Math.PI * f), j % 2 ? 'white' : 'pinkw');
+  }
+  // the three valence quarks, depth sorted
+  const order = Q.map((q, i) => { project(q[0], q[1], q[2]); return { i, x: PX, y: PY, d: PD }; }).sort((a, b) => b.d - a.d);
+  for (const o of order) {
+    const isDown = o.i === 2 ? 1 : (o.i === 1 ? flavMix : 0); // quark 1 changes flavour u → d
+    const rpx = FOCAL * 0.16 * scale / o.d;
+    C.globalCompositeOperation = 'lighter';
+    glowPx(o.x, o.y, rpx * 3.4, 0.5 * alpha * (1 - isDown), 'up'); glowPx(o.x, o.y, rpx * 3.4, 0.5 * alpha * isDown, 'down');
+    C.globalCompositeOperation = 'source-over';
+    if (1 - isDown > 0.01) { C.globalAlpha = alpha * (1 - isDown); C.drawImage(BALL.up, o.x - rpx, o.y - rpx, 2 * rpx, 2 * rpx); }
+    if (isDown > 0.01) { C.globalAlpha = alpha * isDown; C.drawImage(BALL.down, o.x - rpx, o.y - rpx, 2 * rpx, 2 * rpx); }
+    C.globalAlpha = 1;
+    if (labelA > 0.01) {
+      const lx = o.x + rpx * 1.25, ly = o.y - rpx * 1.15;
+      C.font = `400 ${20 * S}px "JetBrains Mono", monospace`; C.textBaseline = 'middle'; C.textAlign = 'left';
+      C.fillStyle = rgba([255, 255, 255], labelA * alpha * (1 - isDown)); C.fillText('u', lx, ly);
+      C.fillStyle = rgba([255, 255, 255], labelA * alpha * isDown); C.fillText('d', lx, ly);
+    }
+  }
+  C.globalCompositeOperation = 'lighter';
+}
+
+/* ---------- nucleus cluster ---------- */
+function nucleus(t, items) { // items: [{x,y,z,r,type,a}]
+  const vis = []; for (const it of items) { if (it.a <= 0.003) continue; if (!project(it.x, it.y, it.z)) continue; vis.push({ ...it, px: PX, py: PY, d: PD }); }
+  vis.sort((a, b) => b.d - a.d);
+  for (const v of vis) {
+    const rpx = FOCAL * v.r / v.d; if (rpx < 0.3) continue;
+    C.globalCompositeOperation = 'lighter'; glowPx(v.px, v.py, rpx * 2.6, 0.16 * v.a, v.type ? 'neutron' : 'proton');
+    C.globalCompositeOperation = 'source-over'; C.globalAlpha = Math.min(1, v.a); C.drawImage(v.type ? BALL.neutron : BALL.proton, v.px - rpx, v.py - rpx, 2 * rpx, 2 * rpx);
+  }
+  C.globalAlpha = 1; C.globalCompositeOperation = 'lighter';
+}
+
+/* ---------- typography (main ctx) ---------- */
+const SANS = 'Inter, "Helvetica Neue", Arial, sans-serif', MONO = '"JetBrains Mono", "DejaVu Sans Mono", monospace';
+function textSeg(g, segs, x0, y, size, weight, lsEm, fam, alpha, blur, align) {
+  g.font = `${weight} ${size * S}px ${fam}`; g.letterSpacing = `${(lsEm * size * S).toFixed(2)}px`; g.textBaseline = 'middle'; g.textAlign = 'left';
+  let tot = 0; const ws = segs.map(s => { const w = g.measureText(s.s).width; tot += w; return w; }); const ls = lsEm * size * S;
+  let x = align === 'center' ? x0 - (tot - ls) / 2 : x0;
+  if (blur > 0.05) g.filter = `blur(${(blur * S).toFixed(2)}px)`;
+  segs.forEach((s, i) => { g.fillStyle = rgba(s.c || [255, 255, 255], alpha * (s.a ?? 1)); g.fillText(s.s, x, y); x += ws[i]; });
+  g.filter = 'none'; g.letterSpacing = '0px'; return tot;
+}
+function textShadowOn(g, a) { g.shadowColor = `rgba(0,0,0,${(0.5 * a).toFixed(3)})`; g.shadowBlur = 22 * S; g.shadowOffsetY = 2 * S; }
+function textShadowOff(g) { g.shadowColor = 'rgba(0,0,0,0)'; g.shadowBlur = 0; g.shadowOffsetY = 0; }
+// left-aligned info block for a particle
+function infoBlock(t, b) {
+  const g = ctx; const A = win(t, b.t0, b.t1, 0.9, 0.8); if (A <= 0) return;
+  g.globalCompositeOperation = 'source-over';
+  // readability scrim
+  const sc = g.createLinearGradient(0, 1130 * S, 0, 1640 * S);
+  sc.addColorStop(0, 'rgba(0,0,0,0)'); sc.addColorStop(0.35, `rgba(0,0,0,${(0.3 * A).toFixed(3)})`); sc.addColorStop(0.75, `rgba(0,0,0,${(0.3 * A).toFixed(3)})`); sc.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = sc; g.fillRect(0, 1130 * S, W, 510 * S);
+  const x0 = 116, top = b.y ?? 400; let y = top;
+  const p0 = sm5((t - b.t0) / 1.2);
+  // accent bar
+  const barH = (b.h ?? 300) * p0; const bg = g.createLinearGradient(0, top * S, 0, (top + barH) * S);
+  bg.addColorStop(0, rgba(b.accent, 0.95 * A)); bg.addColorStop(1, rgba(b.accent2 || b.accent, 0.1 * A));
+  g.fillStyle = bg; g.fillRect((x0 - 34) * S, (top - 18) * S, 3 * S, barH * S);
+  textShadowOn(g, A);
+  b.lines.forEach((ln, i) => {
+    const d = ln.at !== undefined ? ln.at - b.t0 : (ln.delay ?? i * 0.22); const a = win(t, b.t0 + d, b.t1, 0.9, 0.8); const p = sm5((t - b.t0 - d) / 1.3);
+    y += (ln.gap ?? 0) + ln.size * 0.5;
+    if (a > 0) textSeg(g, ln.segs || [{ s: ln.s, c: ln.c }], (x0 - 36 * (1 - p)) * S, y * S, ln.size, ln.weight ?? 300, ln.ls ?? 0.12, ln.mono ? MONO : SANS, a * (ln.alpha ?? 1), 6 * (1 - ss(b.t0 + d, b.t0 + d + 0.9, t)), 'left');
+    y += ln.size * 0.5;
+  });
+  textShadowOff(g);
+}
+function centerTitle(t, c) {
+  const g = ctx; const a = win(t, c.t0, c.t1, c.fi ?? 1.2, c.fo ?? 0.9); if (a <= 0) return;
+  const p = sm5((t - c.t0) / 1.6); g.globalCompositeOperation = 'source-over'; textShadowOn(g, a);
+  textSeg(g, c.segs || [{ s: c.s }], W / 2, (c.y + 10 * (1 - p)) * S, c.size, c.weight ?? 300, (c.ls ?? 0.2) + 0.1 * (1 - p), SANS, a * (c.alpha ?? 1), 7 * (1 - ss(c.t0, c.t0 + 1, t)), 'center');
+  textShadowOff(g);
+  if (c.rule) { const rw = c.rule * S * p, ry = (c.y + c.size * 0.9) * S; const gr = g.createLinearGradient(W / 2 - rw, 0, W / 2 + rw, 0);
+    gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, `rgba(255,255,255,${(0.85 * a).toFixed(3)})`); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(W / 2 - rw, ry, 2 * rw, Math.max(1, 1.3 * S)); }
+}
+const BLOCKS = [
+  { t0: 22.5, t1: 35.6, y: 1215, h: 330, accent: [255, 200, 90], accent2: [255, 80, 40], lines: [
+    { s: 'PARTICLE 01 / 03  ·  NUCLEON', size: 15, mono: true, ls: 0.26, alpha: 0.78, at: 22.5 },
+    { s: 'PROTON', size: 112, weight: 300, ls: 0.1, gap: 12, at: 22.85 },                                    // "the proton"
+    { segs: [{ s: 'POSITIVE CHARGE ' }, { s: '(+1)', c: [255, 222, 120] }], size: 34, weight: 400, ls: 0.12, gap: 20, at: 24.3 }, // "positively charged"
+    { s: 'FOUND IN THE NUCLEUS', size: 27, weight: 300, ls: 0.18, gap: 14, alpha: 0.9, at: 26.6 },         // "found at the heart of every atom"
+    { s: 'u + u + d  →  +⅔ +⅔ −⅓ = +1', size: 18, mono: true, ls: 0.06, gap: 30, alpha: 0.82, at: 29.2 } ] },
+  { t0: 37.6, t1: 50.9, y: 1215, h: 330, accent: [120, 255, 230], accent2: [20, 120, 200], lines: [
+    { s: 'PARTICLE 02 / 03  ·  NUCLEON', size: 15, mono: true, ls: 0.26, alpha: 0.78, at: 37.6 },
+    { s: 'NEUTRON', size: 112, weight: 300, ls: 0.1, gap: 12, at: 37.85 },                                   // "...are the neutrons"
+    { segs: [{ s: 'ZERO ELECTRIC CHARGE ' }, { s: '(0)', c: [150, 255, 235] }], size: 34, weight: 400, ls: 0.12, gap: 20, at: 40.4 }, // "no electric charge"
+    { s: 'FOUND IN THE NUCLEUS', size: 27, weight: 300, ls: 0.18, gap: 14, alpha: 0.9, at: 46.4 },         // "form the tiny dense center"
+    { s: 'u + d + d  →  +⅔ −⅓ −⅓ = 0', size: 18, mono: true, ls: 0.06, gap: 30, alpha: 0.82, at: 42.6 } ] },
+  { t0: 55.8, t1: 74.1, y: 1215, h: 330, accent: [255, 120, 230], accent2: [60, 120, 255], lines: [
+    { s: 'PARTICLE 03 / 03  ·  LEPTON', size: 15, mono: true, ls: 0.26, alpha: 0.78, at: 55.8 },
+    { s: 'ELECTRON', size: 112, weight: 300, ls: 0.08, gap: 12, at: 56.05 },                                 // "the electron"
+    { segs: [{ s: 'NEGATIVE CHARGE ' }, { s: '(−1)', c: [255, 150, 235] }], size: 34, weight: 400, ls: 0.12, gap: 20, at: 58.6 }, // "negatively charged"
+    { s: 'FOUND IN THE ELECTRON CLOUD', size: 27, weight: 300, ls: 0.14, gap: 14, alpha: 0.9, at: 70.05 }, // "where they are likely to be found"
+    { s: 'ELEMENTARY · ~1/1836 OF A PROTON’S MASS', size: 18, mono: true, ls: 0.04, gap: 30, alpha: 0.82, at: 57.4 } ] }, // "incredibly light"
+];
+const TITLES = [
+  { s: 'THE SUBATOMIC', t0: 0.7, t1: 9.9, y: 1330, size: 84, weight: 300, ls: 0.14 },
+  { s: 'UNIVERSE', t0: 0.95, t1: 9.9, y: 1435, size: 84, weight: 300, ls: 0.3, rule: 150 },
+  { s: 'THREE PARTICLES. ONE ATOM.', t0: 17.5, t1: 21.3, y: 1440, size: 30, weight: 400, ls: 0.3, alpha: 0.95, fi: 0.8, fo: 0.7, rule: 90 }, // "three extraordinary particles"
+  { s: 'THE BUILDING BLOCKS OF ATOMS', t0: 74.5, t1: 89.9, y: 1475, size: 27, weight: 400, ls: 0.3, alpha: 0.92, fo: 1.0 },              // "the building blocks of matter"
+  { segs: [{ s: 'PROTON', c: [255, 168, 96] }, { s: ' • ', c: [255, 255, 255], a: 0.7 }, { s: 'NEUTRON', c: [110, 250, 228] }, { s: ' • ', c: [255, 255, 255], a: 0.7 }, { s: 'ELECTRON', c: [150, 190, 255] }],
+    t0: 76.7, t1: 89.9, y: 1370, size: 44, weight: 400, ls: 0.1, rule: 170, fo: 1.0 },                                                    // "three particles, three different roles"
+  { s: 'THE SUBATOMIC', t0: 98.2, t1: 101.4, y: 1330, size: 84, weight: 300, ls: 0.14, fi: 0.9, fo: 1.0 },                              // "the subatomic universe"
+  { s: 'UNIVERSE', t0: 98.45, t1: 101.4, y: 1435, size: 84, weight: 300, ls: 0.3, fi: 0.9, fo: 1.0, rule: 150 },
+];
+function hud(t) {
+  const g = ctx; g.globalCompositeOperation = 'source-over';
+  const notes = [
+    { s: 'CARBON-12  ·  6p⁺ 6n⁰ 6e⁻', r: 'NUCLEUS ENLARGED ~10,000× FOR VISIBILITY', t0: 2.6, t1: 18.4 },
+    { s: 'INSIDE THE PROTON', r: 'QUARKS BOUND BY GLUON FIELDS', t0: 22.2, t1: 35.2 },
+    { s: 'INSIDE THE NEUTRON', r: 'STRONG FORCE  ·  CONFINEMENT', t0: 38.2, t1: 50.6 },
+    { s: 'β-DECAY  ·  n → p⁺ + e⁻ + ν̄ₑ', r: 'PROBABILITY CLOUD  ·  NO FIXED ORBIT', t0: 51.4, t1: 73.8 },
+    { s: 'THE ATOM', r: 'ARTISTIC VISUALIZATION  ·  NOT TO SCALE', t0: 75.2, t1: 95.5 },
+  ];
+  for (const n of notes) {
+    const a = win(t, n.t0, n.t1, 0.8, 0.8); if (a <= 0) continue; const p = sm5((t - n.t0) / 1.2);
+    g.fillStyle = `rgba(255,255,255,${(0.75 * a).toFixed(3)})`; g.fillRect(72 * S, 150 * S, 34 * S * p, Math.max(1, S));
+    textShadowOn(g, a * 0.6);
+    textSeg(g, [{ s: n.s }], 120 * S, 150.5 * S, 16, 400, 0.2, MONO, a * 0.85, 0, 'left');
+    textSeg(g, [{ s: n.r }], 120 * S, 182 * S, 14, 400, 0.14, MONO, a * 0.62, 0, 'left');
+    textShadowOff(g);
+  }
+}
+
+/* ---------- main frame ---------- */
+const PHI_C = Math.PI / 2 - 0.5;
+function renderFrame(vIn) {
+  const v = clamp(vIn, 0, DURATION); AT = v; let t = storyT(v);
+  setCamera(t);
+  const wts = sceneWeights(t);
+  const fadeAll = ss(0, 0.9, t) * (1 - ss(38.3, 39.95, t));
+  const fadeBg = (0.15 + 0.85 * ss(0, 1.0, t)) * (1 - ss(38.0, 39.95, t)) * (t < 0.02 ? 0 : 1);
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.filter = 'none';
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  background(AT, wts, fadeBg);
+  project(0, 0, 0); const center = [PX, PY];
+  overlays(AT, wts, fadeBg * 0.9, center);
+
+  /* ===== foreground layer ===== */
+  C = fctx; fctx.globalCompositeOperation = 'source-over'; fctx.globalAlpha = 1; fctx.clearRect(0, 0, W, H);
+  fctx.globalCompositeOperation = 'lighter';
+
+  // floating particles (scene-tinted bokeh)
+  const bkCols = [['cyan', 'pinkw', 'white'], ['gold', 'orange', 'white'], ['teal', 'emerald', 'white'], ['cyan', 'pinkw', 'violet'], ['gold', 'teal', 'pinkw']];
+  const dom = wts.indexOf(Math.max(...wts));
+  for (let i = 0; i < BK.length; i++) {
+    const p = BK[i]; const x = p.x + p.vx * AT * 0.4 + 0.2 * Math.sin(AT * 0.3 + p.ph), y = p.y + p.vy * AT * 0.4 + 0.15 * Math.sin(AT * 0.4 + p.ph * 2), z = p.z + p.vz * AT * 0.4;
+    if (!project(x, y, z)) continue; if (PX < -50 || PX > W + 50 || PY < -50 || PY > H + 50) continue;
+    const coc = Math.min(30, 14 * Math.abs(1 - cam.dist / PD)) + 1.6 + 2.5 * p.b;
+    const a = fadeAll * (0.25 + 0.5 * p.b) * Math.min(1, 10 / (coc * coc)) * 2.2 * (0.6 + 0.4 * Math.sin(AT * 1.3 + p.ph));
+    // colour follows the scene; secondary scene blends by picking per-particle threshold
+    let si = dom; const second = wts.map((w, k) => [w, k]).sort((a2, b2) => b2[0] - a2[0])[1]; if (second[0] > p.b * 0.5 && second[0] > 0.05 && hash(i) < second[0]) si = second[1];
+    glow(PX, PY, coc * 1.5, a, bkCols[si][p.ci]);
+  }
+
+  /* --- scene 1 & 5: nucleus cluster (and the dive into one proton) --- */
+  const kDive = ss(6.1, 8.5, t);
+  const sDive = Math.exp(kDive * Math.log(1 / R0)), eDive = easeInOut(kDive);
+  const nucA1 = ss(0.9, 2.6, t);
+  const items = [];
+  const sel = NUCL[SEL];
+  const k5 = t > 33 ? 1 : 0;
+  for (let j = 0; j < NUCL.length; j++) {
+    const n = NUCL[j];
+    if (t < 9.2) {
+      if (j !== SEL && kDive >= 0.999) continue;
+      let x = (n.x - sel.x * eDive) * sDive, y = (n.y - sel.y * eDive) * sDive, z = (n.z - sel.z * eDive) * sDive;
+      if (j !== SEL) { const push = 1 + 2.2 * ss(0.25, 1, kDive); x *= push; y *= push; z *= push; }
+      const a = nucA1 * (j === SEL ? (1 - ss(8.4, 9.2, t)) : (1 - ss(0.2, 0.7, kDive))) * fadeAll;
+      items.push({ x, y, z, r: R0 * sDive, type: n.type, a });
+    } else if (k5) {
+      // assembly of the nucleus in scene 5
+      const kk = j === SEL ? ss(33.6, 35.2, t) : easeInOut(clamp((t - 33.4 - n.del * 1.3) / 2.2));
+      let x, y, z;
+      if (j === SEL) { x = n.x * kk; y = n.y * kk; z = n.z * kk; }
+      else { x = lerp(n.fx, n.x, kk) + n.bow * Math.sin(Math.PI * kk) * 1.2; y = lerp(n.fy, n.y, kk) + Math.sin(Math.PI * kk) * 0.4 * n.bow; z = lerp(n.fz, n.z, kk) - n.bow * Math.sin(Math.PI * kk); }
+      const a = (j === SEL ? 1 : ss(0, 0.25, kk)) * fadeAll * (1 - ss(38.4, 39.6, t));
+      items.push({ x, y, z, r: R0, type: n.type, a });
+    }
+  }
+  // remnant proton after β-decay (scenes 4 → 5)
+  if (t >= 9.2 && t < 33.6 + 1.6 && !k5) {}
+  if (t > 25.0 && t < 33.0) items.push({ x: 0, y: 0, z: 0, r: R0, type: 0, a: ss(25.0, 25.8, t) * fadeAll });
+  nucleus(t, items);
+  // rest of scene 5: nucleons streaking glow trails while flying in
+  if (k5) for (let j = 0; j < NUCL.length; j++) { if (j === SEL) continue; const n = NUCL[j]; const kk = clamp((t - 33.4 - n.del * 1.3) / 2.2);
+    if (kk > 0.05 && kk < 0.95 && project(lerp(n.fx, n.x, easeInOut(kk)), lerp(n.fy, n.y, easeInOut(kk)), lerp(n.fz, n.z, easeInOut(kk)))) glowPx(PX, PY, 60 * S * 5 / PD, 0.3 * Math.sin(Math.PI * kk), n.type ? 'neutron' : 'proton'); }
+
+  /* --- scenes 2–3: the proton / neutron cutaways --- */
+  const shrink = Math.exp(ss(24.5, 25.7, t) * Math.log(R0));
+  const phic = PHI_C + cam.yaw * 0.65;
+  const pA = ss(8.1, 9.1, t) * (1 - ss(15.0, 15.8, t)) * fadeAll, pOpen = ss(8.9, 10.6, t) * (1 - ss(14.7, 15.5, t));
+  const nA = ss(18.0, 19.0, t) * (1 - ss(24.9, 25.5, t)) * fadeAll, nOpen = ss(18.6, 20.2, t) * (1 - ss(24.0, 24.8, t));
+  if (pA > 0.003) shell(t, PROTON_C, pA, pOpen, 1, phic);
+  if (nA > 0.003) shell(t, NEUTRON_C, nA, nOpen, shrink, phic);
+  // proton→neutron particle swarm
+  const swA = win(t, 14.9, 19.2, 0.7, 0.9) * fadeAll;
+  if (swA > 0.003) {
+    const k1 = ss(14.9, 16.7, t), k2 = ss(16.6, 18.7, t), colk = ss(15.6, 17.4, t);
+    for (let i = 0; i < N_SWARM; i++) {
+      const u = SW.u[i], a1 = easeInOut(k1 * 1.3 - u * 0.3), a2 = easeInOut(k2 * 1.3 - u * 0.3);
+      const sw = (a1 - a2) * 1.6 + t * 0.4 * (a1 - a2);
+      let x = lerp(lerp(SW.ux[i], SW.cx[i], a1), SW.ux[i], a2), y = lerp(lerp(SW.uy[i], SW.cy[i], a1), SW.uy[i], a2), z = lerp(lerp(SW.uz[i], SW.cz[i], a1), SW.uz[i], a2);
+      const cs = Math.cos(sw), sn = Math.sin(sw); const xr = x * cs - z * sn, zr = x * sn + z * cs;
+      if (!project(xr, y, zr)) continue;
+      const tw = 0.6 + 0.4 * Math.sin(AT * 5 + SW.ph[i]);
+      glow(PX, PY, 3.2 * (4.7 / PD), swA * 0.5 * tw, (u < colk) ? 'teal' : 'orange');
+    }
+  }
+  // quarks persist through the proton → neutron change
+  const qA = ss(9.0, 10.3, t) * (1 - 0.55 * win(t, 15.0, 18.6, 0.8, 1.2)) * (1 - ss(24.7, 25.3, t)) * fadeAll;
+  if (qA > 0.003) quarks(AT, qA, t > 24 ? shrink : 1, ss(16.6, 17.8, t), win(t, 10.4, 24.4, 0.8, 0.6));
+
+  /* --- β-decay flash and emitted electron (scene 4) --- */
+  const fl = t > 24.95 ? Math.exp(-(t - 24.95) / 0.35) * ss(24.9, 25.0, t) : 0;
+  if (fl > 0.01 && project(0, 0, 0)) { glowPx(PX, PY, 260 * S, 0.55 * fl, 'white'); streak(PX, PY, 760, 3, 0.5 * fl, 'cyan');
+    C.globalAlpha = 1; C.strokeStyle = rgba(COL.white, 0.35 * fl); C.lineWidth = 1.6 * S; C.beginPath(); C.arc(PX, PY, (40 + 700 * (1 - Math.exp(-(t - 24.95) * 2.4))) * S, 0, Math.PI * 2); C.stroke(); }
+  // antineutrino: faint fast streak leaving the other way
+  if (t > 25.0 && t < 26.2 && project(-(t - 25.0) * 6, -(t - 25.0) * 0.8, -(t - 25.0) * 1.5)) streak(PX, PY, 50, 1.2, 0.5 * (1 - ss(25.6, 26.2, t)), 'white');
+  const eK = easeOut3((t - 25.0) / 1.7);
+  const ex = E_POS[0] * eK, ey = E_POS[1] * eK, ez = E_POS[2] * eK;
+  const eCore = ss(25.0, 25.2, t) * (1 - ss(28.4, 29.4, t)) * fadeAll;
+  if (eCore > 0.003) {
+    // de Broglie wave trailing the electron
+    const L = Math.hypot(ex, ey, ez); const dl = [E_POS[0] / Math.hypot(...E_POS), E_POS[1] / Math.hypot(...E_POS), E_POS[2] / Math.hypot(...E_POS)];
+    const n1 = [0, 1, 0], n2 = [dl[1] * n1[2] - dl[2] * n1[1], dl[2] * n1[0] - dl[0] * n1[2], dl[0] * n1[1] - dl[1] * n1[0]];
+    if (L > 0.05) { const pts = [], al = [];
+      for (let k = 0; k <= 200; k++) { const d = L * k / 200, A = 0.12 * (1 - Math.exp(-d / 0.1)) * Math.exp(-d / 1.3), ph = 11 * d - 8 * AT;
+        pts.push(ex - dl[0] * d + n1[0] * A * Math.sin(ph) + n2[0] * 0.5 * A * Math.cos(ph), ey - dl[1] * d + n1[1] * A * Math.sin(ph) + n2[1] * 0.5 * A * Math.cos(ph), ez - dl[2] * d + n2[2] * 0.5 * A * Math.cos(ph)); al.push(Math.pow(1 - k / 200, 0.7)); }
+      line3D(pts, al, [140, 180, 255], eCore * 0.9, 1, PASSES, [255, 200, 255]); }
+    if (project(ex, ey, ez)) {
+      const X = PX, Y = PY, pu = 1 + 0.08 * Math.sin(AT * 4);
+      // expanding wave rings around the electron
+      C.globalAlpha = 1; C.lineWidth = 1.5 * S;
+      for (let k = 0; k < 6; k++) { const f = frac(AT * 0.7 + k / 6); const r = (20 + 330 * f) * S; C.strokeStyle = rgba(k % 2 ? COL.pink : COL.cyan, 0.4 * (1 - f) * eCore * ss(25.4, 26.2, t)); C.beginPath(); C.arc(X, Y, r, 0, Math.PI * 2); C.stroke(); }
+      glowPx(X, Y, 150 * S, 0.3 * eCore, 'pinkw'); glowPx(X, Y, 50 * S * pu, 0.6 * eCore, 'cyan'); glowPx(X, Y, 13 * S * pu, 1.0 * eCore, 'white'); glowPx(X, Y, 6 * S, 1.0 * eCore, 'white');
+      streak(X, Y, 240, 2.2, 0.35 * eCore, 'cyan');
+      C.globalCompositeOperation = 'source-over'; C.font = `400 ${22 * S}px ${MONO}`; C.textAlign = 'left'; C.textBaseline = 'middle';
+      C.fillStyle = rgba(COL.white, 0.85 * eCore * ss(25.6, 26.4, t)); C.fillText('e⁻', X + 26 * S, Y - 30 * S); C.globalCompositeOperation = 'lighter';
+    }
+  }
+  // remnant label
+  const pl = win(t, 26.0, 28.6, 0.6, 0.6) * fadeAll;
+  if (pl > 0.01 && project(0, 0, 0)) { C.globalCompositeOperation = 'source-over'; C.font = `400 ${20 * S}px ${MONO}`; C.fillStyle = rgba(COL.white, 0.75 * pl); C.textAlign = 'left'; C.fillText('p⁺', PX + 22 * S, PY - 24 * S); C.globalCompositeOperation = 'lighter'; }
+
+  /* --- electron probability clouds --- */
+  const aC1 = (t < 8.8) ? 1 : 0, kForm = ss(1.0, 4.4, t), kExp = ss(6.0, 8.2, t);
+  const kH = ss(28.4, 30.6, t), kHC = ss(33.6, 36.4, t), cloudOn = t < 8.8 || t > 28.3;
+  if (cloudOn) {
+    const pulse = 1 + 0.03 * Math.sin(AT * 1.9);
+    const endFade = 1 - ss(38.0, 39.8, t);
+    for (let i = 0; i < N_CLOUD; i++) {
+      const u = PM.u[i], u2 = PM.u2[i], ph = PM.ph[i], fr = PM.fr[i];
+      let x, y, z, a, key;
+      const shim = 0.008 * Math.sin(AT * fr * 1.6 + ph);
+      if (t < 8.8) {
+        const ki = easeInOut(kForm * 1.5 - u * 0.5); if (ki <= 0) continue;
+        const sw = (1 - ki) * 2.5;
+        const ox = CLOUD_C.X[i] * pulse, oy = CLOUD_C.Y[i] * pulse, oz = CLOUD_C.Z[i] * pulse;
+        let lx = lerp(PM.sx[i], ox, ki), lz = lerp(PM.sz[i], oz, ki); y = lerp(PM.sy[i], oy, ki);
+        const cs = Math.cos(sw), sn = Math.sin(sw); x = lx * cs - lz * sn; z = lx * sn + lz * cs;
+        const ex2 = 1 + 4.5 * easeInOut(kExp * 1.2 - u * 0.2); x *= ex2; y *= ex2; z *= ex2;
+        a = 0.36 * ss(0, 0.4, ki) * (1 - ss(0.1, 0.8, kExp)) * (0.5 + 0.7 * Math.sqrt(CLOUD_C.D[i]));
+        key = CLOUD_C.SG[i] > 0 ? (u2 < 0.5 ? 'cyan' : 'ice') : (u2 < 0.5 ? 'pinkw' : 'violet');
+      } else {
+        // electron (point) → hydrogen cloud → carbon cloud
+        const kk = easeInOut(kH * 1.45 - u * 0.45); const k2 = easeInOut(kHC * 1.4 - u * 0.4);
+        const hx = CLOUD_H.X[i] * pulse, hy = CLOUD_H.Y[i] * pulse, hz = CLOUD_H.Z[i] * pulse;
+        const sx0 = ex + PM.gx[i] * 0.03, sy0 = ey + PM.gy[i] * 0.03, sz0 = ez + PM.gz[i] * 0.03;
+        const sw = Math.sin(Math.PI * kk) * (1.8 + u2);
+        let lx = lerp(sx0, hx, kk), lz = lerp(sz0, hz, kk); y = lerp(sy0, hy, kk);
+        const cs = Math.cos(sw), sn = Math.sin(sw); x = lx * cs - lz * sn; z = lx * sn + lz * cs;
+        if (k2 > 0) { const cx2 = CLOUD_C.X[i] * pulse, cy2 = CLOUD_C.Y[i] * pulse, cz2 = CLOUD_C.Z[i] * pulse; const s2 = Math.sin(Math.PI * k2) * 1.2;
+          let mx = lerp(x, cx2, k2), mz = lerp(z, cz2, k2); y = lerp(y, cy2, k2); const c2 = Math.cos(s2), n2 = Math.sin(s2); x = mx * c2 - mz * n2; z = mx * n2 + mz * c2; }
+        const dH = lerp(CLOUD_H.D[i], CLOUD_C.D[i], k2);
+        a = lerp(0.06, 0.36 * (0.5 + 0.7 * Math.sqrt(dH)), ss(0, 0.5, kk)) * endFade;
+        const sg = k2 > 0.5 ? CLOUD_C.SG[i] : CLOUD_H.SG[i];
+        key = sg > 0 ? (u2 < 0.45 ? 'cyan' : 'ice') : (u2 < 0.5 ? 'pinkw' : 'violet');
+      }
+      x += PM.gx[i] * shim; y += PM.gy[i] * shim; z += PM.gz[i] * shim;
+      a *= fadeAll * (0.62 + 0.38 * Math.sin(AT * fr * 1.3 + ph));
+      if (a < 0.004) continue;
+      if (!project(x, y, z)) continue; if (PX < -30 || PX > W + 30 || PY < -30 || PY > H + 30) continue;
+      const r = 3.0 * Math.pow(5.5 / PD, 0.8) + 1.8 * Math.abs(1 - cam.dist / PD);
+      glow(PX, PY, r, a * Math.min(1.3, 9 / (r * r) + 0.2), key);
+    }
+  }
+  C.globalAlpha = 1;
+
+  /* --- bloom on foreground, composite --- */
+  bloom();
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.drawImage(fg, 0, 0);
+  ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.6; ctx.drawImage(bA, 0, 0, W, H); ctx.globalAlpha = 0.5; ctx.drawImage(bB, 0, 0, W, H); ctx.globalAlpha = 1;
+
+  /* --- vignette --- */
+  ctx.globalCompositeOperation = 'source-over';
+  const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.4, W / 2, H / 2, Math.hypot(W, H) * 0.55);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.5)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+
+  /* --- typography --- */
+  for (const b of BLOCKS) infoBlock(v, b);
+  for (const c of TITLES) centerTitle(v, c);
+  hud(v);
+
+  /* --- dither grain + end fade --- */
+  const fi = Math.floor(v * 30); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.016;
+  const ns = 256 * S * 0.75, R = rng(fi * 7 + 3); const ox = -R() * ns, oy = -R() * ns;
+  for (let yy = oy; yy < H; yy += ns) for (let xx = ox; xx < W; xx += ns) ctx.drawImage(NOISE, xx, yy, ns, ns);
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  const endB = ss(39.5, 40, t); if (endB > 0) { ctx.fillStyle = `rgba(0,0,0,${endB})`; ctx.fillRect(0, 0, W, H); }
+}
+
+const bA = document.createElement('canvas'), bB = document.createElement('canvas'); const bAc = bA.getContext('2d'), bBc = bB.getContext('2d');
+function bloom() {
+  bAc.globalCompositeOperation = 'copy'; bAc.filter = 'blur(5px)'; bAc.drawImage(fg, 0, 0, bA.width, bA.height); bAc.filter = 'none';
+  bBc.globalCompositeOperation = 'copy'; bBc.filter = 'blur(5px)'; bBc.drawImage(bA, 0, 0, bB.width, bB.height); bBc.filter = 'none';
+}
+
+/* ---------- sizing / boot ---------- */
+function resize(w, h) {
+  W = canvas.width = fg.width = Math.round(w); H = canvas.height = fg.height = Math.round(h); S = W / LW;
+  FOCAL = (Math.min(W, H) * 0.5) / Math.tan((38 * Math.PI / 180) / 2);
+  bA.width = Math.max(2, Math.round(W / 4)); bA.height = Math.max(2, Math.round(H / 4));
+  bB.width = Math.max(2, Math.round(W / 16)); bB.height = Math.max(2, Math.round(H / 16));
+  bgM.width = 540; bgM.height = 960;
+  const sp = Math.max(32, Math.min(128, Math.round(64 * S)));
+  const keys = { white: [235, 245, 255], cyan: COL.cyan, ice: COL.ice, pinkw: [255, 110, 220], violet: COL.violet, gold: COL.gold, orange: COL.orange, teal: COL.teal, emerald: COL.emerald,
+    proton: PROTON_C, neutron: NEUTRON_C, up: UP_C, down: DOWN_C };
+  GLOW = {}; for (const k in keys) GLOW[k] = makeGlow(keys[k], sp);
+  const bs = Math.max(64, Math.min(512, Math.round(256 * S)));
+  BALL = { proton: makeBall(PROTON_C, bs), neutron: makeBall(NEUTRON_C, bs), up: makeBall(UP_C, bs), down: makeBall(DOWN_C, bs) };
+}
+function pickSelected() { // the proton nearest the camera at the start of the dive
+  AT = 18.0; setCamera(6.1); let best = -1e9; NUCL.forEach((n, j) => { if (n.type !== 0) return; const z = viewZ(n.x, n.y, n.z); if (z > best) { best = z; SEL = j; } });
+}
+function fitWindow() { const dpr = Math.min(2, window.devicePixelRatio || 1); let vw = innerWidth, vh = innerHeight, w = vw, h = vw * 16 / 9; if (h > vh) { h = vh; w = vh * 9 / 16; }
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px'; resize(w * dpr, h * dpr); }
+async function boot() {
+  try { await Promise.race([Promise.all(['300 40px Inter', '400 40px Inter', '400 20px "JetBrains Mono"'].map(f => document.fonts.load(f))), new Promise(r => setTimeout(r, 2500))]); } catch (e) {}
+  init(); NOISE = makeNoise(); pickSelected();
+  if (RENDER) {
+    document.body.classList.add('render'); const w = +params.get('w') || 2160, h = +params.get('h') || Math.round(w * 16 / 9);
+    canvas.style.width = '100%'; canvas.style.height = 'auto'; resize(w, h);
+    window.__renderFrame = (t, type = 'image/png', q) => { renderFrame(t); return canvas.toDataURL(type, q); };
+    window.__ready = true; return;
+  }
+  fitWindow(); addEventListener('resize', fitWindow);
+  const play = document.getElementById('play'), scrub = document.getElementById('scrub'), time = document.getElementById('time'), ui = document.getElementById('ui');
+  let playing = true, t = +params.get('t') || 0, last = performance.now(), dragging = false;
+  play.onclick = () => { playing = !playing; if (playing && t >= DURATION) t = 0; play.textContent = playing ? '❚❚' : '▶'; };
+  scrub.oninput = () => { t = +scrub.value; dragging = true; }; scrub.onchange = () => { dragging = false; };
+  addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); play.onclick(); } if (e.code === 'ArrowRight') t = Math.min(DURATION, t + 1); if (e.code === 'ArrowLeft') t = Math.max(0, t - 1); });
+  let idle; const wake = () => { ui.classList.remove('hidden'); clearTimeout(idle); idle = setTimeout(() => playing && ui.classList.add('hidden'), 2200); };
+  addEventListener('mousemove', wake); addEventListener('touchstart', wake); wake();
+  const tick = now => { const dt = Math.min(0.1, (now - last) / 1000); last = now; if (playing && !dragging) { t += dt; if (t >= DURATION) t = 0; }
+    renderFrame(t); scrub.value = t; time.textContent = `${t.toFixed(1).padStart(5, '0')} / 101.7`; requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
+}
+boot();
+})();
+</script>
+</body>
+</html>
