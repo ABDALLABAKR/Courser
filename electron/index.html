@@ -1,0 +1,676 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Electron — A Quantum Mystery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; color: #cfe9ff;
+    font-family: Inter, system-ui, sans-serif; }
+  #stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #000; }
+  canvas { display: block; background: #000; }
+  #ui { position: fixed; left: 0; right: 0; bottom: 0; padding: 18px 24px 22px;
+    display: flex; gap: 16px; align-items: center;
+    background: linear-gradient(to top, rgba(0,0,0,.85), rgba(0,0,0,0));
+    transition: opacity .5s ease; font: 300 12px/1 "JetBrains Mono", monospace; letter-spacing: .12em; }
+  #ui.hidden { opacity: 0; pointer-events: none; }
+  #ui button { background: none; border: 1px solid rgba(120,220,255,.35); color: #bfefff; width: 38px; height: 38px;
+    border-radius: 50%; cursor: pointer; font-size: 13px; flex: none; }
+  #ui button:hover { border-color: rgba(120,220,255,.8); }
+  #scrub { flex: 1; accent-color: #4fd8ff; min-width: 0; }
+  #time { min-width: 110px; text-align: right; opacity: .75; }
+  body.render #ui { display: none; }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="c"></canvas></div>
+<div id="ui">
+  <button id="play" aria-label="Play / pause">❚❚</button>
+  <input id="scrub" type="range" min="0" max="30" step="0.01" value="0" aria-label="Timeline">
+  <span id="time">00.00 / 30.00</span>
+  <button id="loop" aria-label="Toggle loop" title="Loop">↻</button>
+</div>
+<script>
+(() => {
+'use strict';
+/* =====================================================================
+   THE ELECTRON — A QUANTUM MYSTERY
+   A deterministic 30 s motion-graphics film. Every frame is a pure
+   function of time t, so it can be played live or rendered frame-exact.
+   Logical canvas is 1920×1080; everything scales to the output size.
+   ===================================================================== */
+const params = new URLSearchParams(location.search);
+const RENDER = params.has('render');
+const DURATION = 30;
+const LW = 1920, LH = 1080;
+const N_MAIN = +params.get('n') || (RENDER ? 34000 : 22000);
+const N_STARS = RENDER ? 2600 : 1800;
+const N_DUST = 420;
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W = 0, H = 0, S = 1, FOCAL = 1;
+
+/* ---------- math helpers ---------- */
+const clamp = (x, a = 0, b = 1) => x < a ? a : x > b ? b : x;
+const lerp = (a, b, k) => a + (b - a) * k;
+const ss = (a, b, x) => { const k = clamp((x - a) / (b - a)); return k * k * (3 - 2 * k); };
+const sm5 = k => { k = clamp(k); return k * k * k * (k * (k * 6 - 15) + 10); };
+const easeInOut = k => { k = clamp(k); return k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; };
+const easeIn3 = k => { k = clamp(k); return k * k * k; };
+const win = (t, a, b, fi, fo) => ss(a, a + fi, t) * (1 - ss(b - fo, b, t));
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function gauss(R) { let u = 0, v = 0; while (u === 0) u = R(); v = R(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+// keyframe channel: [[t,v],...] eased between consecutive keys
+function chan(keys, t, ease = easeInOut) {
+  if (t <= keys[0][0]) return keys[0][1];
+  for (let i = 0; i < keys.length - 1; i++) {
+    const [t0, v0] = keys[i], [t1, v1] = keys[i + 1];
+    if (t <= t1) return lerp(v0, v1, ease((t - t0) / (t1 - t0)));
+  }
+  return keys[keys.length - 1][1];
+}
+
+/* ---------- hydrogen-like wavefunctions (atomic units) ---------- */
+function laguerre(k, a, x) { if (k === 0) return 1; let L0 = 1, L1 = 1 + a - x;
+  for (let j = 1; j < k; j++) { const L2 = ((2 * j + 1 + a - x) * L1 - (j + a) * L0) / (j + 1); L0 = L1; L1 = L2; } return L1; }
+function legendre(l, m, x) { let pmm = 1;
+  if (m > 0) { const s = Math.sqrt(Math.max(0, (1 - x) * (1 + x))); let f = 1; for (let i = 1; i <= m; i++) { pmm *= f * s; f += 2; } }
+  if (l === m) return pmm; let p1 = x * (2 * m + 1) * pmm; if (l === m + 1) return p1; let pl = 0;
+  for (let ll = m + 2; ll <= l; ll++) { pl = ((2 * ll - 1) * x * p1 - (ll + m - 1) * pmm) / (ll - m); pmm = p1; p1 = pl; } return pl; }
+function psi(n, l, m, x, y, z) {
+  const r = Math.hypot(x, y, z), rho = 2 * r / n;
+  const R = Math.pow(rho, l) * Math.exp(-rho / 2) * laguerre(n - l - 1, 2 * l + 1, rho);
+  const ct = r > 0 ? z / r : 1, am = Math.abs(m);
+  let Y = legendre(l, am, ct);
+  if (m > 0) Y *= Math.cos(am * Math.atan2(y, x)); else if (m < 0) Y *= Math.sin(am * Math.atan2(y, x));
+  return R * Y;
+}
+// Sample |Σ c ψ|² by rejection; returns arrays in world space (orbital z-axis → world y, vertical)
+function sampleCloud(terms, count, seed, rmax) {
+  const R = rng(seed);
+  const f = (x, y, z) => { let s = 0; for (const q of terms) s += q.c * psi(q.n, q.l, q.m, x, y, z); return s; };
+  let maxD = 0;
+  for (let i = 0; i < 250000; i++) { const v = f((R() * 2 - 1) * rmax, (R() * 2 - 1) * rmax, (R() * 2 - 1) * rmax); if (v * v > maxD) maxD = v * v; }
+  maxD *= 0.9;
+  const X = new Float32Array(count), Y = new Float32Array(count), Z = new Float32Array(count);
+  const SG = new Int8Array(count), D = new Float32Array(count), RAD = new Float32Array(count);
+  let k = 0, guard = 0;
+  while (k < count && guard++ < 6e7) {
+    const x = (R() * 2 - 1) * rmax, y = (R() * 2 - 1) * rmax, z = (R() * 2 - 1) * rmax;
+    if (x * x + y * y + z * z > rmax * rmax) continue;
+    const v = f(x, y, z), d = v * v;
+    if (R() * maxD < d) { X[k] = x; Y[k] = z; Z[k] = y; SG[k] = v >= 0 ? 1 : -1; D[k] = Math.min(1, d / maxD); RAD[k] = Math.hypot(x, y, z); k++; }
+  }
+  // normalise so the 93rd-percentile radius is 1
+  const sorted = Array.from(RAD).sort((a, b) => a - b); const sc = 1 / sorted[Math.floor(count * 0.93)];
+  for (let i = 0; i < count; i++) { X[i] *= sc; Y[i] *= sc; Z[i] *= sc; }
+  return { X, Y, Z, SG, D };
+}
+
+/* ---------- scene constants ---------- */
+const NUC = [3.0, 0, 0];            // nucleus position (world)
+let P = [3.0, 0.55, 0];             // detection point (set from orbital sample)
+const K_TRAIL = 10.5, K_PACK = 9.5, OMEGA = 7.5;
+
+/* ---------- precomputed data ---------- */
+let M, ST, DU, ORB_A, ORB_B;
+function init() {
+  const R = rng(1977);
+  ORB_A = sampleCloud([{ n: 3, l: 2, m: 0, c: 1 }], N_MAIN, 11, 26);              // 3d_z²
+  ORB_B = sampleCloud([{ n: 4, l: 3, m: 0, c: 1 }, { n: 4, l: 1, m: 0, c: 0.55 }], N_MAIN, 23, 40); // hybrid 4f/4p superposition
+  // choose a detection point: a dense sample in the upper lobe of 3d_z²
+  for (let i = 0; i < N_MAIN; i++) if (ORB_A.SG[i] > 0 && ORB_A.Y[i] > 0.42 && ORB_A.D[i] > 0.55 && Math.abs(ORB_A.X[i]) < 0.2) {
+    P = [NUC[0] + ORB_A.X[i] * 1.05, NUC[1] + ORB_A.Y[i] * 1.05, NUC[2] + ORB_A.Z[i] * 1.05]; break; }
+  M = { gx: new Float32Array(N_MAIN), gy: new Float32Array(N_MAIN), gz: new Float32Array(N_MAIN),
+        u: new Float32Array(N_MAIN), u2: new Float32Array(N_MAIN), u3: new Float32Array(N_MAIN),
+        ph: new Float32Array(N_MAIN), fr: new Float32Array(N_MAIN), jx: new Float32Array(N_MAIN), jy: new Float32Array(N_MAIN), jz: new Float32Array(N_MAIN) };
+  for (let i = 0; i < N_MAIN; i++) {
+    M.gx[i] = gauss(R); M.gy[i] = gauss(R); M.gz[i] = gauss(R);
+    M.u[i] = R(); M.u2[i] = R(); M.u3[i] = R(); M.ph[i] = R() * Math.PI * 2; M.fr[i] = 0.6 + R() * 2.2;
+    M.jx[i] = gauss(R); M.jy[i] = gauss(R); M.jz[i] = gauss(R);
+  }
+  // distant field of faint particles
+  ST = [];
+  for (let i = 0; i < N_STARS; i++) {
+    const th = R() * Math.PI * 2, cz = R() * 2 - 1, sr = Math.sqrt(1 - cz * cz), rad = 9 + Math.pow(R(), 0.7) * 26;
+    ST.push({ x: NUC[0] * 0.5 + rad * sr * Math.cos(th), y: rad * cz * 0.8, z: rad * sr * Math.sin(th),
+      b: Math.pow(R(), 2.6), tw: R() * 6.28, tf: 0.5 + R() * 2, appear: 0.7 + R() * 3.0, col: R() < 0.16 ? 2 : (R() < 0.5 ? 1 : 0), out: R() });
+  }
+  // nearby drifting dust (out of focus bokeh)
+  DU = [];
+  for (let i = 0; i < N_DUST; i++) {
+    DU.push({ x: -4 + R() * 12, y: (R() * 2 - 1) * 4, z: (R() * 2 - 1) * 6, b: R(), ph: R() * 6.28, vx: (R() - .5) * .05, vy: (R() - .5) * .04,
+      appear: 1.5 + R() * 3, col: R() < 0.25 ? 2 : 1 });
+  }
+}
+
+/* ---------- sprites ---------- */
+const COLORS = [ [95, 235, 255], [60, 125, 255], [150, 95, 255], [215, 250, 255], [255, 238, 215] ];
+let SPR = [], SPR_HARD = [], NOISE = null;
+function makeSprite(rgb, size, hard) {
+  const c = document.createElement('canvas'); c.width = c.height = size; const g = c.getContext('2d');
+  const gr = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  for (let k = 0; k <= 16; k++) {
+    const x = k / 16; const a = hard ? Math.exp(-x * x * 9) : Math.exp(-x * x * 5.2) * (1 - x * x * 0.05);
+    const wm = Math.exp(-x * x * (hard ? 40 : 22)); // whiter core
+    const r = Math.round(lerp(rgb[0], 255, wm)), gg = Math.round(lerp(rgb[1], 255, wm)), b = Math.round(lerp(rgb[2], 255, wm));
+    gr.addColorStop(x, `rgba(${r},${gg},${b},${(a * (x >= 1 ? 0 : 1)).toFixed(4)})`);
+  }
+  g.fillStyle = gr; g.fillRect(0, 0, size, size); return c;
+}
+function makeNoise() {
+  const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
+  const id = g.createImageData(256, 256); const R = rng(4242);
+  for (let i = 0; i < id.data.length; i += 4) { const v = R() * 255; id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 255; }
+  g.putImageData(id, 0, 0); return c;
+}
+
+/* ---------- camera ---------- */
+const cam = { tx: 0, ty: 0, tz: 0, dist: 9, yaw: 0, pitch: 0, cy: 1, sy: 0, cp: 1, sp: 0 };
+const K_DIST = [[0, 9.5], [5.4, 4.4], [10.4, 4.4], [12.6, 3.7], [23.4, 3.7], [29.9, 8.8]];
+const K_TX = [[0, 0], [4.0, 0], [6.2, 1.75], [9.3, 1.75], [11.7, NUC[0]]];
+const K_PITCH = [[0, 0.0], [4.0, 0.0], [6.5, 0.14], [10.4, 0.14], [12.6, 0.36], [17.6, 0.36], [19.2, 0.1], [23.2, 0.1], [26.5, 0.3]];
+const K_YAWB = [[0, 0], [3.5, 0], [6.5, 0.3]];
+function yawRate(t) { return 0.04 + 0.30 * ss(10.4, 12.6, t) * (1 - ss(16.8, 18.6, t)) + 0.04 * ss(18.6, 20, t) + 0.12 * ss(22.8, 25.5, t); }
+const yawCache = [];
+function yawIntegral(t) { // ∫ rate dt, cached on a fine grid
+  const dt = 1 / 240; const n = Math.floor(t / dt);
+  if (!yawCache.length) { let acc = 0; yawCache.push(0); for (let i = 1; i <= DURATION / dt + 2; i++) { acc += yawRate((i - 0.5) * dt) * dt; yawCache.push(acc); } }
+  const a = yawCache[Math.min(n, yawCache.length - 1)], b = yawCache[Math.min(n + 1, yawCache.length - 1)];
+  return lerp(a, b, (t - n * dt) / dt);
+}
+function setCamera(t) {
+  const off = ss(17.6, 19.3, t) * (1 - ss(23.0, 25.6, t));
+  cam.tx = chan(K_TX, t) + (P[0] - NUC[0]) * off + 0.012 * Math.sin(t * 0.7);
+  cam.ty = (P[1] - NUC[1]) * off + 0.01 * Math.sin(t * 0.53 + 1);
+  cam.tz = (P[2] - NUC[2]) * off;
+  cam.dist = chan(K_DIST, t);
+  cam.yaw = chan(K_YAWB, t) + yawIntegral(t);
+  cam.pitch = chan(K_PITCH, t) + 0.01 * Math.sin(t * 0.41);
+  cam.cy = Math.cos(cam.yaw); cam.sy = Math.sin(cam.yaw); cam.cp = Math.cos(cam.pitch); cam.sp = Math.sin(cam.pitch);
+}
+// project → sets PX, PY (device px), PD (depth). returns false if behind camera
+let PX = 0, PY = 0, PD = 0;
+function project(x, y, z) {
+  const dx = x - cam.tx, dy = y - cam.ty, dz = z - cam.tz;
+  const x1 = dx * cam.cy - dz * cam.sy, z1 = dx * cam.sy + dz * cam.cy;
+  const y2 = dy * cam.cp - z1 * cam.sp, z2 = dy * cam.sp + z1 * cam.cp;
+  const d = cam.dist - z2; if (d < 0.15) return false;
+  PD = d; PX = W * 0.5 + FOCAL * x1 / d; PY = H * 0.5 - FOCAL * y2 / d; return true;
+}
+
+/* ---------- electron kinematics (scenes 1–2) ---------- */
+const xE = t => 3.0 * sm5((t - 4.3) / 6.6);
+const waveW = t => ss(6.5, 7.9, t) * (1 - ss(8.9, 9.7, t));       // 0 particle ↔ 1 wave
+const sigmaPack = w => 0.035 + 0.78 * w;
+const trailAmpGrow = t => ss(4.5, 5.8, t);
+const trailLen = t => Math.min(xE(t), 2.7);
+function ampTrail(d, t) { return 0.13 * (1 - Math.exp(-d / 0.14)) * Math.exp(-d / 1.25) * trailAmpGrow(t); }
+function ampPack(x, xe, sg) { const q = (x - xe) / sg; return 0.19 * Math.exp(-0.5 * q * q); }
+
+/* ---------- glowing 3D polyline ---------- */
+const PASSES = [[13, 0.035, 1], [5.5, 0.11, 1], [2.2, 0.38, 0], [0.9, 0.85, 3]];
+function drawLine3D(pts, alphas, colorIdx, widthScale = 1, alphaScale = 1, passes = PASSES) {
+  const n = pts.length / 3; const sx = new Float32Array(n), sy = new Float32Array(n), ok = new Uint8Array(n);
+  for (let i = 0; i < n; i++) { if (project(pts[i * 3], pts[i * 3 + 1], pts[i * 3 + 2])) { sx[i] = PX; sy[i] = PY; ok[i] = 1; } }
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.globalAlpha = 1;
+  const CH = 6;
+  for (const [w, a, ci] of passes) {
+    const col = COLORS[ci === 1 ? colorIdx : ci === 0 ? (colorIdx === 1 ? 0 : colorIdx) : 3];
+    ctx.lineWidth = Math.max(0.6, w * S * widthScale);
+    for (let s = 0; s < n - 1; s += CH) {
+      const e = Math.min(n - 1, s + CH); let am = 0; for (let k = s; k <= e; k++) am += alphas[k]; am /= (e - s + 1);
+      const A = am * a * alphaScale; if (A < 0.002) continue;
+      ctx.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},${A.toFixed(4)})`;
+      ctx.beginPath(); let pen = false;
+      for (let k = s; k <= e; k++) { if (!ok[k]) { pen = false; continue; } if (!pen) { ctx.moveTo(sx[k], sy[k]); pen = true; } else ctx.lineTo(sx[k], sy[k]); }
+      ctx.stroke();
+    }
+  }
+}
+
+/* ---------- glow blob ---------- */
+function blob(x, y, rLogical, alpha, colorIdx, hard) {
+  if (alpha <= 0.002) return; const r = rLogical * S; ctx.globalAlpha = Math.min(1, alpha);
+  ctx.drawImage((hard ? SPR_HARD : SPR)[colorIdx], x - r, y - r, 2 * r, 2 * r);
+}
+function streak(x, y, len, thick, alpha, colorIdx) {
+  if (alpha <= 0.002) return; ctx.globalAlpha = Math.min(1, alpha);
+  ctx.drawImage(SPR[colorIdx], x - len * S, y - thick * S, 2 * len * S, 2 * thick * S);
+}
+
+/* ---------- typography ---------- */
+const SANS = 'Inter, "Helvetica Neue", Arial, sans-serif';
+const MONO = '"JetBrains Mono", "DejaVu Sans Mono", monospace';
+function textSpaced(segments, cx, cy, size, weight, lsEm, family, alpha, blurPx, align = 'center') {
+  ctx.font = `${weight} ${size * S}px ${family}`; ctx.letterSpacing = `${(lsEm * size * S).toFixed(2)}px`;
+  ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+  let total = 0; const ws = segments.map(sg => { const w = ctx.measureText(sg.s).width; total += w; return w; });
+  const ls = lsEm * size * S; let x = align === 'center' ? cx - (total - ls) / 2 : align === 'right' ? cx - (total - ls) : cx;
+  if (blurPx > 0.05) ctx.filter = `blur(${(blurPx * S).toFixed(2)}px)`;
+  segments.forEach((sg, i) => {
+    const c = sg.c || [255, 255, 255]; ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${clamp(alpha * (sg.a ?? 1)).toFixed(4)})`;
+    ctx.fillText(sg.s, x, cy); x += ws[i];
+  });
+  ctx.filter = 'none'; ctx.letterSpacing = '0px';
+  return total;
+}
+function caption(t, c) {
+  const a = win(t, c.t0, c.t1, c.fi ?? 1.1, c.fo ?? 0.9); if (a <= 0) return;
+  const pin = sm5((t - c.t0) / 1.6), pout = ss(c.t1 - (c.fo ?? 0.9), c.t1, t);
+  const ls = (c.ls ?? 0.3) + 0.12 * (1 - pin) + 0.05 * pout;
+  const blur = 7 * (1 - ss(c.t0, c.t0 + 1.0, t)) + 5 * pout;
+  const y = (c.y ?? 918) + 8 * (1 - pin);
+  const segs = typeof c.segs === 'function' ? c.segs(t) : [{ s: c.text }];
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  const w = textSpaced(segs, W / 2, y * S, c.size ?? 50, c.weight ?? 200, ls, SANS, a * (c.alpha ?? 0.96), blur);
+  if (c.rule !== false) { // hairline under the caption
+    const rw = (c.ruleW ?? 64) * S * pin, ry = (y + (c.size ?? 50) * 0.95) * S;
+    const g = ctx.createLinearGradient(W / 2 - rw, 0, W / 2 + rw, 0);
+    g.addColorStop(0, 'rgba(90,200,255,0)'); g.addColorStop(0.5, `rgba(140,230,255,${(0.75 * a).toFixed(3)})`); g.addColorStop(1, 'rgba(150,100,255,0)');
+    ctx.fillStyle = g; ctx.fillRect(W / 2 - rw, ry, rw * 2, Math.max(1, 1.2 * S));
+  }
+}
+const CAPTIONS = [
+  { text: 'THE QUANTUM WORLD', t0: 1.9, t1: 4.7, size: 54 },
+  { segs: t => { const w = waveW(t); return [
+      { s: 'PARTICLE', a: 0.42 + 0.58 * (1 - w), c: [lerp(255, 175, 1 - w) | 0, 255, 255] },
+      { s: ' OR ', a: 0.55 },
+      { s: 'WAVE?', a: 0.42 + 0.58 * w, c: [lerp(255, 175, w) | 0, 255, 255] } ]; }, t0: 6.0, t1: 10.3 },
+  { text: 'NOT AN ORBIT. A PROBABILITY.', t0: 12.3, t1: 17.2 },
+  { text: 'UNCERTAINTY IS FUNDAMENTAL', t0: 19.3, t1: 23.4, y: 940, size: 46 },
+  { text: 'THE ELECTRON', t0: 25.7, t1: 29.75, size: 88, y: 846, ls: 0.4, fi: 1.6, fo: 1.2, ruleW: 120, rule: false },
+  { text: 'MATTER IS MORE MYSTERIOUS THAN IT SEEMS.', t0: 27.0, t1: 29.75, size: 22, y: 936, weight: 300, ls: 0.42, alpha: 0.8, fi: 1.4, fo: 1.2, ruleW: 40, rule: false },
+];
+const LABELS = [
+  { s: '01  —  THE INVISIBLE WORLD', r: 'SCALE  ~ 10⁻¹⁰ m', t0: 1.2, t1: 5.2 },
+  { s: '02  —  WAVE–PARTICLE DUALITY', r: 'λ = h / p', t0: 5.6, t1: 10.9 },
+  { s: '03  —  THE ELECTRON CLOUD', r: '|ψ₃₂₀|²   ·   n=3  ℓ=2  m=0', t0: 11.6, t1: 17.6 },
+  { s: '04  —  QUANTUM UNCERTAINTY', r: 'Δx · Δp ≥ ħ / 2', t0: 18.6, t1: 23.7 },
+  { s: '05  —  THE QUANTUM MYSTERY', r: 'e⁻   ·   m = 9.109 × 10⁻³¹ kg', t0: 24.4, t1: 28.4 },
+];
+function hud(t) {
+  ctx.globalCompositeOperation = 'source-over';
+  for (const L of LABELS) {
+    const a = win(t, L.t0, L.t1, 0.9, 0.8); if (a <= 0) continue;
+    const p = sm5((t - L.t0) / 1.2);
+    const lw = 36 * S * p; ctx.fillStyle = `rgba(120,225,255,${(0.7 * a).toFixed(3)})`; ctx.fillRect(96 * S, 92 * S, lw, Math.max(1, S));
+    textSpaced([{ s: L.s }], 146 * S, 92.5 * S, 13, 300, 0.28, MONO, a * 0.62, 2 * (1 - p), 'left');
+    textSpaced([{ s: L.r, c: [190, 235, 255] }], (LW - 96) * S, 92.5 * S, 13, 300, 0.16, MONO, a * 0.55, 2 * (1 - p), 'right');
+  }
+  // phase legend in scene 3
+  const la = win(t, 13.2, 17.4, 1.0, 0.8);
+  if (la > 0) {
+    ctx.globalCompositeOperation = 'lighter';
+    blob((LW - 302) * S, 128 * S, 9, la * 0.9, 0, true); blob((LW - 190) * S, 128 * S, 9, la * 0.9, 1, true);
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    textSpaced([{ s: '+ψ' }], (LW - 290) * S, 128.5 * S, 12, 300, 0.12, MONO, la * 0.55, 0, 'left');
+    textSpaced([{ s: '−ψ' }], (LW - 178) * S, 128.5 * S, 12, 300, 0.12, MONO, la * 0.55, 0, 'left');
+    textSpaced([{ s: 'PHASE' }], (LW - 96) * S, 128.5 * S, 12, 300, 0.22, MONO, la * 0.4, 0, 'right');
+  }
+}
+
+/* ---------- scene 4: position / momentum panels ---------- */
+function sigmaUnc(t) { return 0.006 + 0.355 * easeInOut((t - 18.5) / 4.6); }
+function panels(t) {
+  const a = win(t, 18.9, 23.7, 0.9, 0.9); if (a <= 0) return;
+  const p = clamp((sigmaUnc(t) - 0.006) / 0.355);
+  const sx = 6 + 104 * p, sp = 624 / sx;        // σx · σp = const  (Δx Δp = ħ/2)
+  const draw = (cx, sigma, label, sym, colIdx) => {
+    const cy = 600, half = 190, base = cy + 40, hMax = 150;
+    const h = Math.min(hMax, 2600 / (sigma + 12));  // area conserved (∝ 1/σ), clipped
+    ctx.globalCompositeOperation = 'source-over';
+    // axis
+    ctx.fillStyle = `rgba(200,235,255,${(0.32 * a).toFixed(3)})`; ctx.fillRect((cx - half) * S, base * S, 2 * half * S, Math.max(1, S));
+    for (let k = -4; k <= 4; k++) ctx.fillRect((cx + k * half / 4) * S, (base) * S, Math.max(1, S), (k === 0 ? 7 : 4) * S);
+    // curve
+    const pts = []; for (let k = 0; k <= 160; k++) { const xx = -half + 2 * half * k / 160; pts.push(cx + xx, base - h * Math.exp(-0.5 * (xx / sigma) ** 2)); }
+    const col = COLORS[colIdx];
+    const g = ctx.createLinearGradient(0, (base - h) * S, 0, base * S);
+    g.addColorStop(0, `rgba(${col[0]},${col[1]},${col[2]},${(0.34 * a).toFixed(3)})`); g.addColorStop(1, `rgba(${col[0]},${col[1]},${col[2]},0)`);
+    ctx.beginPath(); ctx.moveTo((cx - half) * S, base * S); for (let k = 0; k < pts.length; k += 2) ctx.lineTo(pts[k] * S, pts[k + 1] * S); ctx.lineTo((cx + half) * S, base * S); ctx.closePath();
+    ctx.fillStyle = g; ctx.fill();
+    ctx.globalCompositeOperation = 'lighter'; ctx.lineJoin = 'round';
+    for (const [lw, al, ci] of [[7, 0.09, colIdx], [2.6, 0.35, colIdx], [1, 0.9, 3]]) {
+      const c2 = COLORS[ci]; ctx.strokeStyle = `rgba(${c2[0]},${c2[1]},${c2[2]},${(al * a).toFixed(3)})`; ctx.lineWidth = lw * S;
+      ctx.beginPath(); for (let k = 0; k < pts.length; k += 2) { if (k === 0) ctx.moveTo(pts[k] * S, pts[k + 1] * S); else ctx.lineTo(pts[k] * S, pts[k + 1] * S); } ctx.stroke();
+    }
+    // ±σ bracket
+    const bw = Math.min(half, sigma), by = base + 22;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = `rgba(140,225,255,${(0.75 * a).toFixed(3)})`;
+    ctx.fillRect((cx - bw) * S, by * S, 2 * bw * S, Math.max(1, S));
+    ctx.fillRect((cx - bw) * S, (by - 5) * S, Math.max(1, S), 10 * S); ctx.fillRect((cx + bw) * S, (by - 5) * S, Math.max(1, S), 10 * S);
+    textSpaced([{ s: sym, c: [190, 240, 255] }], cx * S, (by + 22) * S, 15, 300, 0.1, MONO, a * 0.85, 0);
+    textSpaced([{ s: label }], cx * S, (cy - 150) * S, 12, 300, 0.34, MONO, a * 0.55, 0);
+  };
+  draw(300, sx, 'POSITION', 'Δx', 0);
+  draw(LW - 300, sp, 'MOMENTUM', 'Δp', 2);
+}
+
+/* ---------- S5 wave field (two-source interference surface) ---------- */
+function waveField(t) {
+  const a = ss(24.6, 27.0, t) * (1 - ss(27.6, 29.6, t)); if (a <= 0.003) return;
+  const Y0 = NUC[1] - 2.25, ext = 6.2, nl = 25, ns = 90, kk = 4.2, om = 2.4;
+  const s1x = NUC[0] - 0.9, s2x = NUC[0] + 0.9, cz = NUC[2];
+  const reveal = ss(24.6, 27.4, t) * ext * 1.25;
+  const h = (x, z) => { const r1 = Math.hypot(x - s1x, z - cz), r2 = Math.hypot(x - s2x, z - cz);
+    return 0.09 * (Math.sin(kk * r1 - om * t) / Math.sqrt(1 + r1) + Math.sin(kk * r2 - om * t) / Math.sqrt(1 + r2)); };
+  const passes = [[5, 0.05, 1], [1.8, 0.22, 1], [0.7, 0.5, 0]];
+  for (let dir = 0; dir < 2; dir++) for (let j = 0; j < nl; j++) {
+    const c = -ext + 2 * ext * j / (nl - 1); const pts = [], al = [];
+    for (let k = 0; k <= ns; k++) {
+      const s = -ext + 2 * ext * k / ns; const x = NUC[0] + (dir ? c : s), z = cz + (dir ? s : c);
+      const r = Math.hypot(x - NUC[0], z - cz); pts.push(x, Y0 + h(x, z), z);
+      al.push(Math.exp(-r * r / 14) * ss(0, 0.8, reveal - r) * a);
+    }
+    drawLine3D(pts, al, 1, 1, 0.55, passes);
+  }
+  // faint mirrored halo above (reflection of the field)
+}
+
+/* ---------- main frame ---------- */
+function renderFrame(t) {
+  t = clamp(t, 0, DURATION);
+  setCamera(t);
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.filter = 'none';
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  // very deep blue ambience
+  const amb = 0.5 * ss(1, 6, t) * (1 - ss(27.5, 30, t));
+  if (amb > 0) { const g = ctx.createRadialGradient(W / 2, H * 0.52, 0, W / 2, H * 0.52, W * 0.62);
+    g.addColorStop(0, `rgba(10,22,48,${(0.55 * amb).toFixed(3)})`); g.addColorStop(0.6, `rgba(8,10,34,${(0.25 * amb).toFixed(3)})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); }
+  ctx.globalCompositeOperation = 'lighter';
+
+  /* --- background particle field --- */
+  const starOut = t2 => 1 - ss(26.6, 29.6, t2);
+  for (const s of ST) {
+    const ap = ss(s.appear, s.appear + 1.6, t) * (1 - ss(26.4 + s.out * 2.4, 27.2 + s.out * 2.4, t)); if (ap <= 0) continue;
+    if (!project(s.x, s.y, s.z)) continue;
+    if (PX < -20 || PX > W + 20 || PY < -20 || PY > H + 20) continue;
+    const tw = 0.65 + 0.35 * Math.sin(t * s.tf + s.tw);
+    const r = (0.9 + 2.2 * s.b) * (10 / PD) * 1.1 + 0.6;
+    blob(PX, PY, r * 1.6, ap * tw * (0.2 + 0.7 * s.b), s.col, false);
+  }
+  for (const d of DU) {
+    const ap = ss(d.appear, d.appear + 2, t) * starOut(t); if (ap <= 0) continue;
+    const x = d.x + d.vx * t + 0.05 * Math.sin(t * 0.3 + d.ph), y = d.y + d.vy * t;
+    if (!project(x, y, d.z)) continue;
+    const coc = Math.min(70, 26 * Math.abs(1 - cam.dist / PD)) + 1.5;
+    const a = ap * (0.05 + 0.08 * d.b) * Math.min(1, 9 / (coc * coc)) * 3;
+    blob(PX, PY, coc * 1.4, a, d.col, false);
+  }
+
+  /* --- scene 2 waves (strokes) --- */
+  const w = waveW(t), xe = xE(t), k3 = ss(10.2, 12.0, t);
+  const waveVis = ss(4.4, 5.6, t) * (1 - ss(10.0, 11.4, t));
+  if (waveVis > 0) {
+    // propagation axis
+    const axPts = [], axA = []; for (let k = 0; k <= 60; k++) { const x = -3 + 9 * k / 60; axPts.push(x, 0, 0); axA.push(0.25 * Math.exp(-((x - xe) ** 2) / 6)); }
+    drawLine3D(axPts, axA, 1, 0.6, waveVis * 0.6, [[3, 0.08, 1], [0.8, 0.35, 0]]);
+    const L = trailLen(t);
+    if ((1 - w) > 0.01 && L > 0.01) {
+      const pts = [], al = []; const n = 340;
+      for (let k = 0; k <= n; k++) { const d = L * k / n; const A = ampTrail(d, t), ph = K_TRAIL * d - OMEGA * t;
+        pts.push(xe - d, A * Math.sin(ph), 0.55 * A * Math.cos(ph)); al.push(Math.pow(1 - d / L, 0.8) * Math.min(1, d / 0.05)); }
+      drawLine3D(pts, al, 0, 1, (1 - w) * waveVis);
+    }
+    if (w > 0.01) {
+      const sg = sigmaPack(w), pts = [], al = [], en1 = [], en2 = []; const n = 380;
+      for (let k = 0; k <= n; k++) { const x = xe - 3.4 * sg + 6.8 * sg * k / n; const A = ampPack(x, xe, sg), ph = K_PACK * (x - xe) - OMEGA * t;
+        pts.push(x, A * Math.sin(ph), 0.55 * A * Math.cos(ph)); al.push(Math.pow(A / 0.19, 0.5)); en1.push(x, A * 1.06, 0); en2.push(x, -A * 1.06, 0); }
+      drawLine3D(pts, al, 0, 1, w * waveVis);
+      drawLine3D(en1, al, 2, 0.7, w * waveVis * 0.55, [[6, 0.06, 1], [1, 0.4, 1]]);
+      drawLine3D(en2, al, 2, 0.7, w * waveVis * 0.55, [[6, 0.06, 1], [1, 0.4, 1]]);
+    }
+  }
+
+  /* --- S5 wave field under the cloud --- */
+  waveField(t);
+
+  /* --- main particle system --- */
+  const gMain = ss(0.6, 3.0, t);
+  const sg2 = sigmaPack(w), L2 = trailLen(t), ampG = trailAmpGrow(t);
+  const pulse3 = 1 + 0.035 * Math.sin(2 * Math.PI * (t - 11) / 3.3);
+  const pulse5 = 1.25 * (1 + 0.02 * Math.sin(2 * Math.PI * (t - 24) / 3.6));
+  const kC = ss(17.25, 18.15, t), sig4 = sigmaUnc(t), k5 = ss(22.8, 25.4, t);
+  const prog4 = clamp((sig4 - 0.006) / 0.355);
+  const jitF = 2 + 16 * (1 - prog4);
+  const sizeBase = 3.0;
+  for (let i = 0; i < N_MAIN; i++) {
+    const u = M.u[i], u2 = M.u2[i], u3 = M.u3[i], ph = M.ph[i], fr = M.fr[i];
+    // per-particle final fade into darkness
+    const fadeEnd = 1 - ss(26.2 + 2.7 * u3, 26.9 + 2.7 * u3, t);
+    if (fadeEnd <= 0) continue;
+    let x = 0, y = 0, z = 0, a = 0, col = 0;
+    // ---- layout 1/2: the free electron ----
+    let fx = 0, fy = 0, fz = 0, fa = 0, fc = 0;
+    if (t < 12.4) {
+      const core = u2 < 0.28;
+      if (core) { const s = 0.010 + 0.02 * w; fx = xe + M.gx[i] * s; fy = M.gy[i] * s; fz = M.gz[i] * s; fa = 0.05; fc = 3; }
+      else {
+        // trail position
+        const d = L2 > 0 ? -0.9 * Math.log(1 - u * (1 - Math.exp(-L2 / 0.9))) : 0;
+        const At = ampTrail(d, t), pt = K_TRAIL * d - OMEGA * t, rr = 0.85 + 0.3 * u3;
+        let tx = xe - d + M.jx[i] * 0.01, ty = At * rr * Math.sin(pt) + M.jy[i] * 0.008, tz = 0.55 * At * rr * Math.cos(pt) + M.jz[i] * 0.008;
+        let ta = L2 > 0 ? 0.075 * Math.pow(1 - d / Math.max(L2, 1e-3), 0.8) * ampG : 0.0;
+        if (L2 <= 0.02) { tx = xe + M.gx[i] * 0.012; ty = M.gy[i] * 0.012; tz = M.gz[i] * 0.012; ta = 0.03; }
+        // packet position
+        const wi = sm5((w * 1.35 - u3 * 0.35));
+        if (wi > 0) {
+          const px = xe + sg2 * M.gx[i] * 0.95, A = ampPack(px, xe, sg2), pp = K_PACK * (px - xe) - OMEGA * t, r2 = 0.9 + 0.2 * u;
+          const qx = px, qy = A * r2 * Math.sin(pp) + M.jy[i] * 0.01, qz = 0.55 * A * r2 * Math.cos(pp) + M.jz[i] * 0.01;
+          tx = lerp(tx, qx, wi); ty = lerp(ty, qy, wi); tz = lerp(tz, qz, wi); ta = lerp(ta, 0.09, wi);
+        }
+        fx = tx; fy = ty; fz = tz; fa = ta; fc = u < 0.62 ? 0 : 1;
+      }
+      fa *= (1 - 0.6 * ss(10.0, 10.8, t)); // dim slightly as it re-forms
+    }
+    // ---- layout 3: 3d_z² cloud ----
+    let ox = 0, oy = 0, oz = 0, oa = 0, oc = 0;
+    if (t > 10.0 && t < 18.4) {
+      const sh = 0.006 * Math.sin(t * fr * 1.7 + ph);
+      ox = NUC[0] + ORB_A.X[i] * pulse3 + M.jx[i] * sh; oy = NUC[1] + ORB_A.Y[i] * pulse3 + M.jy[i] * sh; oz = NUC[2] + ORB_A.Z[i] * pulse3 + M.jz[i] * sh;
+      const tw = 0.62 + 0.38 * Math.sin(t * fr * 1.3 + ph);
+      oa = 0.2 * (0.45 + 0.75 * Math.sqrt(ORB_A.D[i])) * tw;
+      oc = ORB_A.SG[i] > 0 ? (u < 0.12 ? 3 : 0) : (u < 0.38 ? 2 : 1);
+    }
+    // ---- layout 4: uncertainty distribution around P ----
+    let ux = 0, uy = 0, uz = 0, ua = 0, uc = 0;
+    if (t > 17.2 && t < 25.6) {
+      const j = sig4 * 0.42 * Math.sin(t * fr * jitF + ph);
+      ux = P[0] + sig4 * M.gx[i] + j * M.jx[i]; uy = P[1] + sig4 * M.gy[i] + j * M.jy[i]; uz = P[2] + sig4 * M.gz[i] * 0.7 + j * M.jz[i] * 0.7;
+      const rr = Math.hypot(M.gx[i], M.gy[i], M.gz[i]);
+      ua = 0.12 + 0.12 * (1 - prog4); uc = rr < 0.8 ? (u < 0.5 ? 3 : 0) : rr < 1.7 ? (u < 0.15 ? 2 : 0) : (u < 0.35 ? 2 : 1);
+    }
+    // ---- layout 5: grand superposition cloud ----
+    let bx = 0, by = 0, bz = 0, ba = 0, bc = 0;
+    if (t > 22.8) {
+      const sh = 0.008 * Math.sin(t * fr * 1.4 + ph);
+      const drift = 1 + 0.25 * ss(26.2 + 2.7 * u3, 27.2 + 2.7 * u3, t); // particles drift outward as they fade
+      bx = NUC[0] + ORB_B.X[i] * pulse5 * drift + M.jx[i] * sh; by = NUC[1] + ORB_B.Y[i] * pulse5 * drift + M.jy[i] * sh; bz = NUC[2] + ORB_B.Z[i] * pulse5 * drift + M.jz[i] * sh;
+      const tw = 0.6 + 0.4 * Math.sin(t * fr * 1.2 + ph);
+      ba = 0.22 * (0.45 + 0.75 * Math.sqrt(ORB_B.D[i])) * tw;
+      bc = ORB_B.SG[i] > 0 ? (u < 0.12 ? 3 : 0) : (u < 0.45 ? 2 : 1);
+    }
+    // ---- blend the layouts with staggered, swirling transitions ----
+    if (t < 10.2) { x = fx; y = fy; z = fz; a = fa; col = fc; }
+    else if (t < 17.25) {
+      const ki = easeInOut(k3 * 1.5 - u * 0.5);
+      if (ki >= 1) { x = ox; y = oy; z = oz; a = oa; col = oc; }
+      else {
+        const sw = Math.sin(Math.PI * ki) * (1.4 + u2) * (1 - ki);
+        let lx = lerp(fx, ox, ki) - NUC[0], lz = lerp(fz, oz, ki) - NUC[2];
+        const cs = Math.cos(sw), sn = Math.sin(sw);
+        x = NUC[0] + lx * cs - lz * sn; z = NUC[2] + lx * sn + lz * cs; y = lerp(fy, oy, ki);
+        a = lerp(fa, oa, ki); col = ki < 0.5 ? fc : oc;
+      }
+    } else if (t < 22.8) {
+      const ki = easeIn3(kC * 1.3 - u * 0.3);
+      x = lerp(ox, ux, ki); y = lerp(oy, uy, ki); z = lerp(oz, uz, ki); a = lerp(oa, ua, ki); col = ki < 0.5 ? oc : uc;
+      if (ki >= 1) { x = ux; y = uy; z = uz; a = ua; col = uc; }
+    } else {
+      const ki = easeInOut(k5 * 1.5 - u * 0.5);
+      if (ki <= 0) { x = ux; y = uy; z = uz; a = ua; col = uc; }
+      else if (ki >= 1) { x = bx; y = by; z = bz; a = ba; col = bc; }
+      else {
+        const sw = Math.sin(Math.PI * ki) * (1.2 + u2 * 0.8);
+        const lx0 = lerp(ux, bx, ki) - NUC[0], lz0 = lerp(uz, bz, ki) - NUC[2];
+        const cs = Math.cos(sw), sn = Math.sin(sw);
+        x = NUC[0] + lx0 * cs - lz0 * sn; z = NUC[2] + lx0 * sn + lz0 * cs; y = lerp(uy, by, ki);
+        a = lerp(ua, ba, ki); col = ki < 0.5 ? uc : bc;
+      }
+    }
+    a *= gMain * fadeEnd;
+    if (a < 0.004) continue;
+    if (!project(x, y, z)) continue;
+    if (PX < -30 || PX > W + 30 || PY < -30 || PY > H + 30) continue;
+    const persp = 3.7 / PD;
+    const coc = 2.2 * Math.abs(1 - cam.dist / PD);
+    const r = sizeBase * Math.pow(persp, 0.8) + coc;
+    const energy = (sizeBase * sizeBase) / (r * r);
+    blob(PX, PY, r, a * Math.min(1.4, energy * 1.1 + 0.2), col, false);
+  }
+
+  /* --- the electron as a point (scenes 1–2) --- */
+  const coreI = ss(0.6, 2.6, t) * (1 - w * 0.93) * (1 - ss(10.0, 11.0, t));
+  if (coreI > 0 && project(xe, 0, 0)) {
+    const ex = PX, ey = PY, pulse = 1 + 0.06 * Math.sin(t * 3.1);
+    const grow = 0.35 + 0.65 * ss(0.6, 3.5, t);
+    blob(ex, ey, 150 * grow * (1 + w), 0.16 * coreI, 1, false);
+    blob(ex, ey, 46 * grow * pulse * (1 + w * 1.5), 0.45 * coreI, 0, false);
+    blob(ex, ey, 13 * grow * pulse, 0.95 * coreI, 3, true);
+    blob(ex, ey, 5 * grow, 1.0 * coreI, 3, true);
+    streak(ex, ey, 260 * grow, 2.2, 0.22 * coreI, 0);
+    streak(ex, ey, 90 * grow, 1.0, 0.35 * coreI, 3);
+  }
+  // detection flash when the wave re-localises (≈9.55 s)
+  const fl1 = Math.exp(-Math.pow((t - 9.55) / 0.09, 2)) * 0 + (t > 9.45 ? Math.exp(-(t - 9.45) / 0.22) * ss(9.4, 9.47, t) : 0);
+  if (fl1 > 0.01 && project(xe, 0, 0)) { blob(PX, PY, 110, 0.35 * fl1, 0, false); streak(PX, PY, 420, 2, 0.3 * fl1, 0); }
+
+  /* --- nucleus --- */
+  const nucI = ss(10.6, 12.0, t) * (1 - ss(17.3, 18.1, t)) + ss(24.0, 25.8, t) * (1 - ss(27.8, 29.4, t)) * 0.85;
+  if (nucI > 0 && project(NUC[0], NUC[1], NUC[2])) {
+    const s = 3.7 / PD, nx = PX, ny = PY, pl = 1 + 0.08 * Math.sin(t * 2.2);
+    blob(nx, ny, 90 * s, 0.16 * nucI, 2, false);
+    blob(nx, ny, 22 * s * pl, 0.6 * nucI, 2, false);
+    blob(nx, ny, 7.5 * s, 1.0 * nucI, 4, true);
+    blob(nx, ny, 3.2 * s, 1.0 * nucI, 4, true);
+    streak(nx, ny, 170 * s, 1.4, 0.16 * nucI, 2);
+  }
+
+  /* --- measurement collapse & the sharp point (scene 4) --- */
+  const fl2 = t > 18.05 ? Math.exp(-(t - 18.05) / 0.35) * ss(18.0, 18.1, t) : 0;
+  const ptI = ss(17.8, 18.15, t) * (1 - ss(18.6, 21.0, t));
+  if ((fl2 > 0.005 || ptI > 0.005) && project(P[0], P[1], P[2])) {
+    const qx = PX, qy = PY;
+    blob(qx, qy, 220, 0.4 * fl2, 1, false);
+    blob(qx, qy, 60, 0.7 * fl2, 0, false);
+    streak(qx, qy, 700, 2.6, 0.45 * fl2, 0);
+    blob(qx, qy, 34, 0.5 * ptI, 0, false);
+    blob(qx, qy, 9, 0.95 * ptI, 3, true);
+    streak(qx, qy, 120, 1.0, 0.3 * ptI, 3);
+    if (fl2 > 0.01) { // expanding detection ring
+      const age = t - 18.05, rr = (30 + 900 * (1 - Math.exp(-age * 2.2))) * S;
+      ctx.globalAlpha = 1; ctx.strokeStyle = `rgba(120,220,255,${(0.22 * fl2).toFixed(3)})`; ctx.lineWidth = 1.2 * S;
+      ctx.beginPath(); ctx.arc(qx, qy, rr, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = `rgba(150,100,255,${(0.08 * fl2).toFixed(3)})`; ctx.lineWidth = 6 * S; ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  /* --- position / momentum panels --- */
+  panels(t);
+
+  /* --- bloom --- */
+  bloom();
+
+  /* --- vignette --- */
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  const vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, W * 0.62);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.62)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+
+  /* --- typography --- */
+  for (const c of CAPTIONS) caption(t, c);
+  hud(t);
+
+  /* --- fine dither grain (prevents banding in 8-bit video) --- */
+  const fi = Math.floor(t * 30);
+  ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.018;
+  const ns = 256 * S * 0.75, R = rng(fi * 7 + 3); const ox = -R() * ns, oy = -R() * ns;
+  for (let yy = oy; yy < H; yy += ns) for (let xx = ox; xx < W; xx += ns) ctx.drawImage(NOISE, xx, yy, ns, ns);
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  // final fade to black at the very end
+  const endB = ss(29.55, 30, t);
+  if (endB > 0) { ctx.fillStyle = `rgba(0,0,0,${endB})`; ctx.fillRect(0, 0, W, H); }
+}
+
+/* ---------- bloom (two-level soft glow) ---------- */
+const bA = document.createElement('canvas'), bB = document.createElement('canvas');
+const bAc = bA.getContext('2d'), bBc = bB.getContext('2d');
+function bloom() {
+  bAc.globalCompositeOperation = 'copy'; bAc.filter = 'blur(5px)'; bAc.drawImage(canvas, 0, 0, bA.width, bA.height); bAc.filter = 'none';
+  bBc.globalCompositeOperation = 'copy'; bBc.filter = 'blur(5px)'; bBc.drawImage(bA, 0, 0, bB.width, bB.height); bBc.filter = 'none';
+  ctx.globalCompositeOperation = 'lighter'; ctx.imageSmoothingQuality = 'high';
+  ctx.globalAlpha = 0.55; ctx.drawImage(bA, 0, 0, W, H);
+  ctx.globalAlpha = 0.65; ctx.drawImage(bB, 0, 0, W, H);
+  ctx.globalAlpha = 1;
+}
+
+/* ---------- sizing ---------- */
+function resize(w, h) {
+  W = canvas.width = Math.round(w); H = canvas.height = Math.round(h); S = W / LW;
+  FOCAL = (H * 0.5) / Math.tan((38 * Math.PI / 180) / 2);
+  bA.width = Math.max(2, Math.round(W / 4)); bA.height = Math.max(2, Math.round(H / 4));
+  bB.width = Math.max(2, Math.round(W / 16)); bB.height = Math.max(2, Math.round(H / 16));
+  const spSize = Math.max(32, Math.min(128, Math.round(64 * S)));
+  SPR = COLORS.map(c => makeSprite(c, spSize, false)); SPR_HARD = COLORS.map(c => makeSprite(c, spSize, true));
+}
+function fitWindow() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  let vw = window.innerWidth, vh = window.innerHeight; let w = vw, h = vw * 9 / 16; if (h > vh) { h = vh; w = vh * 16 / 9; }
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px'; resize(w * dpr, h * dpr);
+}
+
+/* ---------- boot ---------- */
+async function boot() {
+  try { await Promise.all([document.fonts.load(`200 40px Inter`), document.fonts.load(`300 40px Inter`), document.fonts.load(`300 20px "JetBrains Mono"`)]); } catch (e) {}
+  init(); NOISE = makeNoise();
+  if (RENDER) {
+    document.body.classList.add('render');
+    const w = +params.get('w') || 3840, h = +params.get('h') || Math.round(w * 9 / 16);
+    canvas.style.width = '100%'; canvas.style.height = 'auto'; resize(w, h);
+    window.__renderFrame = (t, type = 'image/png', q) => { renderFrame(t); return canvas.toDataURL(type, q); };
+    window.__drawFrame = t => { renderFrame(t); return true; };
+    window.__ready = true; return;
+  }
+  fitWindow(); window.addEventListener('resize', fitWindow);
+  const play = document.getElementById('play'), scrub = document.getElementById('scrub'), time = document.getElementById('time'), loopB = document.getElementById('loop'), ui = document.getElementById('ui');
+  let playing = true, loop = true, t = +params.get('t') || 0, last = performance.now(), dragging = false;
+  loopB.style.opacity = 1;
+  const fmt = v => v.toFixed(2).padStart(5, '0');
+  play.onclick = () => { playing = !playing; if (playing && t >= DURATION) t = 0; play.textContent = playing ? '❚❚' : '▶'; };
+  loopB.onclick = () => { loop = !loop; loopB.style.opacity = loop ? 1 : 0.4; };
+  scrub.oninput = () => { t = +scrub.value; dragging = true; };
+  scrub.onchange = () => { dragging = false; };
+  addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); play.onclick(); } if (e.code === 'ArrowRight') t = Math.min(DURATION, t + 1); if (e.code === 'ArrowLeft') t = Math.max(0, t - 1); });
+  let idle; const wake = () => { ui.classList.remove('hidden'); clearTimeout(idle); idle = setTimeout(() => playing && ui.classList.add('hidden'), 2200); };
+  addEventListener('mousemove', wake); addEventListener('touchstart', wake); wake();
+  function tick(now) {
+    const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    if (playing && !dragging) { t += dt; if (t >= DURATION) { if (loop) t = 0; else { t = DURATION; playing = false; play.textContent = '▶'; } } }
+    renderFrame(t); scrub.value = t; time.textContent = `${fmt(t)} / 30.00`;
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+boot();
+})();
+</script>
+</body>
+</html>
