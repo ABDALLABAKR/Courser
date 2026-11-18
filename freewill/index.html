@@ -548,7 +548,7 @@ function caption(t, c) {
   const a = win(t, c.t0, c.t1, c.fi ?? 1.3, c.fo ?? 1.0); if (a <= 0) return; const g = ctx;
   const p = sm5((t - c.t0) / 1.8); g.globalCompositeOperation = 'source-over';
   g.shadowColor = `rgba(0,0,0,${(0.55 * a).toFixed(3)})`; g.shadowBlur = 26 * S;
-  textLine(g, c.s, (c.x ?? 960) * S, ((c.y ?? 920) + 8 * (1 - p)) * S, c.size ?? 54, c.weight ?? 400, (c.ls ?? 0.2) + 0.08 * (1 - p), c.fam ?? SERIF, c.col ?? [255, 250, 255], a * (c.alpha ?? 1), 8 * (1 - ss(c.t0, c.t0 + 1.1, t)) + 4 * ss(c.t1 - (c.fo ?? 1), c.t1, t), c.align);
+  textLine(g, c.s, (c.x ?? LW / 2) * S, ((c.y ?? 920) + 8 * (1 - p)) * S, c.size ?? 54, c.weight ?? 400, (c.ls ?? 0.2) + 0.08 * (1 - p), c.fam ?? SERIF, c.col ?? [255, 250, 255], a * (c.alpha ?? 1), 8 * (1 - ss(c.t0, c.t0 + 1.1, t)) + 4 * ss(c.t1 - (c.fo ?? 1), c.t1, t), c.align);
   g.shadowBlur = 0; g.shadowColor = 'rgba(0,0,0,0)';
 }
 const CAPS = [
