@@ -17,7 +17,8 @@ const START = +arg('start', 0), END_S = arg('end', null);
 const FPS = +arg('fps', 30), WORKERS = +arg('workers', 3), CRF = arg('crf', '14');
 let DURATION = 40, FRAMES = Math.round(DURATION * FPS);
 const OUT = path.resolve(arg('out', `doubleslit-${WIDTH >= 3840 ? "4k" : HEIGHT + "p"}.mp4`));
-const URL = 'file://' + path.join(__dirname, PAGE) + `?render&w=${WIDTH}&h=${HEIGHT}`;
+const QUERY = arg('query', '');
+const URL = 'file://' + path.join(__dirname, PAGE) + `?render&w=${WIDTH}&h=${HEIGHT}${QUERY ? '&' + QUERY : ''}`;
 
 (async () => {
   const browser = await chromium.launch();

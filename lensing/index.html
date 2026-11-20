@@ -45,8 +45,10 @@ const params = new URLSearchParams(location.search);
 const RENDER = params.has('render');
 const LEAD = 0.6, q = x => x + LEAD;
 const DURATION = 102.5; window.__DURATION = DURATION;
-const LW = 1920, LH = 1080;
-const RW = RENDER ? 1280 : 800, RH = Math.round(RW * 9 / 16);
+const PORTRAIT = params.has('portrait');
+const LW = PORTRAIT ? 1080 : 1920, LH = PORTRAIT ? 1920 : 1080;
+const PY_ = y => PORTRAIT ? y + 600 : y;
+const RW = PORTRAIT ? (RENDER ? 720 : 450) : (RENDER ? 1280 : 800), RH = PORTRAIT ? Math.round(RW * 16 / 9) : Math.round(RW * 9 / 16);
 
 const canvas = document.getElementById('c'); const ctx = canvas.getContext('2d');
 const mk = () => { const c = document.createElement('canvas'); return [c, c.getContext('2d')]; };
@@ -199,8 +201,10 @@ function init() {
   for (let i = 0; i < 110; i++) { const isNear = i < near.length; const x = isNear ? near[i][0] : (R() * 2 - 1) * 6.2, y = isNear ? near[i][1] : (R() * 2 - 1) * 3.6;
     const sp = R() < 0.55 || isNear; const g = sp ? makeSpiral(R, 0, pals[Math.floor(R() * 4)]) : { type: 'c', c: R() < 0.5 ? [0.45, 0.75, 1.0] : [0.95, 0.55, 1.0] };
     g.x = x; g.y = y; g.size = isNear ? 0.12 + R() * 0.08 : 0.04 + Math.pow(R(), 2) * 0.12; g.rot = R() * 6.28; g.inc = 0.3 + R() * 0.6; g.br = isNear ? 1.6 : 0.6 + R(); srcs.push(g); }
+  if (PORTRAIT) { const sw = o => { const x = o.x; o.x = o.y; o.y = x; if (o.phi !== undefined) o.phi = Math.PI / 2 - o.phi; if (o.rot !== undefined) o.rot = Math.PI / 2 - o.rot; };
+    members.forEach(sw); sw(halo); srcs.forEach(sw); }
   CL4 = { members, halo, srcs };
-  CL4.kappa = kappaGrid((x, y, o) => { sieAdd(x, y, halo, o, 1); for (const m of members) sieAdd(x, y, m, o, 1); }, -6.4, 6.4, -3.6, 3.6, 256, 144);
+  CL4.kappa = PORTRAIT ? kappaGrid((x, y, o) => { sieAdd(x, y, halo, o, 1); for (const m of members) sieAdd(x, y, m, o, 1); }, -3.6, 3.6, -6.4, 6.4, 144, 256) : kappaGrid((x, y, o) => { sieAdd(x, y, halo, o, 1); for (const m of members) sieAdd(x, y, m, o, 1); }, -6.4, 6.4, -3.6, 3.6, 256, 144);
   // --- cosmic web (scene 5)
   const nodes = []; for (let i = 0; i < 64; i++) nodes.push({ x: (R() * 2 - 1) * 42, y: (R() * 2 - 1) * 25, m: Math.pow(R(), 2.2) });
   const fil = []; for (let i = 0; i < nodes.length; i++) { const d = nodes.map((n, j) => [Math.hypot(n.x - nodes[i].x, n.y - nodes[i].y), j]).sort((a, b) => a[0] - b[0]); for (let k = 1; k <= 3; k++) if (d[k][0] < 20) fil.push([i, d[k][1]]); }
@@ -211,8 +215,9 @@ function init() {
     halos.push({ x: lerp(a.x, b.x, 0.5), y: lerp(a.y, b.y, 0.5), b: 0.12, q: 0.6, s: 0.6, phi: Math.atan2(b.y - a.y, b.x - a.x), rt: 6 }); }
   for (const n of nodes) for (let k = 0; k < 20 + n.m * 90; k++) lightGals.push({ x: n.x + gauss(R) * (0.5 + n.m), y: n.y + gauss(R) * (0.4 + n.m * 0.8), r: 0.04 + Math.pow(R(), 3) * 0.2, w: 0.6 + R() });
   const bg = []; for (let i = 0; i < 9000; i++) bg.push({ x: (R() * 2 - 1) * 46, y: (R() * 2 - 1) * 28, r: 0.035 + Math.pow(R(), 3) * 0.1, e: 0.4 + R() * 0.6, a: R() * 3.14, c: R() < 0.6 ? 0 : (R() < 0.6 ? 1 : 2), w: 0.4 + R() * 0.8 });
+  if (PORTRAIT) { const sw = o => { const x = o.x; o.x = o.y; o.y = x; if (o.phi !== undefined) o.phi = Math.PI / 2 - o.phi; if (o.a !== undefined) o.a = Math.PI / 2 - o.a; }; nodes.forEach(sw); halos.forEach(sw); lightGals.forEach(sw); bg.forEach(sw); }
   // deflection map for the web (bilinear lookup in the tracer)
-  const MX = RENDER ? 1100 : 700, MY = Math.round(MX * 0.6), X0 = -46, X1 = 46, Y0 = -27.6, Y1 = 27.6; const ax = new Float32Array(MX * MY), ay = new Float32Array(MX * MY); const o = [0, 0];
+  const MX0 = RENDER ? 1100 : 700, MX = PORTRAIT ? Math.round(MX0 * 0.6) : MX0, MY = PORTRAIT ? MX0 : Math.round(MX0 * 0.6), X0 = PORTRAIT ? -27.6 : -46, X1 = -X0, Y0 = PORTRAIT ? -46 : -27.6, Y1 = -Y0; const ax = new Float32Array(MX * MY), ay = new Float32Array(MX * MY); const o = [0, 0];
   for (let j = 0; j < MY; j++) for (let i = 0; i < MX; i++) { const x = X0 + (X1 - X0) * i / (MX - 1), y = Y0 + (Y1 - Y0) * j / (MY - 1); o[0] = o[1] = 0; for (const h of halos) sieAdd(x, y, h, o, 1); ax[j * MX + i] = o[0]; ay[j * MX + i] = o[1]; }
   WEB = { nodes, fil, halos, lightGals: hashPts(lightGals, 1.5), bg: hashPts(bg, 1.5), map: { ax, ay, MX, MY, X0, X1, Y0, Y1 } };
   WEB.kappa = kappaFromMap(WEB.map, 230, 138);
@@ -321,7 +326,7 @@ function sceneOne(t, A) {
 function sceneTwoDiagram(t, A) {
   if (A <= 0.003) return;
   const rot = ease((t - q(34.8)) / 2.6);       // rotate into the observer's viewpoint
-  setCam([lerp(0, 0, rot), 0, 0], lerp(13.2, 6.0, rot), lerp(0, Math.PI / 2, rot), lerp(1.5, 0.0, rot));
+  setCam([lerp(0, 0, rot), 0, 0], lerp(PORTRAIT ? 15.5 : 13.2, 6.0, rot), lerp(0, Math.PI / 2, rot), lerp(1.5, 0.0, rot));
   C.globalCompositeOperation = 'lighter';
   // source, lens, observer
   sprite(2, -RAYS.LS, 0, 0, 0.75, 0.4, A * (1 - rot * 0.6));
@@ -393,7 +398,7 @@ function lensWeb(t, w, view, lightA, srcA) {
 }
 function shearSticks(a, view) { // weak-lensing shear field γ from the deflection map
   if (a <= 0.01) return; const M = WEB.map, L = new Lines(), e = 0.08, A1 = [0, 0], A2 = [0, 0], A3 = [0, 0], A4 = [0, 0];
-  const nx = 64, ny = 36;
+  const nx = PORTRAIT ? 36 : 64, ny = PORTRAIT ? 64 : 36;
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const sx = (i + 0.5) / nx * W, sy = (j + 0.5) / ny * H;
     const x = view.cx + (sx - W / 2) / (H / 2) * view.hh, y = view.cy - (sy - H / 2) / (H / 2) * view.hh;
     A1[0] = A1[1] = A2[0] = A2[1] = A3[0] = A3[1] = A4[0] = A4[1] = 0; mapDefl(M, x + e, y, A1); mapDefl(M, x - e, y, A2); mapDefl(M, x, y + e, A3); mapDefl(M, x, y - e, A4);
@@ -424,10 +429,12 @@ function textLine(g, s, x, y, size, weight, ls, fam, col, a, blur, align = 'cent
   g.font = `${weight} ${size * S}px ${fam}`; g.letterSpacing = `${(ls * size * S).toFixed(2)}px`; g.textBaseline = 'middle'; g.textAlign = 'left';
   const w = g.measureText(s).width, L = ls * size * S; const x0 = align === 'center' ? x - (w - L) / 2 : align === 'right' ? x - (w - L) : x;
   if (blur > 0.05) g.filter = `blur(${(blur * S).toFixed(2)}px)`; g.fillStyle = rgba(col, a); g.fillText(s, x0, y); g.filter = 'none'; g.letterSpacing = '0px'; }
+function fitSize(g, s, size, weight, ls, fam) { g.font = `${weight} ${size * S}px ${fam}`; g.letterSpacing = `${(ls * size * S).toFixed(2)}px`; const w = g.measureText(s).width; g.letterSpacing = '0px'; return w > W * 0.9 ? size * W * 0.9 / w : size; }
 function label(x, y, s, a, col, size = 12, ls = 0.26) { if (a > 0.003) textLine(ctx, s, x * S, y * S, size, 400, ls, SANS, col, a, 0); }
 function caption(t, c) { const a = win(t, c.t0, c.t1, c.fi ?? 1.2, c.fo ?? 1.0); if (a <= 0) return; const g = ctx; const p = sm5((t - c.t0) / 1.6);
   g.globalCompositeOperation = 'source-over'; g.shadowColor = `rgba(0,0,0,${(0.6 * a).toFixed(3)})`; g.shadowBlur = 20 * S;
-  textLine(g, c.s, (c.x ?? LW / 2) * S, ((c.y ?? 950) + 6 * (1 - p)) * S, c.size ?? 34, c.weight ?? 300, (c.ls ?? 0.32) + 0.05 * (1 - p), SANS, c.col ?? [255, 255, 255], a * (c.alpha ?? 0.96), 5 * (1 - ss(c.t0, c.t0 + 0.9, t)) + 3 * ss(c.t1 - (c.fo ?? 1), c.t1, t));
+  const fs = fitSize(g, c.s, c.size ?? 34, c.weight ?? 300, c.ls ?? 0.32, SANS);
+  textLine(g, c.s, (c.x ?? LW / 2) * S, (PY_(c.y ?? 950) + 6 * (1 - p)) * S, fs, c.weight ?? 300, (c.ls ?? 0.32) + 0.05 * (1 - p), SANS, c.col ?? [255, 255, 255], a * (c.alpha ?? 0.96), 5 * (1 - ss(c.t0, c.t0 + 0.9, t)) + 3 * ss(c.t1 - (c.fo ?? 1), c.t1, t));
   g.shadowBlur = 0; g.shadowColor = 'rgba(0,0,0,0)'; }
 const CAPS = [
   { s: 'SPACE IS NOT EMPTY GEOMETRY.', t0: q(14.6), t1: q(20.4) },
@@ -461,9 +468,10 @@ const NOTES = [
 ];
 function hud(t) { const g = ctx; g.globalCompositeOperation = 'source-over';
   for (const c of CHAPTERS) { const a = win(t, c.t0, c.t1, 0.8, 0.8); if (a <= 0) continue; const p = sm5((t - c.t0) / 1.2);
-    textLine(g, c.n, 96 * S, 92 * S, 12, 400, 0.2, SANS, COL.gold, 0.9 * a, 0, 'left'); g.fillStyle = rgba([255, 255, 255], 0.45 * a); g.fillRect(126 * S, 92 * S, 26 * S * p, Math.max(1, S));
-    textLine(g, c.s, 166 * S, 92 * S, 12, 400, 0.3, SANS, [255, 255, 255], 0.72 * a, 0, 'left'); }
-  for (const n of NOTES) { const a = win(t, n.t0, n.t1, 0.9, 0.8); if (a > 0) textLine(g, n.s, (LW - 96) * S, 92 * S, 11.5, 300, 0.14, SANS, [255, 255, 255], 0.62 * a, 0, 'right'); }
+    const hy = PORTRAIT ? 150 : 92, hx = PORTRAIT ? 72 : 96;
+    textLine(g, c.n, hx * S, hy * S, 12, 400, 0.2, SANS, COL.gold, 0.9 * a, 0, 'left'); g.fillStyle = rgba([255, 255, 255], 0.45 * a); g.fillRect((hx + 30) * S, hy * S, 26 * S * p, Math.max(1, S));
+    textLine(g, c.s, (hx + 70) * S, hy * S, 12, 400, 0.3, SANS, [255, 255, 255], 0.72 * a, 0, 'left'); }
+  for (const n of NOTES) { const a = win(t, n.t0, n.t1, 0.9, 0.8); if (a > 0) { if (PORTRAIT) textLine(g, n.s, 72 * S, 188 * S, Math.min(11, 11 * 900 / (n.s.length * 9)), 300, 0.1, SANS, [255, 255, 255], 0.62 * a, 0, 'left'); else textLine(g, n.s, (LW - 96) * S, 92 * S, 11.5, 300, 0.14, SANS, [255, 255, 255], 0.62 * a, 0, 'right'); } }
 }
 
 /* =====================================================================
@@ -491,23 +499,25 @@ function renderFrame(t) {
   const hh = chan([[q(36.4), 2.25], [q(47.4), 2.05], [q(52.0), 2.0], [q(55.0), 1.22], [q(57.6), 1.3], [q(60.4), 4.1], [q(75.8), 3.6], [q(78.4), 8.5], [q(91.8), 26]], t);
   const rot = chan([[q(36.4), -0.08], [q(57.6), 0.06], [q(76), -0.04], [q(92), 0.08]], t, x => x);
   const cxv = chan([[q(57.6), 0], [q(75.8), 0], [q(78.4), 3], [q(91.8), -4]], t), cyv = chan([[q(57.6), 0], [q(78.4), -1.5], [q(91.8), 2]], t);
-  VIEW = { cx: cxv, cy: cyv, hh, rot };
+  const HK = PORTRAIT ? lerp(1.9, 1.32, ss(q(57.8), q(60.4), t)) : 1; const hhv = hh * HK;
+  const [cxP, cyP] = PORTRAIT ? [cyv, cxv] : [cxv, cyv];
+  VIEW = { cx: cxP, cy: cyP, hh: hhv, rot };
   let srcPos = null;
-  if (single > 0.003) srcPos = lensSingle(t, single * (1 - ss(q(91), q(91.5), t)), { cx: 0, cy: 0, hh: Math.min(hh, 4.1), rot });
+  if (single > 0.003) srcPos = lensSingle(t, single * (1 - ss(q(91), q(91.5), t)), { cx: 0, cy: 0, hh: Math.min(hh, 4.1) * HK, rot });
   if (clusterW > 0.003) lensCluster(t, clusterW, VIEW, ss(q(59.6), q(64.6), t));
   if (webW > 0.003) lensWeb(t, webW, VIEW, 1 - ss(q(88.0), q(91.6), t) * 0.7, 1);
   if (finalArc > 0.003) { // all that remains: one luminous arc in darkness
     const g = SRC2, cr = Math.cos(-0.6), sr = Math.sin(-0.6); const L = { x: 0, y: 0, b: 1.0, q: 0.9, s: 0.03, phi: 0.3 }; const bp = [0.3, 0.12];
-    lensAdd({ cx: 0, cy: -0.1, hh: 2.4, rot: 0 }, (x, y, o) => sieAdd(x, y, L, o, 1), (bx, by, o) => { const dx = bx - bp[0], dy = by - bp[1]; spiralRGB((dx * cr - dy * sr) / g.size, (dx * sr + dy * cr) / g.size / 0.82, g, o, 0.75); }, null, finalArc); }
+    lensAdd({ cx: 0, cy: PORTRAIT ? 0.6 : -0.1, hh: 2.4 * (PORTRAIT ? 1.9 : 1), rot: 0 }, (x, y, o) => sieAdd(x, y, L, o, 1), (bx, by, o) => { const dx = bx - bp[0], dy = by - bp[1]; spiralRGB((dx * cr - dy * sr) / g.size, (dx * sr + dy * cr) / g.size / 0.82, g, o, 0.75); }, null, finalArc); }
   if (lensUsed) lensBlit(1, 1.1);
   // overlays
   if (single > 0.003) { const tp = win(t, q(43.8), q(47.2), 0.8, 0.6) * single; // where the source truly is
-    if (tp > 0 && srcPos) { VIEW = { cx: 0, cy: 0, hh: Math.min(hh, 4.1), rot }; const [sx, sy] = w2s(srcPos[0], srcPos[1]); C.globalCompositeOperation = 'lighter'; C.strokeStyle = rgba(COL.ice, 0.55 * tp); C.lineWidth = Math.max(1, S); C.setLineDash([4 * S, 5 * S]); C.beginPath(); C.arc(sx, sy, 44 * S, 0, Math.PI * 2); C.stroke(); C.setLineDash([]);
+    if (tp > 0 && srcPos) { VIEW = { cx: 0, cy: 0, hh: Math.min(hh, 4.1) * HK, rot }; const [sx, sy] = w2s(srcPos[0], srcPos[1]); C.globalCompositeOperation = 'lighter'; C.strokeStyle = rgba(COL.ice, 0.55 * tp); C.lineWidth = Math.max(1, S); C.setLineDash([4 * S, 5 * S]); C.beginPath(); C.arc(sx, sy, 44 * S, 0, Math.PI * 2); C.stroke(); C.setLineDash([]);
       label(sx / S + 0, sy / S + 66, 'TRUE POSITION OF THE DISTANT GALAXY', tp, COL.ice, 10.5, 0.26); } }
-  if (clusterW > 0.003) { VIEW = { cx: cxv, cy: cyv, hh, rot }; const ma = win(t, q(65.0), q(76.2), 1.6, 1.2) * clusterW; massOverlay(CL4.kappa, CONT4, ma, VIEW, 1);
-    const la = win(t, q(70.9), q(76.0), 0.8, 1.0) * clusterW; label(LW / 2, 862, 'INFERRED MASS DISTRIBUTION  ·  MOSTLY DARK MATTER  ·  SCIENTIFIC OVERLAY', la, COL.turq, 11, 0.24);
-    const ka = win(t, q(59.4), q(65.0), 0.6, 0.8); label(LW / 2, 862, `LENS MASS  ${Math.round(ss(q(59.6), q(64.6), t) * 100)}%`, ka * clusterW, COL.ice, 11, 0.3); }
-  if (webW > 0.003) { VIEW = { cx: cxv, cy: cyv, hh, rot: 0 }; shearSticks(win(t, q(80.8), q(91.6), 1.6, 1.4) * webW, VIEW); massOverlay(WEB.kappa, CONTW, win(t, q(85.4), q(92.0), 1.8, 1.2) * webW, VIEW, 1); }
+  if (clusterW > 0.003) { VIEW = { cx: cxP, cy: cyP, hh: hhv, rot }; const ma = win(t, q(65.0), q(76.2), 1.6, 1.2) * clusterW; massOverlay(CL4.kappa, CONT4, ma, VIEW, 1);
+    const la = win(t, q(70.9), q(76.0), 0.8, 1.0) * clusterW; label(LW / 2, PY_(862), PORTRAIT ? 'INFERRED MASS · MOSTLY DARK MATTER · OVERLAY' : 'INFERRED MASS DISTRIBUTION  ·  MOSTLY DARK MATTER  ·  SCIENTIFIC OVERLAY', la, COL.turq, 11, 0.24);
+    const ka = win(t, q(59.4), q(65.0), 0.6, 0.8); label(LW / 2, PY_(862), `LENS MASS  ${Math.round(ss(q(59.6), q(64.6), t) * 100)}%`, ka * clusterW, COL.ice, 11, 0.3); }
+  if (webW > 0.003) { VIEW = { cx: cxP, cy: cyP, hh: hhv, rot: 0 }; shearSticks(win(t, q(80.8), q(91.6), 1.6, 1.4) * webW, VIEW); massOverlay(WEB.kappa, CONTW, win(t, q(85.4), q(92.0), 1.8, 1.2) * webW, VIEW, 1); }
   // bloom + composite
   bAc.globalCompositeOperation = 'copy'; bAc.filter = 'blur(5px)'; bAc.drawImage(fg, 0, 0, bA.width, bA.height); bAc.filter = 'none';
   bBc.globalCompositeOperation = 'copy'; bBc.filter = 'blur(5px)'; bBc.drawImage(bA, 0, 0, bB.width, bB.height); bBc.filter = 'none';
@@ -523,11 +533,11 @@ window.__soundMarks = () => ({ lead: LEAD, end: DURATION, grid: q(12.8), cluster
 
 /* ---------- boot ---------- */
 function resize(w, h) {
-  W = canvas.width = fg.width = Math.round(w); H = canvas.height = fg.height = Math.round(h); S = W / LW; FOCAL = (Math.min(W, H) * 0.5) / Math.tan((36 * Math.PI / 180) / 2);
+  W = canvas.width = fg.width = Math.round(w); H = canvas.height = fg.height = Math.round(h); S = W / LW; FOCAL = PORTRAIT ? (W * 0.5) / Math.tan(25 * Math.PI / 180) : (Math.min(W, H) * 0.5) / Math.tan((36 * Math.PI / 180) / 2);
   bA.width = Math.max(2, Math.round(W / 4)); bA.height = Math.max(2, Math.round(H / 4)); bB.width = Math.max(2, Math.round(W / 16)); bB.height = Math.max(2, Math.round(H / 16));
   const sp = Math.max(32, Math.min(128, Math.round(64 * S))); GLOW = {}; for (const k in COL) { GLOW[k] = makeGlow(COL[k], sp); GLOW[k + '_h'] = makeGlow(COL[k], sp, true); }
 }
-function fitWindow() { const dpr = Math.min(2, devicePixelRatio || 1); let vw = innerWidth, vh = innerHeight, w = vw, h = vw * 9 / 16; if (h > vh) { h = vh; w = vh * 16 / 9; }
+function fitWindow() { const dpr = Math.min(2, devicePixelRatio || 1); const AR = PORTRAIT ? 16 / 9 : 9 / 16; let vw = innerWidth, vh = innerHeight, w = vw, h = vw * AR; if (h > vh) { h = vh; w = vh / AR; }
   canvas.style.width = w + 'px'; canvas.style.height = h + 'px'; resize(w * dpr, h * dpr); }
 async function boot() {
   try { await Promise.race([Promise.all(['200 40px Inter', '300 40px Inter', '400 20px Inter'].map(f => document.fonts.load(f))), new Promise(r => setTimeout(r, 4000))]); } catch (e) {}
@@ -535,7 +545,7 @@ async function boot() {
   init();
   CONT4 = [[contours(CL4.kappa, 0.35), COL.turq], [contours(CL4.kappa, 0.7), COL.turq], [contours(CL4.kappa, 1.4), COL.ice]];
   CONTW = [[contours(WEB.kappa, 0.12), COL.violet], [contours(WEB.kappa, 0.35), COL.turq], [contours(WEB.kappa, 0.9), COL.ice]];
-  if (RENDER) { document.body.classList.add('render'); const w = +params.get('w') || 3840, h = +params.get('h') || Math.round(w * 9 / 16); canvas.style.width = '100%'; canvas.style.height = 'auto'; resize(w, h);
+  if (RENDER) { document.body.classList.add('render'); const w = +params.get('w') || (PORTRAIT ? 2160 : 3840), h = +params.get('h') || Math.round(w * (PORTRAIT ? 16 / 9 : 9 / 16)); canvas.style.width = '100%'; canvas.style.height = 'auto'; resize(w, h);
     window.__renderFrame = (t, type = 'image/png', qq) => { renderFrame(t); return canvas.toDataURL(type, qq); }; window.__ready = true; return; }
   fitWindow(); addEventListener('resize', fitWindow);
   const play = document.getElementById('play'), scrub = document.getElementById('scrub'), time = document.getElementById('time'), ui = document.getElementById('ui'), au = document.getElementById('snd');

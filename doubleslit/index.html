@@ -45,7 +45,9 @@ const params = new URLSearchParams(location.search);
 const RENDER = params.has('render');
 const LEAD = 0.6, q = x => x + LEAD;            // narration starts at 0.6 s
 const DURATION = 128.5; window.__DURATION = DURATION;
-const LW = 1920, LH = 1080;
+const PORTRAIT = params.has('portrait');
+const LW = PORTRAIT ? 1080 : 1920, LH = PORTRAIT ? 1920 : 1080;
+const PY_ = y => PORTRAIT ? y + 600 : y;   // lower-third text placement
 
 const canvas = document.getElementById('c'); const ctx = canvas.getContext('2d');
 const mk = () => { const c = document.createElement('canvas'); return [c, c.getContext('2d')]; };
@@ -401,6 +403,12 @@ function panel(x0, y0, w, h, evs, n, t, a, kind) {
 function splitScreen(t, a) {
   if (a <= 0.003) return; const n3 = countUntil(EV3, t), n4 = countUntil(EV4, t);
   const slide = ease((t - q(74.0)) / 1.6);
+  if (PORTRAIT) { const ty = lerp(560, 270, slide), by = lerp(560, 930, slide);
+    panel(90, ty, 900, 400, EV3, n3, t, a, 0); panel(90, by, 900, 400, EV4, n4, t, a * slide, 1);
+    C.globalCompositeOperation = 'source-over';
+    label(540, ty - 40, 'NO WHICH-PATH INFORMATION', a, COL.cyan); label(540, by - 40, 'WHICH-PATH INFORMATION AVAILABLE', a * slide, COL.amber);
+    label(540, ty + 400 + 146, 'INTERFERENCE  ·  VISIBILITY V ≈ 1', a * ss(q(74.4), q(75.6), t), COL.white, 11, 0.2);
+    label(540, by + 400 + 146, 'NO INTERFERENCE  ·  VISIBILITY V ≈ 0', a * ss(q(75.0), q(76.2), t), COL.white, 11, 0.2); return; }
   const lx = lerp(560, 120, slide), rx = lerp(560, 1000, slide);
   panel(lx, 210, 800, 470, EV3, n3, t, a, 0);
   panel(rx, 210, 800, 470, EV4, n4, t, a * slide, 1);
@@ -452,11 +460,12 @@ function textLine(g, s, x, y, size, weight, ls, fam, col, a, blur, align = 'cent
   const w = g.measureText(s).width, L = ls * size * S; const x0 = align === 'center' ? x - (w - L) / 2 : align === 'right' ? x - (w - L) : x;
   if (blur > 0.05) g.filter = `blur(${(blur * S).toFixed(2)}px)`; g.fillStyle = rgba(col, a); g.fillText(s, x0, y); g.filter = 'none'; g.letterSpacing = '0px'; return w - L;
 }
+function fitSize(g, s, size, weight, ls, fam) { g.font = `${weight} ${size * S}px ${fam}`; g.letterSpacing = `${(ls * size * S).toFixed(2)}px`; const w = g.measureText(s).width; g.letterSpacing = '0px'; return w > W * 0.9 ? size * W * 0.9 / w : size; }
 function label(x, y, s, a, col, size = 13, ls = 0.26) { if (a <= 0.003) return; textLine(C, s, x * S, y * S, size, 400, ls, SANS, col, a, 0); }
 function caption(t, c) {
   const a = win(t, c.t0, c.t1, c.fi ?? 1.2, c.fo ?? 1.0); if (a <= 0) return; const g = ctx; const p = sm5((t - c.t0) / 1.6);
-  g.globalCompositeOperation = 'source-over';
-  textLine(g, c.s, (c.x ?? LW / 2) * S, ((c.y ?? 948) + 6 * (1 - p)) * S, c.size ?? 34, c.weight ?? 300, (c.ls ?? 0.34) + 0.06 * (1 - p), SANS, c.col ?? [255, 255, 255], a * (c.alpha ?? 0.95), 5 * (1 - ss(c.t0, c.t0 + 0.9, t)) + 3 * ss(c.t1 - (c.fo ?? 1), c.t1, t));
+  g.globalCompositeOperation = 'source-over'; const fs = fitSize(g, c.s, c.size ?? 34, c.weight ?? 300, (c.ls ?? 0.34), SANS);
+  textLine(g, c.s, (c.x ?? LW / 2) * S, (PY_(c.y ?? 948) + 6 * (1 - p)) * S, fs, c.weight ?? 300, (c.ls ?? 0.34) + 0.06 * (1 - p), SANS, c.col ?? [255, 255, 255], a * (c.alpha ?? 0.95), 5 * (1 - ss(c.t0, c.t0 + 0.9, t)) + 3 * ss(c.t1 - (c.fo ?? 1), c.t1, t));
 }
 const CAPS = [
   { s: 'WHAT IS REALITY MADE OF?', t0: q(10.6), t1: q(15.8) },
@@ -485,18 +494,19 @@ const NOTES = [
 ];
 function hud(t) { const g = ctx; g.globalCompositeOperation = 'source-over';
   for (const c of CHAPTERS) { const a = win(t, c.t0, c.t1, 0.8, 0.8); if (a <= 0) continue; const p = sm5((t - c.t0) / 1.2);
-    textLine(g, c.n, 96 * S, 92 * S, 12, 400, 0.2, SANS, COL.amber, 0.9 * a, 0, 'left');
-    g.fillStyle = rgba([255, 255, 255], 0.45 * a); g.fillRect(126 * S, 92 * S, 26 * S * p, Math.max(1, S));
-    textLine(g, c.s, 166 * S, 92 * S, 12, 400, 0.3, SANS, [255, 255, 255], 0.72 * a, 0, 'left'); }
-  for (const n of NOTES) { const a = win(t, n.t0, n.t1, 0.9, 0.8); if (a > 0) textLine(g, n.s, (LW - 96) * S, 92 * S, 11.5, 300, 0.16, SANS, [255, 255, 255], 0.6 * a, 0, 'right'); }
+    const hy = PORTRAIT ? 150 : 92, hx = PORTRAIT ? 72 : 96;
+    textLine(g, c.n, hx * S, hy * S, 12, 400, 0.2, SANS, COL.amber, 0.9 * a, 0, 'left');
+    g.fillStyle = rgba([255, 255, 255], 0.45 * a); g.fillRect((hx + 30) * S, hy * S, 26 * S * p, Math.max(1, S));
+    textLine(g, c.s, (hx + 70) * S, hy * S, 12, 400, 0.3, SANS, [255, 255, 255], 0.72 * a, 0, 'left'); }
+  for (const n of NOTES) { const a = win(t, n.t0, n.t1, 0.9, 0.8); if (a > 0) { if (PORTRAIT) textLine(g, n.s, 72 * S, 188 * S, 10.5, 300, 0.12, SANS, [255, 255, 255], 0.6 * a, 0, 'left'); else textLine(g, n.s, (LW - 96) * S, 92 * S, 11.5, 300, 0.16, SANS, [255, 255, 255], 0.6 * a, 0, 'right'); } }
   // detection counter (statistics, not trails)
   const ca = win(t, q(44.0), q(61.3), 0.6, 0.8) + win(t, q(71.6), q(74.0), 0.4, 0.6);
   if (ca > 0) { const n = t < q(70) ? countUntil(EV3, t) : countUntil(EV4, t);
-    textLine(g, 'DETECTIONS', (LW - 96) * S, 92 * S, 11.5, 300, 0.24, SANS, [255, 255, 255], 0.55 * ca, 0, 'right');
-    textLine(g, n.toLocaleString('en-US'), (LW - 96) * S, 122 * S, 22, 200, 0.06, SANS, t < q(70) ? COL.cyan : COL.amber, 0.95 * ca, 0, 'right'); }
+    const cyy = PORTRAIT ? 150 : 92, cxx = PORTRAIT ? LW - 72 : LW - 96; textLine(g, 'DETECTIONS', cxx * S, cyy * S, 11.5, 300, 0.24, SANS, [255, 255, 255], 0.55 * ca, 0, 'right');
+    textLine(g, n.toLocaleString('en-US'), cxx * S, (cyy + 30) * S, 22, 200, 0.06, SANS, t < q(70) ? COL.cyan : COL.amber, 0.95 * ca, 0, 'right'); }
 }
 function equation(t) { // P(x) = |ψ(x)|², anchored in the landscape
-  const a = win(t, q(96.4), q(101.9), 1.4, 1.0); if (a <= 0) return; PX = W * 0.69 + 14 * S * Math.sin(t * 0.3); PY = H * 0.3 + 8 * S * Math.sin(t * 0.23);
+  const a = win(t, q(96.4), q(101.9), 1.4, 1.0); if (a <= 0) return; PX = W * (PORTRAIT ? 0.5 : 0.69) + 14 * S * Math.sin(t * 0.3); PY = H * (PORTRAIT ? 0.24 : 0.3) + 8 * S * Math.sin(t * 0.23);
   const sz = 66, g = C; g.globalCompositeOperation = 'source-over';
   const parts = [['P', 1], ['(', 0], ['x', 1], [')', 0], ['  =  ', 0], ['|', 0], ['ψ', 1], ['(', 0], ['x', 1], [')', 0], ['|', 0]];
   let tot = 0; const ws = parts.map(([s, it]) => { g.font = `${it ? 'italic ' : ''}400 ${sz * S}px ${SERIF}`; const w = g.measureText(s).width; tot += w; return w; });
@@ -539,7 +549,7 @@ function camera(t) {
    ===================================================================== */
 function sceneSix(t, ptX, ptY) {
   const g = C; g.globalCompositeOperation = 'lighter';
-  const cx = W / 2, cy = 470 * S;
+  const cx = W / 2, cy = (PORTRAIT ? 860 : 470) * S;
   const pt = ss(q(102.6), q(104.6), t);
   const openK = ease((t - q(106.0)) / 1.6), pat = ss(q(107.3), q(110.6), t) * (1 - ss(q(113.6), q(117.2), t));
   const slitA = ss(q(105.9), q(106.4), t) * (1 - ss(q(114.4), q(117.6), t));
@@ -611,17 +621,17 @@ window.__soundEvents = () => ({ lead: LEAD,
 /* ---------- boot ---------- */
 function resize(w, h) {
   W = canvas.width = fg.width = Math.round(w); H = canvas.height = fg.height = Math.round(h); S = W / LW;
-  FOCAL = (Math.min(W, H) * 0.5) / Math.tan((34 * Math.PI / 180) / 2);
+  FOCAL = PORTRAIT ? (W * 0.5) / Math.tan(24 * Math.PI / 180) : (Math.min(W, H) * 0.5) / Math.tan((34 * Math.PI / 180) / 2);
   bA.width = Math.max(2, Math.round(W / 4)); bA.height = Math.max(2, Math.round(H / 4)); bB.width = Math.max(2, Math.round(W / 16)); bB.height = Math.max(2, Math.round(H / 16));
   const sp = Math.max(32, Math.min(128, Math.round(64 * S))); GLOW = {}; for (const k in COL) { GLOW[k] = makeGlow(COL[k], sp); GLOW[k + '_h'] = makeGlow(COL[k], sp, true); }
 }
-function fitWindow() { const dpr = Math.min(2, devicePixelRatio || 1); let vw = innerWidth, vh = innerHeight, w = vw, h = vw * 9 / 16; if (h > vh) { h = vh; w = vh * 16 / 9; }
+function fitWindow() { const dpr = Math.min(2, devicePixelRatio || 1); const AR = PORTRAIT ? 16 / 9 : 9 / 16; let vw = innerWidth, vh = innerHeight, w = vw, h = vw * AR; if (h > vh) { h = vh; w = vh / AR; }
   canvas.style.width = w + 'px'; canvas.style.height = h + 'px'; resize(w * dpr, h * dpr); }
 async function boot() {
   try { await Promise.race([Promise.all(['200 40px Inter', '300 40px Inter', '400 20px Inter', 'italic 400 40px "Cormorant Garamond"', '400 40px "Cormorant Garamond"'].map(f => document.fonts.load(f))), new Promise(r => setTimeout(r, 4000))]); } catch (e) {}
   window.__fontsOk = document.fonts.check('300 40px Inter') && document.fonts.check('italic 400 40px "Cormorant Garamond"');
   init(); NOISE = makeNoise();
-  if (RENDER) { document.body.classList.add('render'); const w = +params.get('w') || 3840, h = +params.get('h') || Math.round(w * 9 / 16); canvas.style.width = '100%'; canvas.style.height = 'auto'; resize(w, h);
+  if (RENDER) { document.body.classList.add('render'); const w = +params.get('w') || (PORTRAIT ? 2160 : 3840), h = +params.get('h') || Math.round(w * (PORTRAIT ? 16 / 9 : 9 / 16)); canvas.style.width = '100%'; canvas.style.height = 'auto'; resize(w, h);
     window.__renderFrame = (t, type = 'image/png', qq) => { renderFrame(t); return canvas.toDataURL(type, qq); }; window.__ready = true; return; }
   fitWindow(); addEventListener('resize', fitWindow);
   const play = document.getElementById('play'), scrub = document.getElementById('scrub'), time = document.getElementById('time'), ui = document.getElementById('ui'), au = document.getElementById('vo');

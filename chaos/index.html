@@ -44,7 +44,9 @@ const params = new URLSearchParams(location.search);
 const RENDER = params.has('render');
 const LEAD = 0.6, q = x => x + LEAD;
 const DURATION = 104.0; window.__DURATION = DURATION;
-const LW = 1920, LH = 1080;
+const PORTRAIT = params.has('portrait');
+const LW = PORTRAIT ? 1080 : 1920, LH = PORTRAIT ? 1920 : 1080;
+const PY_ = y => PORTRAIT ? y + 600 : y;
 
 const canvas = document.getElementById('c'); const ctx = canvas.getContext('2d');
 const mk = () => { const c = document.createElement('canvas'); return [c, c.getContext('2d')]; };
@@ -112,15 +114,15 @@ const PAL = [
   ['#060418', '#1a1250', '#3a1a7a', '#1a5a8a', '#c08a3a'].map(hex),  // D violet / deep blue / amber
   ['#03120e', '#0a3a32', '#2a1a6a', '#1aa088', '#e0b860'].map(hex),  // E emerald / violet / turquoise / gold
 ];
-const [bgS, bgSc] = mk(), [bgM, bgMc] = mk(); const BW = 240, BH = 135; bgS.width = BW; bgS.height = BH; let bgData = null;
+const [bgS, bgSc] = mk(), [bgM, bgMc] = mk(); const BW = PORTRAIT ? 135 : 240, BH = PORTRAIT ? 240 : 135, ASP = PORTRAIT ? 0.5625 : 1.778; bgS.width = BW; bgS.height = BH; let bgData = null;
 function ramp(pal, v) { const n = pal.length - 1, f = clamp(v) * n, i = Math.min(n - 1, Math.floor(f)), k = f - i, a = pal[i], b = pal[i + 1]; return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k]; }
 function background(t, wts, fade, fx, fy) {
   if (!bgData) bgData = bgSc.createImageData(BW, BH); const d = bgData.data; const act = []; wts.forEach((w, i) => { if (w > 0.002) act.push([w, PAL[i]]); });
   for (let y = 0; y < BH; y++) { const v = y / BH;
-    for (let x = 0; x < BW; x++) { const u = x / BW * 1.778;
+    for (let x = 0; x < BW; x++) { const u = x / BW * ASP;
       const q1 = Math.sin(u * 1.7 + t * 0.12) + Math.sin(v * 2.9 - t * 0.1 + u * 1.1), q2 = Math.sin(v * 2.2 + t * 0.08 + q1 * 0.8) + 0.6 * Math.sin(u * 2.5 - t * 0.07);
       const f = 0.5 + 0.5 * Math.sin(u * 1.3 + v * 1.4 + q1 * 0.9 + q2 * 0.8 + t * 0.1);
-      const dx = (x / BW - fx) * 1.778, dy = v - fy, rr = dx * dx + dy * dy; const lum = (0.4 + 0.18 * Math.sin(u * 2.3 - v * 1.6 + q2 + t * 0.15)) * (0.55 + 0.6 * Math.exp(-rr / 0.22)) * (1 - 0.45 * Math.min(1, rr * 0.7));
+      const dx = (x / BW - fx) * ASP, dy = v - fy, rr = dx * dx + dy * dy; const lum = (0.4 + 0.18 * Math.sin(u * 2.3 - v * 1.6 + q2 + t * 0.15)) * (0.55 + 0.6 * Math.exp(-rr / 0.22)) * (1 - 0.45 * Math.min(1, rr * 0.7));
       let r = 0, g = 0, b = 0; for (const [w, pal] of act) { const c = ramp(pal, f * 0.82 + 0.08); r += w * c[0] * lum; g += w * c[1] * lum; b += w * c[2] * lum; }
       const i = (y * BW + x) * 4; d[i] = r * fade; d[i + 1] = g * fade; d[i + 2] = b * fade; d[i + 3] = 255; } }
   bgSc.putImageData(bgData, 0, 0); bgMc.filter = 'blur(3px)'; bgMc.drawImage(bgS, -8, -8, bgM.width + 16, bgM.height + 16); bgMc.filter = 'none';
@@ -260,15 +262,15 @@ function sceneA(t, A) {
 function vortexField(x, y, t, cx, cy, k) { // direction field (logical px)
   let u = 1.0, v = 0.12 * Math.sin(x * 0.004 + t * 0.3);
   const tur = k; u += tur * 0.6 * Math.sin(y * 0.011 + t * 0.4) * Math.cos(x * 0.006); v += tur * 0.7 * Math.sin(x * 0.009 - t * 0.35 + y * 0.004);
-  for (let i = 0; i < 6; i++) { const vx = cx + 240 + i * 230 + 30 * Math.sin(t * 0.3 + i), vy = cy + (i % 2 ? -1 : 1) * (120 + 40 * i) * Math.min(1, k * 1.4), s = (i % 2 ? 1 : -1) * 180 * k * (1 + i * 0.25);
+  for (let i = 0; i < 6; i++) { const vx = cx + (240 + i * 230) * LW / 1920 + 30 * Math.sin(t * 0.3 + i), vy = cy + (i % 2 ? -1 : 1) * (120 + 40 * i) * Math.min(1, k * 1.4) * (PORTRAIT ? 1.8 : 1), s = (i % 2 ? 1 : -1) * 180 * k * (1 + i * 0.25);
     const dx = x - vx, dy = y - vy, r2 = dx * dx + dy * dy + 900; u += -s * dy / r2; v += s * dx / r2; }
-  const storm = STORM_K; if (storm > 0) { const dx = x - 1360, dy = y - 520, r2 = dx * dx + dy * dy + 2500, r = Math.sqrt(r2); u += storm * (-dy * 380 / r2 - dx * 0.35 / r); v += storm * (dx * 380 / r2 - dy * 0.35 / r); }
+  const storm = STORM_K; if (storm > 0) { const dx = x - STX, dy = y - STY, r2 = dx * dx + dy * dy + 2500, r = Math.sqrt(r2); u += storm * (-dy * 380 / r2 - dx * 0.35 / r); v += storm * (dx * 380 / r2 - dy * 0.35 / r); }
   return [u, v]; }
-let STORM_K = 0;
+let STORM_K = 0; const STX = PORTRAIT ? 700 : 1360, STY = PORTRAIT ? 1100 : 520;
 function sceneB(t, A) {
   if (A <= 0.003) return;
   const k = ss(q(13.6), q(23.5), t) * 1.4; STORM_K = ss(q(21.0), q(24.0), t) * 1.6;
-  const bx = 360 - 80 * ss(q(13.6), q(18), t), by = 560;
+  const bx = (PORTRAIT ? 200 : 360) - 80 * ss(q(13.6), q(18), t), by = PORTRAIT ? 960 : 560;
   const spread = ss(q(13.6), q(20.5), t);
   const L = new Lines(); const cols = ['turq', 'emerald', 'cyan', 'gold', 'violet'];
   const NL = 900;
@@ -284,13 +286,13 @@ function sceneB(t, A) {
     for (let j = 0; j <= 12; j++) { let prev = null; for (let i = 0; i <= 48; i++) { const x = i / 48 * LW, y = j / 12 * LH; const [u, v] = vortexField(x, y, t, bx, by, k); const p = [x + u * 6, y + v * 10]; if (prev) G.add(prev[0] * S, prev[1] * S, p[0] * S, p[1] * S, ga * 0.22, 'ice'); prev = p; } }
     G.flush([[0.8, 0.8, 0.2]]); }
   const ba = A * win(t, q(18.0), q(24.4), 1.5, 1.2); if (ba > 0.01) { // logistic map bifurcation diagram, x_{n+1} = r x_n (1 − x_n)
-    C.globalCompositeOperation = 'lighter'; const x0 = 1180, y0 = 160, w = 600, h = 300; const shown = Math.floor(BIF.length / 2 * clamp((t - q(18.0)) / 3.5));
+    C.globalCompositeOperation = 'lighter'; const x0 = PORTRAIT ? 120 : 1180, y0 = PORTRAIT ? 300 : 160, w = PORTRAIT ? 840 : 600, h = 300; const shown = Math.floor(BIF.length / 2 * clamp((t - q(18.0)) / 3.5));
     for (let i = 0; i < shown; i++) { const r = BIF[i * 2], xv = BIF[i * 2 + 1]; dotPx((x0 + (r - 2.8) / 1.2 * w) * S, (y0 + h - xv * h) * S, 0.9 * S, ba * 0.55, r > 3.57 ? 'gold' : 'turq'); }
     textLine(ctx, 'x', 0, 0, 1, 1, 0, SANS, [0, 0, 0], 0, 0); // (font warm-up)
     label(x0 + w / 2, y0 + h + 26, 'LOGISTIC MAP  ·  xₙ₊₁ = r xₙ (1 − xₙ)', ba * 0.8, COL.ice, 11, 0.2); }
   // the storm: spiral cloud bands
   if (STORM_K > 0.01) { C.globalCompositeOperation = 'lighter';
-    for (let arm = 0; arm < 4; arm++) for (let i = 0; i < 220; i++) { const th = i / 220 * 9 + arm * Math.PI / 2 - t * 0.6, r = 18 * Math.exp(0.24 * (i / 220 * 9)); const x = 1360 + Math.cos(th) * r, y = 520 + Math.sin(th) * r * 0.86;
+    for (let arm = 0; arm < 4; arm++) for (let i = 0; i < 220; i++) { const th = i / 220 * 9 + arm * Math.PI / 2 - t * 0.6, r = 18 * Math.exp(0.24 * (i / 220 * 9)); const x = STX + Math.cos(th) * r, y = STY + Math.sin(th) * r * 0.86;
       glowPx(x * S, y * S, (6 + 10 * hash(i + arm * 300)) * S, A * STORM_K * 0.08, i % 3 ? 'ice' : 'turq'); } }
   // the butterfly, now tiny, at the source of it all
   const ba2 = A * (1 - ss(q(17.0), q(19.5), t)); if (ba2 > 0.01) { C.globalCompositeOperation = 'lighter'; glowPx(bx * S, by * S, 26 * S, ba2 * 0.6, 'gold'); dotPx(bx * S, by * S, 3 * S, ba2, 'white'); }
@@ -375,10 +377,12 @@ function textLine(g, s, x, y, size, weight, ls, fam, col, a, blur, align = 'cent
   g.font = `${italic ? 'italic ' : ''}${weight} ${size * S}px ${fam}`; g.letterSpacing = `${(ls * size * S).toFixed(2)}px`; g.textBaseline = 'middle'; g.textAlign = 'left';
   const w = g.measureText(s).width, L = ls * size * S; const x0 = align === 'center' ? x - (w - L) / 2 : align === 'right' ? x - (w - L) : x;
   if (blur > 0.05) g.filter = `blur(${(blur * S).toFixed(2)}px)`; g.fillStyle = rgba(col, a); g.fillText(s, x0, y); g.filter = 'none'; g.letterSpacing = '0px'; }
+function fitSize(g, s, size, weight, ls, fam) { g.font = `${weight} ${size * S}px ${fam}`; g.letterSpacing = `${(ls * size * S).toFixed(2)}px`; const w = g.measureText(s).width; g.letterSpacing = '0px'; return w > W * 0.9 ? size * W * 0.9 / w : size; }
 function label(x, y, s, a, col, size = 12, ls = 0.26) { if (a > 0.003) textLine(ctx, s, x * S, y * S, size, 400, ls, SANS, col, a, 0); }
 function caption(t, c) { const a = win(t, c.t0, c.t1, c.fi ?? 1.2, c.fo ?? 1.0); if (a <= 0) return; const g = ctx; const p = sm5((t - c.t0) / 1.6);
   g.globalCompositeOperation = 'source-over'; g.shadowColor = `rgba(0,0,0,${(0.6 * a).toFixed(3)})`; g.shadowBlur = 22 * S;
-  textLine(g, c.s, (c.x ?? LW / 2) * S, ((c.y ?? 950) + 6 * (1 - p)) * S, c.size ?? 34, c.weight ?? 300, (c.ls ?? 0.3) + 0.05 * (1 - p), SANS, c.col ?? [255, 255, 255], a * (c.alpha ?? 0.96), 5 * (1 - ss(c.t0, c.t0 + 0.9, t)) + 3 * ss(c.t1 - (c.fo ?? 1), c.t1, t));
+  const fs = fitSize(g, c.s, c.size ?? 34, c.weight ?? 300, c.ls ?? 0.3, SANS);
+  textLine(g, c.s, (c.x ?? LW / 2) * S, (PY_(c.y ?? 950) + 6 * (1 - p)) * S, fs, c.weight ?? 300, (c.ls ?? 0.3) + 0.05 * (1 - p), SANS, c.col ?? [255, 255, 255], a * (c.alpha ?? 0.96), 5 * (1 - ss(c.t0, c.t0 + 0.9, t)) + 3 * ss(c.t1 - (c.fo ?? 1), c.t1, t));
   g.shadowBlur = 0; g.shadowColor = 'rgba(0,0,0,0)'; }
 const CAPS = [
   { s: 'CAN SOMETHING TINY CHANGE EVERYTHING?', t0: q(13.6), t1: q(17.6) },
@@ -399,11 +403,11 @@ const NOTES = [
   { s: '300 STATES, INITIALLY 10⁻³ APART', t0: q(70.4), t1: q(80.2) },
 ];
 function hud(t) { const g = ctx; g.globalCompositeOperation = 'source-over';
-  for (const n of NOTES) { const a = win(t, n.t0, n.t1, 0.9, 0.8); if (a > 0) textLine(g, n.s, (LW - 96) * S, 92 * S, 11.5, 300, 0.14, SANS, [255, 255, 255], 0.65 * a, 0, 'right'); } }
+  for (const n of NOTES) { const a = win(t, n.t0, n.t1, 0.9, 0.8); if (a > 0) { if (PORTRAIT) textLine(g, n.s, 72 * S, 150 * S, Math.min(11, 11 * 900 / (n.s.length * 9)), 300, 0.1, SANS, [255, 255, 255], 0.65 * a, 0, 'left'); else textLine(g, n.s, (LW - 96) * S, 92 * S, 11.5, 300, 0.14, SANS, [255, 255, 255], 0.65 * a, 0, 'right'); } } }
 function equations(t, a) { if (a <= 0.003) return; const g = ctx; g.globalCompositeOperation = 'source-over'; g.shadowColor = rgba([0, 0, 0], 0.7 * a); g.shadowBlur = 16 * S;
   const lines = [[['dx', 1], [' / ', 0], ['dt', 1], ['  =  σ (', 0], ['y', 1], [' − ', 0], ['x', 1], [')', 0]], [['dy', 1], [' / ', 0], ['dt', 1], ['  =  ', 0], ['x', 1], [' (ρ − ', 0], ['z', 1], [') − ', 0], ['y', 1]], [['dz', 1], [' / ', 0], ['dt', 1], ['  =  ', 0], ['xy', 1], [' − β', 0], ['z', 1]]];
-  lines.forEach((parts, li) => { const la = a * ss(q(62.0) + li * 0.6, q(63.2) + li * 0.6, t); if (la <= 0) return; let x = 130 * S; const y = (400 + li * 96) * S;
-    for (const [s, it] of parts) { g.font = `${it ? 'italic ' : ''}400 ${64 * S}px ${SERIF}`; g.fillStyle = rgba(it ? [255, 240, 215] : [200, 220, 255], la); g.textBaseline = 'middle'; g.fillText(s, x, y); x += g.measureText(s).width; } });
+  lines.forEach((parts, li) => { const la = a * ss(q(62.0) + li * 0.6, q(63.2) + li * 0.6, t); if (la <= 0) return; let x = (PORTRAIT ? 90 : 130) * S; const y = ((PORTRAIT ? 330 : 400) + li * 96) * S;
+    for (const [s, it] of parts) { g.font = `${it ? 'italic ' : ''}400 ${(PORTRAIT ? 56 : 64) * S}px ${SERIF}`; g.fillStyle = rgba(it ? [255, 240, 215] : [200, 220, 255], la); g.textBaseline = 'middle'; g.fillText(s, x, y); x += g.measureText(s).width; } });
   g.shadowBlur = 0; g.shadowColor = 'rgba(0,0,0,0)'; }
 
 /* =====================================================================
@@ -442,33 +446,33 @@ function renderFrame(t) {
   let sepLog = null;
   if (split > 0.003) {
     const tau0 = q(46.4), rate = 140; const iNow = 6000 + Math.max(0, Math.floor((t - tau0) * rate));
-    for (const side of [0, 1]) { const arr = side ? LB : LA; const xs = side ? LW * 0.75 : LW * 0.25;
-      C.save(); C.beginPath(); C.rect(side ? W / 2 + S : 0, 0, W / 2 - S, H); C.clip();
+    for (const side of [0, 1]) { const arr = side ? LB : LA; const xs = PORTRAIT ? LW / 2 : (side ? LW * 0.75 : LW * 0.25), ys = PORTRAIT ? (side ? LH * 0.75 : LH * 0.25) : 540;
+      C.save(); C.beginPath(); if (PORTRAIT) C.rect(0, side ? H / 2 + S : 0, W, H / 2 - S); else C.rect(side ? W / 2 + S : 0, 0, W / 2 - S, H); C.clip();
       // the world: a flow whose storminess follows this world's own trajectory
       const st = arr[iNow * 3 + 2], sx = arr[iNow * 3]; const storm = clamp((st - 14) / 26); const Lw = new Lines();
-      for (let i = 0; i < 260; i++) { let x = (side ? LW / 2 : 0) + hash(i * 3.1) * LW / 2, y = hash(i * 5.7) * LH; let prev = [x, y];
-        for (let s = 0; s < 30; s++) { const cx = xs + sx * 9, cy = 540 + (arr[iNow * 3 + 1]) * 6; const dx = x - cx, dy = y - cy, r2 = dx * dx + dy * dy + 1600; const sw = (sx > 0 ? 1 : -1) * 900 * storm;
+      for (let i = 0; i < 260; i++) { let x = PORTRAIT ? hash(i * 3.1) * LW : (side ? LW / 2 : 0) + hash(i * 3.1) * LW / 2, y = PORTRAIT ? (side ? LH / 2 : 0) + hash(i * 5.7) * LH / 2 : hash(i * 5.7) * LH; let prev = [x, y];
+        for (let s = 0; s < 30; s++) { const cx = xs + sx * 9, cy = ys + (arr[iNow * 3 + 1]) * 6; const dx = x - cx, dy = y - cy, r2 = dx * dx + dy * dy + 1600; const sw = (sx > 0 ? 1 : -1) * 900 * storm;
           let u = 1 + sw * -dy / r2 + 0.4 * storm * Math.sin(y * 0.02 + t), v = sw * dx / r2 + 0.3 * storm * Math.cos(x * 0.017 - t); const n = Math.hypot(u, v); x += u / n * 8; y += v / n * 8;
           Lw.add(prev[0] * S, prev[1] * S, x * S, y * S, split * (0.14 + 0.4 * storm) * (1 - s / 30), storm > 0.5 ? 'crimson' : storm > 0.25 ? 'gold' : 'turq'); prev = [x, y]; } }
       Lw.flush([[2.6, 0.1, 0], [1, 0.55, 0.2]]);
       // its own trajectory on the attractor
       setCam([0, 0, 0], 7.4, -0.6 + t * 0.03, 0.2); cam.oy = 0; const W0 = W; const shift = (side ? 0.25 : -0.25) * W0;
-      C.translate(shift, 0); drawLorenz(arr, Math.max(6000, iNow - 2600), iNow, split * 0.9, () => side ? 'cyan' : 'gold', 2);
+      if (PORTRAIT) C.translate(0, (side ? 0.25 : -0.25) * H); else C.translate(shift, 0); drawLorenz(arr, Math.max(6000, iNow - 2600), iNow, split * 0.9, () => side ? 'cyan' : 'gold', 2);
       const p = L3(arr[iNow * 3], arr[iNow * 3 + 1], arr[iNow * 3 + 2]); if (project(...p)) { glowPx(PX, PY, 40 * S, split, side ? 'cyan' : 'gold'); dotPx(PX, PY, 5 * S, split, 'white'); }
       C.restore();
       // at the start, the same butterfly in both worlds
-      const bA2 = split * (1 - ss(q(48.6), q(50.2), t)); if (bA2 > 0.01) { setCam([0, 0, 0], 6, 0.3, 0.35); cam.oy = 0; C.save(); C.translate((side ? 0.25 : -0.25) * W, 0.2 * H); butterfly([0, 0, 0], 0.4, 0.55, flapAt(t), bA2); C.restore(); }
+      const bA2 = split * (1 - ss(q(48.6), q(50.2), t)); if (bA2 > 0.01) { setCam([0, 0, 0], 6, 0.3, 0.35); cam.oy = 0; C.save(); if (PORTRAIT) C.translate(0, (side ? 0.25 : -0.25) * H + 0.1 * H); else C.translate((side ? 0.25 : -0.25) * W, 0.2 * H); butterfly([0, 0, 0], 0.4, 0.55, flapAt(t), bA2); C.restore(); }
     }
-    C.globalCompositeOperation = 'lighter'; C.fillStyle = rgba([255, 255, 255], 0.35 * split); C.fillRect(W / 2 - S * 0.5, 0, Math.max(1, S), H);
+    C.globalCompositeOperation = 'lighter'; C.fillStyle = rgba([255, 255, 255], 0.35 * split); if (PORTRAIT) C.fillRect(0, H / 2 - S * 0.5, W, Math.max(1, S)); else C.fillRect(W / 2 - S * 0.5, 0, Math.max(1, S), H);
     // separation |δ| on a log scale: straight line = exponential growth
-    const g0x = 760, g0y = 880, gw = 400, gh = 100; C.strokeStyle = rgba([255, 255, 255], 0.3 * split); C.lineWidth = Math.max(1, S); C.strokeRect(g0x * S, (g0y - gh) * S, gw * S, gh * S);
+    const g0x = PORTRAIT ? 340 : 760, g0y = PORTRAIT ? 1830 : 880, gw = 400, gh = PORTRAIT ? 80 : 100; C.strokeStyle = rgba([255, 255, 255], 0.3 * split); C.lineWidth = Math.max(1, S); C.strokeRect(g0x * S, (g0y - gh) * S, gw * S, gh * S);
     C.beginPath(); let started = false; const maxI = iNow; for (let i = 6000; i <= maxI; i += 20) { const d = Math.hypot(LA[i * 3] - LB[i * 3], LA[i * 3 + 1] - LB[i * 3 + 1], LA[i * 3 + 2] - LB[i * 3 + 2]); const lg = (Math.log10(d) + 6) / 8; const x = g0x + (i - 6000) / 1900 * gw * 0.5 / 1; if (x > g0x + gw) break; const y = g0y - clamp(lg) * gh;
       if (!started) { C.moveTo(x * S, y * S); started = true; } else C.lineTo(x * S, y * S); sepLog = d; }
     C.strokeStyle = rgba(COL.gold, 0.9 * split); C.lineWidth = 1.6 * S; C.stroke();
     ctx.globalCompositeOperation = 'source-over';
     label(g0x + gw / 2, g0y - gh - 16, 'SEPARATION  |δ|  (LOG SCALE)', 0.75 * split, COL.ice, 10.5, 0.22);
     if (sepLog) label(g0x + gw / 2, g0y + 18, `|δ| = ${sepLog < 0.01 ? sepLog.toExponential(1) : sepLog.toFixed(2)}`, 0.85 * split, COL.gold, 12, 0.12);
-    label(LW * 0.25, 150, 'WORLD A', 0.8 * split, COL.gold, 12, 0.4); label(LW * 0.75, 150, 'WORLD B  ·  STARTS 0.00001 AWAY', 0.8 * split, COL.cyan, 12, 0.3);
+    if (PORTRAIT) { label(LW / 2, 230, 'WORLD A', 0.8 * split, COL.gold, 12, 0.4); label(LW / 2, LH / 2 + 60, 'WORLD B  ·  STARTS 0.00001 AWAY', 0.8 * split, COL.cyan, 12, 0.3); } else { label(LW * 0.25, 150, 'WORLD A', 0.8 * split, COL.gold, 12, 0.4); label(LW * 0.75, 150, 'WORLD B  ·  STARTS 0.00001 AWAY', 0.8 * split, COL.cyan, 12, 0.3); }
   }
   // E: the laws, the ensemble, the butterfly at the heart of its attractor
   if (t > q(59.5)) {
@@ -519,8 +523,8 @@ window.__soundData = () => { const per = 1 / 0.95, beats = []; for (let tb = q(6
 
 /* ---------- boot ---------- */
 function resize(w, h) {
-  W = canvas.width = fg.width = Math.round(w); H = canvas.height = fg.height = Math.round(h); S = W / LW; FOCAL = (Math.min(W, H) * 0.5) / Math.tan((34 * Math.PI / 180) / 2);
-  bA.width = Math.max(2, Math.round(W / 4)); bA.height = Math.max(2, Math.round(H / 4)); bB.width = Math.max(2, Math.round(W / 16)); bB.height = Math.max(2, Math.round(H / 16)); bgM.width = 960; bgM.height = 540;
+  W = canvas.width = fg.width = Math.round(w); H = canvas.height = fg.height = Math.round(h); S = W / LW; FOCAL = PORTRAIT ? (W * 0.5) / Math.tan(24 * Math.PI / 180) : (Math.min(W, H) * 0.5) / Math.tan((34 * Math.PI / 180) / 2);
+  bA.width = Math.max(2, Math.round(W / 4)); bA.height = Math.max(2, Math.round(H / 4)); bB.width = Math.max(2, Math.round(W / 16)); bB.height = Math.max(2, Math.round(H / 16)); bgM.width = PORTRAIT ? 540 : 960; bgM.height = PORTRAIT ? 960 : 540;
   const sp = Math.max(32, Math.min(128, Math.round(64 * S))); GLOW = {}; for (const k in COL) { GLOW[k] = makeGlow(COL[k], sp); GLOW[k + '_h'] = makeGlow(COL[k], sp, true); }
 }
 function init() {
@@ -530,13 +534,13 @@ function init() {
   OCEAN_SPRAY = []; for (let i = 0; i < 900; i++) OCEAN_SPRAY.push({ x: (R() * 2 - 1) * 60, ph: R(), v: R(), dx: (R() - 0.5) * 3 });
   initLorenz();
 }
-function fitWindow() { const dpr = Math.min(2, devicePixelRatio || 1); let vw = innerWidth, vh = innerHeight, w = vw, h = vw * 9 / 16; if (h > vh) { h = vh; w = vh * 16 / 9; }
+function fitWindow() { const dpr = Math.min(2, devicePixelRatio || 1); const AR = PORTRAIT ? 16 / 9 : 9 / 16; let vw = innerWidth, vh = innerHeight, w = vw, h = vw * AR; if (h > vh) { h = vh; w = vh / AR; }
   canvas.style.width = w + 'px'; canvas.style.height = h + 'px'; resize(w * dpr, h * dpr); }
 async function boot() {
   try { await Promise.race([Promise.all(['200 40px Inter', '300 40px Inter', '400 20px Inter', 'italic 400 40px "Cormorant Garamond"', '400 40px "Cormorant Garamond"'].map(f => document.fonts.load(f))), new Promise(r => setTimeout(r, 4000))]); } catch (e) {}
   window.__fontsOk = document.fonts.check('300 40px Inter') && document.fonts.check('italic 400 40px "Cormorant Garamond"');
   init(); NOISE = makeNoise();
-  if (RENDER) { document.body.classList.add('render'); const w = +params.get('w') || 3840, h = +params.get('h') || Math.round(w * 9 / 16); canvas.style.width = '100%'; canvas.style.height = 'auto'; resize(w, h);
+  if (RENDER) { document.body.classList.add('render'); const w = +params.get('w') || (PORTRAIT ? 2160 : 3840), h = +params.get('h') || Math.round(w * (PORTRAIT ? 16 / 9 : 9 / 16)); canvas.style.width = '100%'; canvas.style.height = 'auto'; resize(w, h);
     window.__renderFrame = (t, type = 'image/png', qq) => { renderFrame(t); return canvas.toDataURL(type, qq); }; window.__ready = true; return; }
   fitWindow(); addEventListener('resize', fitWindow);
   const play = document.getElementById('play'), scrub = document.getElementById('scrub'), time = document.getElementById('time'), ui = document.getElementById('ui'), au = document.getElementById('snd');
