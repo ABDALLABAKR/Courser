@@ -76,7 +76,7 @@
     forward5: { icon: '🚀', name: 'Rocket Boost', color: '#fb923c', desc: 'Thrust! Your group blasts forward 5 squares.' },
     swap: { icon: '🔄', name: 'Swap Positions', color: '#a78bfa', desc: 'Choose any rival group and swap board positions with it — or keep your place.' },
     double: { icon: '💎', name: 'Double Points', color: '#38bdf8', desc: 'Your group’s next correct answer earns DOUBLE points.' },
-    challenge: { icon: '🎯', name: 'Challenge a Group', color: '#f87171', desc: 'Pick a rival for a head-to-head question. Both groups answer — the winner earns 10 points.' },
+    challenge: { icon: '🎯', name: 'Challenge a Group', color: '#f87171', desc: 'Pick a rival for a head-to-head question. Both groups lock in an answer — each correct group earns 10 points.' },
     back3: { icon: '⏪', name: 'Move Back 3', color: '#94a3b8', desc: 'Friction strikes! Your group slides back 3 squares.' },
     mystery: { icon: '❓', name: 'Mystery Square', color: '#e879f9', desc: 'A random power-up is about to be revealed…' }
   };
@@ -552,7 +552,7 @@
     return Object.assign({}, q, { o: order.map(i => q.o[i]), a: order.indexOf(q.a) });
   }
 
-  const QT = { left: 0, total: 0, iv: null, el: null, paused: false };
+  const QT = { left: 0, total: 0, iv: null, el: null, paused: false, onEnd: null };
   const CIRC = 2 * Math.PI * 52;
   function startQTimer(sec, el) {
     stopQTimer(); QT.left = QT.total = Math.max(5, sec | 0); QT.el = el; QT.paused = false; drawQT(); runQT();
@@ -563,7 +563,7 @@
       if (QT.paused || (game && game.paused)) return;
       QT.left = Math.max(0, QT.left - 1);
       if (QT.left > 0 && QT.left <= 5) SFX.tick();
-      if (QT.left === 0) { clearInterval(QT.iv); QT.iv = null; SFX.buzzer(); }
+      if (QT.left === 0) { clearInterval(QT.iv); QT.iv = null; SFX.buzzer(); if (QT.onEnd) QT.onEnd(); }
       drawQT();
     }, 1000);
   }
@@ -589,91 +589,111 @@
   function questionHTML(q, o, student) {
     const t = o.team, kindChip = KIND_LABEL[o.kind] ? `<span class="chip kind ${o.kind}">${KIND_LABEL[o.kind]}</span>` : '';
     const cat = CATS[q.c] || CATS[1];
-    const pts = o.kind === 'challenge' ? `+${o.points} pts to the winner` : `+${o.points * (t.double ? 2 : 1)} pts${t.double ? ' 💎×2' : ''}`;
+    const pts = o.kind === 'challenge' ? `+${o.points} pts for each correct group` : `+${o.points * (t.double ? 2 : 1)} pts${t.double ? ' 💎×2' : ''}`;
     const teamStrip = o.kind === 'challenge'
-      ? `<div class="q-team" style="--c:${t.color}"><b>${esc(t.name)}</b> ⚔️ <b style="color:${o.rival.color}">${esc(o.rival.name)}</b><span class="student">✍️ Both groups write an answer!</span></div>`
+      ? `<div class="q-team" style="--c:${t.color}"><b>${esc(t.name)}</b> ⚔️ <b style="color:${o.rival.color}">${esc(o.rival.name)}</b><span class="student" data-prompt></span></div>`
       : `<div class="q-team" style="--c:${t.color}"><span style="font-size:30px">${t.icon}</span><b>${esc(t.name)}</b><span class="student">🎓 ${esc(student)}</span></div>`;
-    let opts = '';
-    if (q.o && q.o.length) {
-      opts = `<div class="options">${q.o.map((x, i) =>
-        `<button class="opt" data-i="${i}"><span class="letter">${'ABCD'[i] || i + 1}</span><span>${esc(x)}</span></button>`).join('')}</div>`;
-    }
-    const verdict = o.kind === 'challenge'
-      ? `<button class="btn big" style="background:${t.color};color:#fff" data-v="A">🏅 ${esc(t.name)} wins</button>
-         <button class="btn big" style="background:${o.rival.color};color:#fff" data-v="B">🏅 ${esc(o.rival.name)} wins</button>
-         <button class="btn big ghost" data-v="N">No winner</button>`
-      : `<button class="btn big green" data-v="1">✔ Correct <kbd>C</kbd></button>
-         <button class="btn big red" data-v="0">✘ Incorrect <kbd>X</kbd></button>`;
+    const opts = `<div class="options">${q.o.map((x, i) =>
+      `<button class="opt" data-i="${i}"><span class="letter">${'ABCD'[i] || i + 1}</span><span>${esc(x)}</span></button>`).join('')}</div>`;
     return `
       <div class="q-head">${kindChip}<span class="chip">${cat.icon} ${esc(cat.name)}</span>
         <span class="chip ${q.d}">${DIFF[q.d] ? DIFF[q.d].name : q.d}</span><span class="chip pts">${pts}</span></div>
       ${teamStrip}
       <div class="q-body">
         <div>
-          <div class="q-type">${esc(TYPES[q.t] || 'Question')}</div>
           <div class="q-text">${esc(q.q)}</div>
           ${opts}
-          <div class="answer-slot"><div class="hidden-answer">🔒 Answer hidden — press <b>Reveal</b> (A) when the group has answered.</div></div>
+          <div class="answer-slot"><div class="hidden-answer" data-hint>👆 Tap the group’s answer (or press A–D) — it is checked automatically.</div></div>
         </div>
         <div class="timer"><svg viewBox="0 0 120 120"><circle class="track" cx="60" cy="60" r="52"/><circle class="prog" cx="60" cy="60" r="52" stroke-dasharray="${CIRC.toFixed(1)}" stroke-dashoffset="0"/></svg><div class="t-num"></div></div>
       </div>
-      <div class="q-actions">
-        <button class="btn big cyan" data-act-q="reveal">👁 Reveal <kbd>A</kbd></button>
-        <button class="btn" data-act-q="timer" title="Pause / resume timer (P)">⏯ Timer</button>
+      <div class="q-actions" data-pre>
+        <button class="btn" data-act-q="timer" title="Pause / resume timer (P)">⏯ Pause timer</button>
         <button class="btn" data-act-q="more" title="Add 15 seconds (+)">+15 s</button>
-        <button class="btn" data-act-q="replace" title="Replace with a new question (S)">↻ Replace <kbd>S</kbd></button>
-        <span class="spacer"></span>
-        ${verdict}
+        <button class="btn" data-act-q="replace" title="Replace with a new question (S)">↻ Replace question <kbd>S</kbd></button>
       </div>`;
   }
 
+  /* Ask a multiple-choice question. Picking an option locks it in; the game then
+   * reveals the answer and judges it automatically. Running out of time = wrong.
+   * Normal questions resolve to true/false; a head-to-head resolves to {A, B}. */
+  let curQ = null; // question on screen (used by automated tests)
+  const AUTO_NEXT = 6; // seconds before the game moves on after the reveal
   function ask(o, token) {
-    const team = o.team;
+    const team = o.team, duel = o.kind === 'challenge';
     let q = drawQuestion(o.prefs);
-    const student = o.kind === 'challenge' ? null : studentOf(team);
-    let card, revealed = false, picked = -1;
+    const student = duel ? null : studentOf(team);
+    let card, locked, picks, autoIv = null;
     return waitChoice(token, done => {
-      const paint = () => {
-        $$('.opt', card).forEach((b, i) => {
-          b.classList.toggle('picked', i === picked);
-          b.classList.toggle('right', revealed && i === q.a);
-          b.classList.toggle('wrong', revealed && i !== q.a);
-        });
+      const finish = v => { clearInterval(autoIv); stopQTimer(); QT.onEnd = null; flowKeys = null; done(v); };
+      const prompt = () => {
+        const el = $('[data-prompt]', card); if (!el) return;
+        const who = picks.length === 0 ? team : o.rival;
+        el.innerHTML = `<span style="color:${who.light}">${esc(who.name)}</span>, choose your answer${picks.length ? ` · ${esc(team.name)} 🔒 locked in` : ''}`;
       };
-      const pick = i => { if (!q.o || i >= q.o.length) return; picked = picked === i ? -1 : i; SFX.click(); paint(); };
-      const reveal = () => {
-        if (revealed) return; revealed = true; SFX.special(); QT.paused = true; drawQT();
-        const ansText = q.o && q.o.length && q.a != null ? `${'ABCD'[q.a]}) ${q.o[q.a]}` : q.ans;
-        $('.answer-slot', card).innerHTML = `<div class="answer-box"><b>✅ Answer:</b> ${esc(ansText)}${q.x ? `<div class="why">💡 ${esc(q.x)}</div>` : ''}</div>`;
-        paint();
+      const reveal = (timedOut) => {
+        locked = true; stopQTimer(); QT.onEnd = null;
+        $('[data-pre]', card).style.display = 'none';
+        const opts = $$('.opt', card);
+        opts.forEach((b, i) => { b.disabled = true; b.classList.toggle('right', i === q.a); b.classList.toggle('wrong', i !== q.a); });
+        let head, result;
+        if (duel) {
+          const [pa, pb] = [picks[0], picks[1]];
+          [[pa, team], [pb, o.rival]].forEach(([p, t]) => { if (p != null && p >= 0) { opts[p].classList.add('picked'); opts[p].insertAdjacentHTML('beforeend', `<span class="tag" style="background:${t.color}">${esc(t.letter)}</span>`); } });
+          result = { A: pa === q.a, B: pb === q.a };
+          head = result.A && result.B ? '🤝 Both groups are correct!' : result.A ? `🏅 ${esc(team.name)} is correct!` : result.B ? `🏅 ${esc(o.rival.name)} is correct!` : '❌ Neither group is correct.';
+        } else {
+          const p = picks[0];
+          if (p != null && p >= 0) opts[p].classList.add('picked');
+          result = p === q.a;
+          head = result ? '✅ Correct!' : timedOut ? '⏰ Time’s up!' : '❌ Not quite!';
+        }
+        if (timedOut && duel) head = '⏰ Time’s up! ' + head;
+        if ((duel ? result.A || result.B : result)) SFX.correct(); else SFX.wrong();
+        $('.answer-slot', card).innerHTML = `<div class="answer-box ${(duel ? result.A || result.B : result) ? '' : 'bad'}">
+          <div class="verdict-line">${head}</div><b>Answer:</b> ${'ABCD'[q.a]}) ${esc(q.o[q.a])}${q.x ? `<div class="why">💡 ${esc(q.x)}</div>` : ''}</div>
+          <div class="q-actions"><span class="spacer"></span><button class="btn big gold" data-next>Continue <kbd>Enter</kbd> <span data-count>${AUTO_NEXT}</span></button></div>`;
+        let left = AUTO_NEXT;
+        autoIv = setInterval(() => {
+          if (game && game.paused) return;
+          left--; const c = $('[data-count]', card); if (c) c.textContent = left;
+          if (left <= 0) finish(result);
+        }, 1000 * SPEED);
+        $('[data-next]', card).addEventListener('click', () => finish(result));
+        flowKeys = { enter: () => finish(result), ' ': () => finish(result), _replace: null };
       };
-      const finish = v => { stopQTimer(); flowKeys = null; done(v); };
+      const pick = i => {
+        if (locked || i < 0 || i >= q.o.length) return;
+        picks.push(i); SFX.click();
+        if (duel && picks.length === 1) {
+          $$('.opt', card)[i].classList.add('locked-a');
+          setTimeout(() => $$('.opt', card).forEach(b => b.classList.remove('locked-a')), 350);
+          prompt(); return;
+        }
+        reveal(false);
+      };
       const show = () => {
-        revealed = false; picked = -1;
+        locked = false; picks = []; curQ = q;
         card = openFlow(questionHTML(q, o, student), 'q-wide');
         $$('.opt', card).forEach(b => b.addEventListener('click', () => pick(+b.dataset.i)));
-        $$('[data-v]', card).forEach(b => b.addEventListener('click', () => {
-          const v = b.dataset.v; finish(o.kind === 'challenge' ? (v === 'N' ? null : v) : v === '1');
-        }));
         $$('[data-act-q]', card).forEach(b => b.addEventListener('click', () => actions[b.dataset.actQ]()));
+        prompt();
         startQTimer(o.seconds, $('.timer', card));
+        QT.onEnd = () => { if (!locked) { while (picks.length < (duel ? 2 : 1)) picks.push(-1); reveal(true); } };
+        setKeys();
       };
       const actions = {
-        reveal, timer: toggleQTimer, more: () => addQTime(15),
-        replace: () => { q = drawQuestion(o.prefs, q.id); toast('↻ Question replaced'); show(); }
+        timer: toggleQTimer, more: () => addQTime(15),
+        replace: () => { if (locked || picks.length) return; q = drawQuestion(o.prefs, q.id); toast('↻ Question replaced'); show(); }
       };
-      flowKeys = {
-        a: reveal, s: actions.replace, '+': actions.more, '=': actions.more, p: toggleQTimer,
-        1: () => pick(0), 2: () => pick(1), 3: () => pick(2), 4: () => pick(3)
+      const setKeys = () => {
+        flowKeys = { s: actions.replace, '+': actions.more, '=': actions.more, p: toggleQTimer, _replace: actions.replace };
+        ['a', 'b', 'c', 'd'].forEach((k, i) => { flowKeys[k] = () => pick(i); flowKeys[String(i + 1)] = () => pick(i); });
       };
-      if (o.kind !== 'challenge') { flowKeys.c = () => finish(true); flowKeys.x = () => finish(false); }
-      // expose to teacher panel
-      flowKeys._reveal = reveal; flowKeys._correct = () => finish(o.kind === 'challenge' ? 'A' : true);
-      flowKeys._wrong = () => finish(o.kind === 'challenge' ? null : false); flowKeys._replace = actions.replace;
       show();
     }).then(v => {
       closeFlow();
-      if (o.kind !== 'challenge') { team.attempts++; team.memberIdx++; }
+      if (!duel) { team.attempts++; team.memberIdx++; }
       return v;
     });
   }
@@ -689,11 +709,10 @@
   async function verdict(ok, team, base, token, label) {
     if (ok) {
       const pts = award(team, base);
-      SFX.correct(); Confetti.burst(70, innerWidth / 2, innerHeight / 2.4, .8);
+      Confetti.burst(70, innerWidth / 2, innerHeight / 2.4, .8);
       log(`✔ ${team.name} answered ${label} correctly (+${pts})`, team);
-      await announce({ icon: '✅', title: 'CORRECT!', sub: `+${pts} points for ${team.name}`, color: '#22c55e', ms: 1300 });
+      await announce({ icon: '✅', title: 'CORRECT!', sub: `+${pts} points for ${team.name}`, color: '#22c55e', ms: 1200 });
     } else {
-      SFX.wrong();
       log(`✘ ${team.name} missed ${label}`, team);
       await announce({ icon: '❌', title: 'Not quite!', sub: label === 'the question' ? `${team.name} stays on square ${team.pos}` : '', color: '#ef4444', ms: 1300 });
     }
@@ -933,13 +952,13 @@
         const rival = game.teams[rid];
         await announce({ icon: '⚔️', title: 'HEAD TO HEAD!', sub: `${team.name} vs ${rival.name}`, color: sp.color, ms: 1500 }); chk(token);
         const res = await ask({ kind: 'challenge', team, rival, prefs: ['M'], points: POINTS.challenge, seconds: timers().M }, token);
-        const winner = res === 'A' ? team : res === 'B' ? rival : null;
-        if (winner) {
-          award(winner, POINTS.challenge, false); SFX.correct(); Confetti.burst(90);
-          log(`🎯 ${winner.name} won the challenge (+${POINTS.challenge})`, winner);
-          await announce({ icon: '🏅', title: `${winner.name} wins!`, sub: `+${POINTS.challenge} points`, color: winner.color, ms: 1500 });
+        const winners = [res.A && team, res.B && rival].filter(Boolean);
+        if (winners.length) {
+          winners.forEach(w => { award(w, POINTS.challenge, false); log(`🎯 ${w.name} answered the challenge correctly (+${POINTS.challenge})`, w); });
+          Confetti.burst(90);
+          await announce({ icon: '🏅', title: winners.length === 2 ? 'Both score!' : `${winners[0].name} wins!`, sub: `+${POINTS.challenge} points${winners.length === 2 ? ' each' : ''}`, color: winners[0].color, ms: 1500 });
         } else {
-          SFX.wrong(); log(`🎯 Challenge ${team.name} vs ${rival.name}: no winner`, team);
+          log(`🎯 Challenge ${team.name} vs ${rival.name}: no winner`, team);
           await announce({ icon: '🤝', title: 'No winner', sub: 'Nobody scores this time', color: '#94a3b8', ms: 1300 });
         }
         chk(token);
@@ -959,7 +978,6 @@
       saveAuto(); render();
       await celebrate(team);
     } else {
-      SFX.wrong();
       log(`😮 ${team.name} missed the final challenge — stays on ${game.size}, tries again next turn`, team);
       await announce({ icon: '😮', title: 'So close!', sub: `${team.name} stays on ${game.size} and tries again next turn`, color: '#ef4444', ms: 1800 });
       chk(token);
@@ -1240,7 +1258,7 @@
       <ol style="font-size:19px;line-height:1.5;margin-top:0">
         <li>Groups take turns. The teacher rolls the die (<b>Space</b>).</li>
         <li>The roll sets the question: <b>1–2 Easy</b> (5 pts), <b>3–4 Moderate</b> (10 pts), <b>5–6 Challenging</b> (15 pts). A rotating student answers the multiple-choice question (with help from the group) before the timer ends.</li>
-        <li>The teacher reveals the answer and marks it <b>Correct</b> or <b>Incorrect</b>. Correct = earn points and move forward by the roll. Incorrect = stay put.</li>
+        <li>Tap the option the group chooses. The game checks it automatically and shows the correct answer. Correct = earn points and move forward by the roll. Wrong (or time runs out) = stay put.</li>
         <li><b>Ladder foot 🪜</b>: answer a bonus question to climb. <b>Snake head 🐍</b>: answer a rescue question or slide down.</li>
         <li>Reaching square ${b.size} triggers the <b>Final Challenge</b>. Miss it? Stay on ${b.size} and try again next turn.</li>
         <li>If the competition clock runs out, the group with the most points wins (board position breaks ties).</li>
@@ -1250,8 +1268,8 @@
           <tr><td>🌱 Easy</td><td>5</td></tr><tr><td>🔥 Moderate</td><td>10</td></tr><tr><td>💥 Challenging</td><td>15</td></tr>
           <tr><td>🪜 Ladder Challenge</td><td>15</td></tr><tr><td>🐍 Snake Rescue</td><td>15</td></tr><tr><td>🏆 Final Challenge</td><td>15</td></tr><tr><td>🎯 Head-to-head win</td><td>10</td></tr></table></div>
         <div><h3>⌨️ Teacher shortcuts</h3><div class="help-grid">
-          <kbd>Space</kbd><span>Roll the die / continue</span><kbd>1–4</kbd><span>Highlight the group’s choice (A–D)</span>
-          <kbd>A</kbd><span>Reveal answer</span><kbd>C</kbd><span>Mark correct</span><kbd>X</kbd><span>Mark incorrect</span>
+          <kbd>Space</kbd><span>Roll the die / continue</span><kbd>1–4</kbd><span>Same as A–D</span>
+          <kbd>A B C D</kbd><span>Lock in the group’s answer</span><kbd>Enter</kbd><span>Continue after the answer</span>
           <kbd>S</kbd><span>Replace question</span><kbd>+</kbd><span>Add 15 s to the timer</span><kbd>P</kbd><span>Pause game</span>
           <kbd>U</kbd><span>Undo last move</span><kbd>T</kbd><span>Teacher panel</span><kbd>F</kbd><span>Full-screen</span><kbd>M</kbd><span>Sound on/off</span></div></div>
       </div>
@@ -1434,10 +1452,7 @@
       </div></section>
       <section><h3>🎲 Current turn ${g ? `— <span style="color:${cur().color}">${esc(cur().name)}</span>` : ''}</h3><div class="grid3">
         <button class="btn gold" data-d="roll">🎲 Roll</button>
-        <button class="btn cyan" data-d="reveal">👁 Reveal</button>
         <button class="btn" data-d="replace">↻ Replace Q</button>
-        <button class="btn green" data-d="correct">✔ Correct</button>
-        <button class="btn red" data-d="wrong">✘ Incorrect</button>
         <button class="btn" data-d="skip">⏭ Skip turn</button>
         <button class="btn" data-d="undo">↶ Undo (${history.length})</button>
         <button class="btn" data-d="qtimer">⏯ Q-timer</button>
@@ -1487,10 +1502,7 @@
       case 'export': exportSave(); break;
       case 'load': pickFile('.json,application/json', txt => { try { loadSaveObj(JSON.parse(txt)); } catch (err) { toast('⚠️ Could not read that file.'); } }); break;
       case 'roll': if (game && game.phase === 'roll') { toggleDrawer(false); onRoll(); } else toast('Cannot roll right now.'); break;
-      case 'reveal': need(fk._reveal); break;
       case 'replace': need(fk._replace); break;
-      case 'correct': need(fk._correct); break;
-      case 'wrong': need(fk._wrong); break;
       case 'skip': skipTurn(); break;
       case 'undo': undo(); break;
       case 'qtimer': toggleQTimer(); break;
@@ -1638,5 +1650,5 @@
   openSetup();
 
   // Small debugging hook (handy for teachers' IT staff; harmless otherwise)
-  window.PSL = { get game() { return game; }, BOARDS, SPECIALS, bankSize: () => bank.length };
+  window.PSL = { get game() { return game; }, get answer() { return curQ && flowOpen() ? curQ.a : null; }, BOARDS, SPECIALS, bankSize: () => bank.length };
 })();

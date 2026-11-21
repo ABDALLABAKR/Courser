@@ -341,6 +341,11 @@ input, select, textarea { font-family: inherit; }
   font-size: clamp(20px, 1.7vw, 28px); animation: pop .35s;
 }
 .answer-box b { color: #86efac; }
+.answer-box.bad { background: rgba(239, 68, 68, .14); border-color: rgba(239, 68, 68, .65); }
+.answer-box .verdict-line { font-family: var(--display); font-weight: 700; font-size: 1.25em; margin-bottom: 4px; }
+.opt:disabled { cursor: default; }
+.opt .tag { margin-left: auto; flex: none; color: #fff; font-family: var(--display); font-size: .7em; padding: 2px 10px; border-radius: 999px; border: 2px solid #fff; }
+.opt.locked-a { border-color: var(--gold); background: rgba(251, 191, 36, .2); }
 .answer-box .why { font-size: .78em; color: #d1fae5; margin-top: 6px; }
 .hidden-answer { margin-top: 16px; padding: 12px 18px; border-radius: 14px; border: 2px dashed var(--line); color: var(--muted); font-size: 18px; }
 .q-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; align-items: center; }
