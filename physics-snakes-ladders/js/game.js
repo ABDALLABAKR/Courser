@@ -27,15 +27,10 @@
   const KEYS = { prefs: 'pslc.prefs.v1', bank: 'pslc.bank.v1', save: 'pslc.save.v1', bankVer: 'pslc.bankver' };
 
   /* ───────────────────────── Constants ───────────────────────── */
-  const CATS = {
-    1: { name: 'Physical Quantities & Measurement', icon: '📏' },
-    2: { name: 'Scalars & Vectors', icon: '🧭' },
-    3: { name: 'Motion & Kinematics', icon: '🏃' },
-    4: { name: 'Equations of Motion', icon: '📐' },
-    5: { name: 'Newton’s Laws', icon: '🍎' },
-    6: { name: 'Forces & Friction', icon: '🧱' },
-    7: { name: 'Work, Energy & Power', icon: '⚡' },
-    8: { name: 'Momentum', icon: '🎱' }
+  // Topics come from the question bank file (book chapters), with a fallback.
+  const CATS = window.BANK_TOPICS || {
+    1: { name: 'Topic 1', icon: '📘' }, 2: { name: 'Topic 2', icon: '📗' }, 3: { name: 'Topic 3', icon: '📙' }, 4: { name: 'Topic 4', icon: '📕' },
+    5: { name: 'Topic 5', icon: '📓' }, 6: { name: 'Topic 6', icon: '📔' }, 7: { name: 'Topic 7', icon: '📒' }, 8: { name: 'Topic 8', icon: '📚' }
   };
   const DIFF = { E: { name: 'Easy', icon: '🌱' }, M: { name: 'Moderate', icon: '🔥' }, C: { name: 'Challenging', icon: '💥' } };
   const TYPES = { mcq: 'Multiple Choice', tf: 'True or False', short: 'Short Answer', num: 'Numerical Problem', mistake: 'Identify the Mistake', reason: 'Reasoning & Prediction' };
@@ -95,15 +90,17 @@
   prefs.setup = Object.assign(defaultSetup(), prefs.setup || {});
   prefs.setup.timers = Object.assign(defaultSetup().timers, prefs.setup.timers || {});
   const savePrefs = () => STORE.set(KEYS.prefs, prefs);
+  prefs.used = (prefs.used || []).filter(id => !/^q\d+$/.test(id)); // drop ids of the old built-in bank
 
   let bank = STORE.get(KEYS.bank, null);
   if (!Array.isArray(bank)) bank = clone(window.DEFAULT_QUESTIONS || []);
-  else if (STORE.get(KEYS.bankVer, 1) < 2) {
-    // v2: every question is multiple choice — keep teachers' own MCQs, replace the built-ins.
+  else if (STORE.get(KEYS.bankVer, 1) < 3) {
+    // v3: built-in questions now come from the course book (Ch. 2 and Section 3-1).
+    // Keep the teacher's own multiple-choice questions, replace the old built-ins.
     bank = clone(window.DEFAULT_QUESTIONS || []).concat(bank.filter(q => /^u/.test(q.id) && q.o && q.o.length >= 3 && q.a != null));
     STORE.set(KEYS.bank, bank);
   }
-  STORE.set(KEYS.bankVer, 2);
+  STORE.set(KEYS.bankVer, 3);
   const saveBank = () => STORE.set(KEYS.bank, bank);
 
   /* ───────────────────────── Sound (Web Audio synth) ───────────────────────── */
@@ -1464,8 +1461,8 @@
       else if (a === 'export') download(`physics-question-bank-${stamp()}.json`, JSON.stringify(bank, null, 1));
       else if (a === 'template') download('question-bank-template.csv',
         'category,difficulty,type,question,optionA,optionB,optionC,optionD,answer,explanation\n' +
-        '5,Easy,mcq,What is the SI unit of force?,joule,watt,newton,pascal,C,1 N = 1 kg·m/s²\n' +
-        '7,Challenging,mcq,"A 2 kg ball moves at 3 m/s. What is its kinetic energy?",3 J,6 J,9 J,18 J,C,KE = ½mv²\n', 'text/csv');
+        '5,Easy,mcq,What is the unit of stress?,N,m,N/m² (Pa),no unit,C,σ = T ÷ A\n' +
+        '8,Challenging,mcq,"An object weighs 10 N in air and 6 N in water. What is the buoyant force?",16 N,6 N,4 N,10 N,C,FB = 10 − 6 = 4 N\n', 'text/csv');
       else if (a === 'resetUsed') { prefs.used = []; savePrefs(); toast('♻️ All questions are available again'); openBank(fromSetup); }
       else if (a === 'defaults') {
         if (await confirmBox('Replace the whole bank with the 100 built-in questions? Your custom questions will be removed.', 'Restore defaults')) {

@@ -33,7 +33,7 @@ Keys: `Space` roll · `A–D` (or `1–4`) lock in the answer · `Enter` continu
 The game saves automatically in the browser after every turn and can be resumed from the start screen. **Export save** downloads a file to move a game to another computer.
 
 ## Question bank
-100 built-in multiple-choice questions (4 options each) across 8 topics and 3 levels (`js/questions.js`). Options are shuffled every time a question is shown. In **📚 Question bank** you can add, edit, delete, search, export, and import questions from JSON or CSV. Download the CSV template from the bank screen. Its columns are:
+118 built-in multiple-choice questions (4 options each, 3 levels) taken from the course book: **Chapter 2 – Strength of Solids** (Sections 2-1, 2-2 and the chapter review) and **Chapter 3, Section 3-1 – Fluids and Buoyant Force** (`js/questions.js`). The 8 topics are: phases of matter; moles and molecular quantities; interatomic forces and bonds; solids, rigidity and elasticity; tension, stress and strain; Young’s modulus; fluids and density; buoyant force and Archimedes’ principle. Options are shuffled every time a question is shown. In **📚 Question bank** you can add, edit, delete, search, export, and import questions from JSON or CSV. Download the CSV template from the bank screen. Its columns are:
 
 ```
 category,difficulty,type,question,optionA,optionB,optionC,optionD,answer,explanation
