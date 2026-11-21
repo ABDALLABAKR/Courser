@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Physics Snakes &amp; Ladders</title>
+  <meta name="description" content="Grade 10 Physics Snakes & Ladders Championship — a classroom game show for four groups.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="bg-stars" aria-hidden="true"></div>
+
+  <!-- ═════════ TOP BAR ═════════ -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-icon">⚛️</span>
+      <div class="brand-text">
+        <div class="brand-title">Physics Snakes &amp; Ladders</div>
+        <div class="brand-sub">Grade 10 Championship</div>
+      </div>
+    </div>
+    <div class="top-center">
+      <div class="pill" id="roundPill">Round 1</div>
+      <div class="pill clock" id="clockPill" title="Competition time remaining">⏱ <span id="clock">∞</span></div>
+    </div>
+    <nav class="top-actions">
+      <button class="icon-btn" data-act="pause" title="Pause / resume (P)">⏸</button>
+      <button class="icon-btn" data-act="undo" title="Undo last move (U)">↶</button>
+      <button class="icon-btn" data-act="save" title="Save game">💾</button>
+      <button class="icon-btn" data-act="sound" id="soundBtn" title="Sound on/off (M)">🔊</button>
+      <button class="icon-btn" data-act="fullscreen" title="Projector full-screen (F)">⛶</button>
+      <button class="icon-btn teacher" data-act="panel" title="Teacher control panel (T)">🎛️ <span>Teacher</span></button>
+    </nav>
+  </header>
+
+  <!-- ═════════ STAGE ═════════ -->
+  <main class="stage">
+    <section class="board-wrap" id="boardWrap">
+      <div class="board" id="board"></div>
+    </section>
+
+    <aside class="side">
+      <div class="turn-card" id="turnCard">
+        <div class="turn-label">Now playing</div>
+        <div class="turn-team" id="turnTeam"></div>
+        <div class="turn-student" id="turnStudent"></div>
+        <div class="dice-row">
+          <div class="die-scene"><div class="die" id="die"></div></div>
+          <button class="roll-btn" id="rollBtn" data-act="roll">🎲 Roll</button>
+        </div>
+        <div class="turn-hint" id="turnHint"></div>
+      </div>
+      <div class="panel scoreboard-panel">
+        <div class="panel-title">🏅 Leaderboard <small>points · square</small></div>
+        <div class="scoreboard" id="scoreboard"></div>
+      </div>
+      <div class="panel log-panel">
+        <div class="panel-title">📜 Game Feed</div>
+        <ul class="log" id="log"></ul>
+      </div>
+    </aside>
+  </main>
+
+  <!-- ═════════ TEACHER PANEL (drawer) ═════════ -->
+  <div class="drawer" id="drawer" aria-hidden="true">
+    <div class="drawer-head">
+      <h2>🎛️ Teacher Control Panel</h2>
+      <button class="icon-btn" data-act="panel" title="Close (T)">✕</button>
+    </div>
+    <div class="drawer-body" id="drawerBody"></div>
+  </div>
+
+  <!-- Flow modal: dice/questions/specials -->
+  <div class="modal" id="flowModal"><div class="modal-card"></div></div>
+  <!-- Tool modal: setup, bank, adjust, help -->
+  <div class="modal tool" id="toolModal"><div class="modal-card"></div></div>
+  <!-- Dialog: confirmations -->
+  <div class="modal dialog" id="dialog"><div class="modal-card"></div></div>
+
+  <div class="announce" id="announce"></div>
+  <div class="pause-overlay" id="pauseOverlay">
+    <div class="pause-box">
+      <div class="pause-icon">⏸</div>
+      <div class="pause-title">Game Paused</div>
+      <button class="btn big gold" data-act="pause">▶ Resume</button>
+    </div>
+  </div>
+  <div class="podium-screen" id="podium"></div>
+  <div class="toast-wrap" id="toasts"></div>
+  <canvas id="confetti" aria-hidden="true"></canvas>
+  <input type="file" id="fileInput" accept=".json,.csv,application/json,text/csv" hidden>
+
+  <script src="js/questions.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
