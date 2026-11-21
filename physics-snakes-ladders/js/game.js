@@ -24,7 +24,7 @@
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
     del(k) { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } }
   };
-  const KEYS = { prefs: 'pslc.prefs.v1', bank: 'pslc.bank.v1', save: 'pslc.save.v1' };
+  const KEYS = { prefs: 'pslc.prefs.v1', bank: 'pslc.bank.v1', save: 'pslc.save.v1', bankVer: 'pslc.bankver' };
 
   /* ───────────────────────── Constants ───────────────────────── */
   const CATS = {
@@ -88,7 +88,7 @@
   function defaultSetup() {
     return {
       names: TEAMS.map(t => t.name), members: ['', '', '', ''], size: 100, minutes: 45,
-      timers: { E: 30, M: 45, C: 60, LS: 45, F: 60 }, diffMode: 'choose', exactFinish: false, cats: [1, 2, 3, 4, 5, 6, 7, 8]
+      timers: { E: 30, M: 45, C: 60, LS: 45, F: 60 }, exactFinish: false, cats: [1, 2, 3, 4, 5, 6, 7, 8]
     };
   }
   const prefs = Object.assign({ sound: true, used: [] }, STORE.get(KEYS.prefs, {}));
@@ -98,6 +98,12 @@
 
   let bank = STORE.get(KEYS.bank, null);
   if (!Array.isArray(bank)) bank = clone(window.DEFAULT_QUESTIONS || []);
+  else if (STORE.get(KEYS.bankVer, 1) < 2) {
+    // v2: every question is multiple choice — keep teachers' own MCQs, replace the built-ins.
+    bank = clone(window.DEFAULT_QUESTIONS || []).concat(bank.filter(q => /^u/.test(q.id) && q.o && q.o.length >= 3 && q.a != null));
+    STORE.set(KEYS.bank, bank);
+  }
+  STORE.set(KEYS.bankVer, 2);
   const saveBank = () => STORE.set(KEYS.bank, bank);
 
   /* ───────────────────────── Sound (Web Audio synth) ───────────────────────── */
@@ -205,7 +211,7 @@
   function newGame(s) {
     return {
       v: 1, size: s.size,
-      settings: { timers: Object.assign({}, s.timers), diffMode: s.diffMode, exactFinish: !!s.exactFinish, cats: s.cats.slice() },
+      settings: { timers: Object.assign({}, s.timers), exactFinish: !!s.exactFinish, cats: s.cats.slice() },
       teams: TEAMS.map((d, i) => ({
         id: i, name: (String(s.names[i] || '').trim() || d.name).slice(0, 32), color: d.color, light: d.light, icon: d.icon, letter: d.letter,
         members: parseMembers(s.members[i]), memberIdx: 0, pos: 1, points: 0, shields: 0, double: false, extraTurn: false, correct: 0, attempts: 0
@@ -535,7 +541,15 @@
     const fresh = cand.filter(q => q.c !== lastCat); if (fresh.length) cand = fresh;
     const q = cand[rand(cand.length)];
     prefs.used.push(q.id); lastCat = q.c; savePrefs();
-    return q;
+    return shuffleOptions(q);
+  }
+
+  // Show the options in a fresh random order each time (correct answer moves around).
+  function shuffleOptions(q) {
+    if (!q.o || q.o.length < 2 || q.a == null) return q;
+    const order = q.o.map((_, i) => i);
+    for (let i = order.length - 1; i > 0; i--) { const j = rand(i + 1); [order[i], order[j]] = [order[j], order[i]]; }
+    return Object.assign({}, q, { o: order.map(i => q.o[i]), a: order.indexOf(q.a) });
   }
 
   const QT = { left: 0, total: 0, iv: null, el: null, paused: false };
@@ -581,8 +595,8 @@
       : `<div class="q-team" style="--c:${t.color}"><span style="font-size:30px">${t.icon}</span><b>${esc(t.name)}</b><span class="student">🎓 ${esc(student)}</span></div>`;
     let opts = '';
     if (q.o && q.o.length) {
-      opts = `<div class="options ${q.t === 'tf' ? 'tf' : ''}">${q.o.map((x, i) =>
-        `<button class="opt" data-i="${i}"><span class="letter">${q.t === 'tf' ? (i ? '✗' : '✓') : 'ABCD'[i] || i + 1}</span><span>${esc(x)}</span></button>`).join('')}</div>`;
+      opts = `<div class="options">${q.o.map((x, i) =>
+        `<button class="opt" data-i="${i}"><span class="letter">${'ABCD'[i] || i + 1}</span><span>${esc(x)}</span></button>`).join('')}</div>`;
     }
     const verdict = o.kind === 'challenge'
       ? `<button class="btn big" style="background:${t.color};color:#fff" data-v="A">🏅 ${esc(t.name)} wins</button>
@@ -629,7 +643,7 @@
       const pick = i => { if (!q.o || i >= q.o.length) return; picked = picked === i ? -1 : i; SFX.click(); paint(); };
       const reveal = () => {
         if (revealed) return; revealed = true; SFX.special(); QT.paused = true; drawQT();
-        const ansText = q.o && q.o.length && q.a != null ? `${q.t === 'tf' ? '' : 'ABCD'[q.a] + ') '}${q.o[q.a]}` : q.ans;
+        const ansText = q.o && q.o.length && q.a != null ? `${'ABCD'[q.a]}) ${q.o[q.a]}` : q.ans;
         $('.answer-slot', card).innerHTML = `<div class="answer-box"><b>✅ Answer:</b> ${esc(ansText)}${q.x ? `<div class="why">💡 ${esc(q.x)}</div>` : ''}</div>`;
         paint();
       };
@@ -762,24 +776,15 @@
     }
   }
 
+  // The die decides the difficulty: 1–2 Easy, 3–4 Moderate, 5–6 Challenging.
+  const diffForRoll = roll => (roll <= 2 ? 'E' : roll <= 4 ? 'M' : 'C');
   function chooseDifficulty(team, roll, token) {
-    if (game.settings.diffMode === 'random') {
-      const d = ['E', 'M', 'C'][rand(3)];
-      return announce({ icon: DIFF[d].icon, title: DIFF[d].name + '!', sub: `Rolled ${roll} · ${POINTS[d]} points question`, color: d === 'E' ? '#22c55e' : d === 'M' ? '#f59e0b' : '#ef4444', ms: 1300 })
-        .then(() => { chk(token); return d; });
-    }
-    return waitChoice(token, done => {
-      const card = openFlow(`
-        <div class="rolled-banner"><span class="big-num">${roll}</span><div><b style="color:${team.color}">${esc(team.name)}</b> rolled a <b>${roll}</b>!<br><span class="muted" style="font-size:20px">Choose your question — answer correctly to move ${roll} square${roll > 1 ? 's' : ''}.</span></div></div>
-        <div class="diff-grid">
-          ${['E', 'M', 'C'].map((d, i) => `<button class="diff-card ${d}" data-d="${d}"><div class="dc-icon">${DIFF[d].icon}</div><div class="dc-name">${DIFF[d].name}</div>
-            <div class="dc-pts">+${POINTS[d] * (team.double ? 2 : 1)} points${team.double ? ' 💎' : ''}</div><div class="dc-sub">${timers()[d]} s timer · key ${i + 1}</div></button>`).join('')}
-        </div>
-        <div class="row center" style="margin-top:14px"><button class="btn" data-d="R">🎰 Surprise me (random)</button></div>`);
-      const pick = d => { if (d === 'R') d = ['E', 'M', 'C'][rand(3)]; SFX.click(); flowKeys = null; done(d); };
-      $$('[data-d]', card).forEach(b => b.addEventListener('click', () => pick(b.dataset.d)));
-      flowKeys = { 1: () => pick('E'), 2: () => pick('M'), 3: () => pick('C'), e: () => pick('E'), m: () => pick('M'), r: () => pick('R') };
-    }).then(d => { closeFlow(); return d; });
+    const d = diffForRoll(roll);
+    return announce({
+      icon: DIFF[d].icon, title: `${DIFF[d].name} question!`,
+      sub: `Rolled ${roll} → +${POINTS[d] * (team.double ? 2 : 1)} points · move ${roll} if correct`,
+      color: d === 'E' ? '#22c55e' : d === 'M' ? '#f59e0b' : '#ef4444', ms: 1700
+    }).then(() => { chk(token); return d; });
   }
 
   async function resolveLanding(team, token, allowSpecial) {
@@ -1179,7 +1184,7 @@
       <div class="settings-grid">
         <div class="field">Board<div class="seg" data-seg="size"><button data-v="100" class="${s.size === 100 ? 'on' : ''}">100 squares</button><button data-v="50" class="${s.size === 50 ? 'on' : ''}">50 squares</button></div></div>
         <div class="field">Competition time limit (minutes, 0 = none)<input class="inp" type="number" min="0" max="300" data-f="minutes" value="${s.minutes}"></div>
-        <div class="field">Question difficulty<select class="inp" data-f="diffMode"><option value="choose" ${s.diffMode === 'choose' ? 'selected' : ''}>Group chooses (strategy)</option><option value="random" ${s.diffMode === 'random' ? 'selected' : ''}>Random</option></select></div>
+        <div class="field">Question difficulty<div style="color:var(--text);font-size:15px">🎲 Set by the die: 1–2 Easy · 3–4 Moderate · 5–6 Challenging</div></div>
         <div class="field">Finishing<label class="check"><input type="checkbox" data-f="exactFinish" ${s.exactFinish ? 'checked' : ''}> Exact roll needed to reach the last square</label></div>
       </div>
       <div class="field" style="margin-top:12px">Question timers (seconds)
@@ -1202,7 +1207,6 @@
         members: TEAMS.map((t, i) => $(`[data-mem="${i}"]`, card).value),
         size: +$('[data-seg="size"] .on', card).dataset.v,
         minutes: clamp(+$('[data-f="minutes"]', card).value || 0, 0, 300),
-        diffMode: $('[data-f="diffMode"]', card).value,
         exactFinish: $('[data-f="exactFinish"]', card).checked,
         timers: {}, cats: $$('[data-cat]', card).filter(x => x.checked).map(x => +x.dataset.cat)
       };
@@ -1235,7 +1239,7 @@
     const card = openTool(`<h2>❓ How to play</h2>
       <ol style="font-size:19px;line-height:1.5;margin-top:0">
         <li>Groups take turns. The teacher rolls the die (<b>Space</b>).</li>
-        <li>The group picks a question difficulty. A rotating student answers (with help from the group) before the timer ends.</li>
+        <li>The roll sets the question: <b>1–2 Easy</b> (5 pts), <b>3–4 Moderate</b> (10 pts), <b>5–6 Challenging</b> (15 pts). A rotating student answers the multiple-choice question (with help from the group) before the timer ends.</li>
         <li>The teacher reveals the answer and marks it <b>Correct</b> or <b>Incorrect</b>. Correct = earn points and move forward by the roll. Incorrect = stay put.</li>
         <li><b>Ladder foot 🪜</b>: answer a bonus question to climb. <b>Snake head 🐍</b>: answer a rescue question or slide down.</li>
         <li>Reaching square ${b.size} triggers the <b>Final Challenge</b>. Miss it? Stay on ${b.size} and try again next turn.</li>
@@ -1246,7 +1250,7 @@
           <tr><td>🌱 Easy</td><td>5</td></tr><tr><td>🔥 Moderate</td><td>10</td></tr><tr><td>💥 Challenging</td><td>15</td></tr>
           <tr><td>🪜 Ladder Challenge</td><td>15</td></tr><tr><td>🐍 Snake Rescue</td><td>15</td></tr><tr><td>🏆 Final Challenge</td><td>15</td></tr><tr><td>🎯 Head-to-head win</td><td>10</td></tr></table></div>
         <div><h3>⌨️ Teacher shortcuts</h3><div class="help-grid">
-          <kbd>Space</kbd><span>Roll the die / continue</span><kbd>1 2 3</kbd><span>Pick Easy / Moderate / Challenging</span>
+          <kbd>Space</kbd><span>Roll the die / continue</span><kbd>1–4</kbd><span>Highlight the group’s choice (A–D)</span>
           <kbd>A</kbd><span>Reveal answer</span><kbd>C</kbd><span>Mark correct</span><kbd>X</kbd><span>Mark incorrect</span>
           <kbd>S</kbd><span>Replace question</span><kbd>+</kbd><span>Add 15 s to the timer</span><kbd>P</kbd><span>Pause game</span>
           <kbd>U</kbd><span>Undo last move</span><kbd>T</kbd><span>Teacher panel</span><kbd>F</kbd><span>Full-screen</span><kbd>M</kbd><span>Sound on/off</span></div></div>
@@ -1314,8 +1318,7 @@
       else if (a === 'template') download('question-bank-template.csv',
         'category,difficulty,type,question,optionA,optionB,optionC,optionD,answer,explanation\n' +
         '5,Easy,mcq,What is the SI unit of force?,joule,watt,newton,pascal,C,1 N = 1 kg·m/s²\n' +
-        '3,Moderate,tf,An object moving in a circle at constant speed has constant velocity.,,,,,False,Its direction changes.\n' +
-        '7,Challenging,num,"A 2 kg ball moves at 3 m/s. Find its kinetic energy.",,,,,9 J,KE = ½mv²\n', 'text/csv');
+        '7,Challenging,mcq,"A 2 kg ball moves at 3 m/s. What is its kinetic energy?",3 J,6 J,9 J,18 J,C,KE = ½mv²\n', 'text/csv');
       else if (a === 'resetUsed') { prefs.used = []; savePrefs(); toast('♻️ All questions are available again'); openBank(fromSetup); }
       else if (a === 'defaults') {
         if (await confirmBox('Replace the whole bank with the 100 built-in questions? Your custom questions will be removed.', 'Restore defaults')) {
@@ -1333,43 +1336,22 @@
       <div class="editor-grid">
         <label class="field">Topic<select class="inp" data-e="c">${Object.entries(CATS).map(([k, c]) => `<option value="${k}" ${q.c === +k ? 'selected' : ''}>${c.icon} ${esc(c.name)}</option>`).join('')}</select></label>
         <label class="field">Difficulty<select class="inp" data-e="d">${['E', 'M', 'C'].map(d => `<option value="${d}" ${q.d === d ? 'selected' : ''}>${DIFF[d].name}</option>`).join('')}</select></label>
-        <label class="field">Type<select class="inp" data-e="t">${Object.entries(TYPES).map(([k, v]) => `<option value="${k}" ${q.t === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+        <div class="field">Type<div style="color:var(--text);font-size:16px;padding:9px 0">Multiple choice (4 options)</div></div>
         <label class="field wide">Question<textarea data-e="q" rows="3">${esc(q.q)}</textarea></label>
-        <div class="field wide" data-sec="mcq">Options (tick the correct one)
+        <div class="field wide">Options (tick the correct one)
           <div class="opts-grid">${opts.map((o, i) => `<label class="check" style="gap:8px"><input type="radio" name="corr" value="${i}" ${q.a === i ? 'checked' : ''}><b>${'ABCD'[i]}</b><input class="inp" style="flex:1" data-o="${i}" value="${esc(o)}"></label>`).join('')}</div></div>
-        <div class="field wide" data-sec="tf">Correct answer
-          <div class="row"><label class="check"><input type="radio" name="tfc" value="0" ${q.t === 'tf' && q.a === 0 ? 'checked' : ''}> True</label><label class="check"><input type="radio" name="tfc" value="1" ${q.t === 'tf' && q.a === 1 ? 'checked' : ''}> False</label></div></div>
-        <label class="field wide" data-sec="open">Model answer<input class="inp" data-e="ans" value="${esc(q.ans || '')}"></label>
         <label class="field wide">Explanation (shown after reveal, optional)<textarea data-e="x" rows="2">${esc(q.x || '')}</textarea></label>
       </div>
       <div class="row end" style="margin-top:14px"><button class="btn big" data-ed="cancel">Cancel</button><button class="btn big gold" data-ed="save">💾 Save question</button></div>`, 'bank');
-    const typeSel = $('[data-e="t"]', card);
-    const sync = () => {
-      const t = typeSel.value;
-      $('[data-sec="mcq"]', card).style.display = t === 'mcq' ? '' : 'none';
-      $('[data-sec="tf"]', card).style.display = t === 'tf' ? '' : 'none';
-      $('[data-sec="open"]', card).style.display = t === 'mcq' || t === 'tf' ? 'none' : '';
-    };
-    typeSel.addEventListener('change', sync); sync();
     $('[data-ed="cancel"]', card).addEventListener('click', () => openBank(fromSetup));
     $('[data-ed="save"]', card).addEventListener('click', () => {
-      const n = { id: isNew ? 'u' + Date.now().toString(36) + rand(1000) : q.id, c: +$('[data-e="c"]', card).value, d: $('[data-e="d"]', card).value, t: typeSel.value, q: $('[data-e="q"]', card).value.trim(), x: $('[data-e="x"]', card).value.trim() };
+      const n = { id: isNew ? 'u' + Date.now().toString(36) + rand(1000) : q.id, c: +$('[data-e="c"]', card).value, d: $('[data-e="d"]', card).value, t: 'mcq', q: $('[data-e="q"]', card).value.trim(), x: $('[data-e="x"]', card).value.trim() };
       if (!n.q) { toast('⚠️ Please type the question.'); return; }
-      if (n.t === 'mcq') {
-        const raw = [0, 1, 2, 3].map(i => $(`[data-o="${i}"]`, card).value.trim());
-        const sel = $('input[name="corr"]:checked', card);
-        const keep = raw.map((v, i) => ({ v, i })).filter(o => o.v);
-        if (keep.length < 2) { toast('⚠️ Give at least two options.'); return; }
-        if (!sel || !raw[+sel.value]) { toast('⚠️ Tick the correct option.'); return; }
-        n.o = keep.map(o => o.v); n.a = keep.findIndex(o => o.i === +sel.value);
-      } else if (n.t === 'tf') {
-        const sel = $('input[name="tfc"]:checked', card);
-        if (!sel) { toast('⚠️ Choose True or False.'); return; }
-        n.o = ['True', 'False']; n.a = +sel.value;
-      } else {
-        n.ans = $('[data-e="ans"]', card).value.trim();
-        if (!n.ans) { toast('⚠️ Please give the model answer.'); return; }
-      }
+      const raw = [0, 1, 2, 3].map(i => $(`[data-o="${i}"]`, card).value.trim());
+      const sel = $('input[name="corr"]:checked', card);
+      if (raw.some(v => !v)) { toast('⚠️ Please fill in all four options.'); return; }
+      if (!sel) { toast('⚠️ Tick the correct option.'); return; }
+      n.o = raw; n.a = +sel.value;
       if (isNew) bank.push(n); else bank[bank.findIndex(x => x.id === q.id)] = n;
       saveBank(); toast(isNew ? '➕ Question added' : '💾 Question saved'); openBank(fromSetup);
     });
@@ -1402,22 +1384,14 @@
     const text = s(o.q != null ? o.q : o.question); if (!text) return null;
     let opts = Array.isArray(o.o) ? o.o : Array.isArray(o.options) ? o.options : [o.optionA, o.optionB, o.optionC, o.optionD];
     opts = opts.map(s).filter(Boolean);
-    const tRaw = s(o.t != null ? o.t : o.type).toLowerCase();
-    let t = /^(mcq|multiple)/.test(tRaw) ? 'mcq' : /^(tf|true)/.test(tRaw) ? 'tf' : /^short/.test(tRaw) ? 'short' : /^num/.test(tRaw) ? 'num' : /(mistake|identify)/.test(tRaw) ? 'mistake' : /(reason|predict)/.test(tRaw) ? 'reason' : (opts.length >= 2 ? 'mcq' : 'short');
     const ansRaw = s(o.ans != null ? o.ans : o.answer);
-    const n = { id: 'u' + Date.now().toString(36) + '_' + i, c, d, t, q: text, x: s(o.x != null ? o.x : o.explanation) };
-    if (t === 'mcq') {
-      if (opts.length < 2) return null;
-      let a = o.a != null ? +o.a : o.correct != null && /^\d+$/.test(String(o.correct)) ? +o.correct : -1;
-      if (a < 0 && /^[A-Da-d]$/.test(ansRaw)) a = 'abcd'.indexOf(ansRaw.toLowerCase());
-      if (a < 0) a = opts.findIndex(x => x.toLowerCase() === ansRaw.toLowerCase());
-      if (!(a >= 0 && a < opts.length)) return null;
-      n.o = opts; n.a = a;
-    } else if (t === 'tf') {
-      let a = o.a != null ? +o.a : /^(t|true|yes)$/i.test(ansRaw) ? 0 : /^(f|false|no)$/i.test(ansRaw) ? 1 : -1;
-      if (a !== 0 && a !== 1) return null;
-      n.o = ['True', 'False']; n.a = a;
-    } else { if (!ansRaw) return null; n.ans = ansRaw; }
+    const n = { id: 'u' + Date.now().toString(36) + '_' + i, c, d, t: 'mcq', q: text, x: s(o.x != null ? o.x : o.explanation) };
+    if (opts.length < 3 || opts.every(x => /^(true|false)$/i.test(x))) return null; // multiple choice only
+    let a = o.a != null ? +o.a : o.correct != null && /^\d+$/.test(String(o.correct)) ? +o.correct : -1;
+    if (a < 0 && /^[A-Da-d]$/.test(ansRaw)) a = 'abcd'.indexOf(ansRaw.toLowerCase());
+    if (a < 0) a = opts.findIndex(x => x.toLowerCase() === ansRaw.toLowerCase());
+    if (!(a >= 0 && a < opts.length)) return null;
+    n.o = opts; n.a = a;
     return n;
   }
 
@@ -1433,7 +1407,7 @@
       }
     } catch (e) { toast('⚠️ Could not read that file.'); return; }
     const good = raw.map(normQ).filter(Boolean), bad = raw.length - good.length;
-    if (!good.length) { toast('⚠️ No valid questions found. Check the CSV template.'); return; }
+    if (!good.length) { toast('⚠️ No valid multiple-choice questions found. Check the CSV template.'); return; }
     const replace = await confirmBox(`Found ${good.length} valid question(s)${bad ? ` (${bad} skipped)` : ''}. Add them to the bank, or replace the whole bank?`, 'Replace bank', 'Add to bank');
     if (replace) { bank = good; prefs.used = []; savePrefs(); } else bank = bank.concat(good);
     saveBank(); toast(`⬆ Imported ${good.length} question(s)`); openBank(fromSetup);
@@ -1485,8 +1459,7 @@
       </section>
       <section><h3>⚙️ Options</h3>
         <label class="check"><input type="checkbox" data-opt="sound" ${prefs.sound ? 'checked' : ''}> Sound effects</label><br>
-        <label class="check"><input type="checkbox" data-opt="exact" ${s.exactFinish ? 'checked' : ''}> Exact roll needed to finish</label><br>
-        <label class="field" style="margin-top:6px">Question difficulty<select class="inp" data-opt="diff"><option value="choose" ${s.diffMode === 'choose' ? 'selected' : ''}>Group chooses</option><option value="random" ${s.diffMode === 'random' ? 'selected' : ''}>Random</option></select></label>
+        <label class="check"><input type="checkbox" data-opt="exact" ${s.exactFinish ? 'checked' : ''}> Exact roll needed to finish</label>
       </section>
       <section><h3>🧰 Tools</h3><div class="grid3">
         <button class="btn" data-d="bank">📚 Questions</button><button class="btn" data-d="help">❓ Rules / keys</button><button class="btn" data-d="fullscreen">⛶ Full-screen</button>
@@ -1543,7 +1516,6 @@
     if (el.dataset.qt) { s.timers[el.dataset.qt] = clamp(+el.value || 30, 5, 600); if (game) prefs.setup.timers[el.dataset.qt] = s.timers[el.dataset.qt]; savePrefs(); saveAuto(); toast('⏱ Timer updated'); }
     else if (el.dataset.opt === 'sound') toggleSound(el.checked);
     else if (el.dataset.opt === 'exact') { s.exactFinish = el.checked; saveAuto(); }
-    else if (el.dataset.opt === 'diff') { s.diffMode = el.value; saveAuto(); }
     else if (el.dataset.dSet === 'turn' && game) {
       if (game.phase !== 'roll') { toast('Finish the current turn first (or Skip turn).'); renderDrawer(); return; }
       pushSnapshot(); game.turn = +el.value; log(`✏️ Teacher passed the turn to ${cur().name}`, cur()); saveAuto(); render();
@@ -1592,7 +1564,7 @@
       if (!ok) return;
       const s = Object.assign({}, prefs.setup, {
         size: game.size, names: game.teams.map(t => t.name), members: game.teams.map(t => t.members.join('\n')),
-        minutes: Math.round(game.timeLimit / 60) || 0, timers: game.settings.timers, diffMode: game.settings.diffMode,
+        minutes: Math.round(game.timeLimit / 60) || 0, timers: game.settings.timers,
         exactFinish: game.settings.exactFinish, cats: game.settings.cats
       });
       startGame(newGame(s), { title: 'NEW MATCH!' });
