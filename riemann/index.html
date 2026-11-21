@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Riemann Hypothesis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400&family=EB+Garamond:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; color: #eef3ff; font-family: Inter, system-ui, sans-serif; }
+  #stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #000; }
+  canvas { display: block; background: #000; }
+  #ui { position: fixed; left: 0; right: 0; bottom: 0; padding: 18px 24px 22px; display: flex; gap: 16px; align-items: center;
+    background: linear-gradient(to top, rgba(0,0,0,.85), rgba(0,0,0,0)); transition: opacity .5s ease; font: 300 12px/1 Inter, sans-serif; letter-spacing: .12em; }
+  #ui.hidden { opacity: 0; pointer-events: none; }
+  #ui button { background: none; border: 1px solid rgba(255,255,255,.4); color: #fff; width: 38px; height: 38px; border-radius: 50%; cursor: pointer; font-size: 13px; flex: none; }
+  #scrub { flex: 1; accent-color: #ffc46b; min-width: 0; }
+  #time { min-width: 120px; text-align: right; opacity: .8; }
+  body.render #ui { display: none; }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="c"></canvas></div>
+<audio id="snd" src="soundtrack.m4a" preload="auto"></audio>
+<div id="ui">
+  <button id="play" aria-label="Play / pause">▶</button>
+  <input id="scrub" type="range" min="0" max="145" step="0.01" value="0" aria-label="Timeline">
+  <span id="time">000.0 / 145.0</span>
+</div>
+<script src="rh-data.js"></script>
+<script src="rh-core.js"></script>
+<script src="rh-math.js"></script>
+<script src="rh-s1.js"></script>
+<script src="rh-plane.js"></script>
+<script src="rh-s2.js"></script>
+<script src="rh-s3.js"></script>
+<script src="rh-s4.js"></script>
+<script src="rh-main.js"></script>
+</body>
+</html>
