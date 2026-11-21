@@ -1,0 +1,2693 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Physics Snakes &amp; Ladders</title>
+  <meta name="description" content="Grade 10 Physics Snakes & Ladders Championship — a classroom game show for four groups.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+/* ═══════════ Physics Snakes & Ladders — game-show theme ═══════════ */
+:root {
+  --bg: #060a1c;
+  --bg2: #0d1236;
+  --panel: rgba(18, 24, 66, .78);
+  --panel-solid: #141a46;
+  --line: rgba(129, 140, 248, .28);
+  --text: #eef2ff;
+  --muted: #a5b0e0;
+  --cyan: #22d3ee;
+  --blue: #3b82f6;
+  --purple: #a855f7;
+  --gold: #fbbf24;
+  --gold2: #f59e0b;
+  --green: #22c55e;
+  --red: #ef4444;
+  --easy: #22c55e;
+  --mod: #f59e0b;
+  --chal: #ef4444;
+  --radius: 18px;
+  --display: 'Fredoka', 'Nunito', system-ui, sans-serif;
+  --body: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --cell: 60px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: radial-gradient(1200px 700px at 15% -10%, #1e1b6b 0%, transparent 60%),
+              radial-gradient(900px 600px at 110% 110%, #4c1d95 0%, transparent 55%),
+              linear-gradient(160deg, var(--bg2), var(--bg));
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--body);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+button { font-family: inherit; cursor: pointer; }
+input, select, textarea { font-family: inherit; }
+.bg-stars {
+  position: fixed; inset: 0; pointer-events: none; opacity: .5;
+  background-image:
+    radial-gradient(1.5px 1.5px at 10% 20%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 30% 70%, #c7d2fe 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 70% 30%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 85% 80%, #a5f3fc 50%, transparent 51%),
+    radial-gradient(1px 1px at 50% 50%, #fff 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 92% 12%, #fde68a 50%, transparent 51%);
+  background-size: 420px 420px;
+  animation: drift 120s linear infinite;
+}
+@keyframes drift { to { background-position: 420px 840px; } }
+
+/* ─────────── Top bar ─────────── */
+.topbar {
+  height: 72px; display: flex; align-items: center; gap: 16px;
+  padding: 0 20px; position: relative; z-index: 5;
+  background: linear-gradient(90deg, rgba(30, 27, 107, .85), rgba(76, 29, 149, .7));
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 6px 30px rgba(0, 0, 0, .35);
+}
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.brand-icon { font-size: 38px; animation: spin 12s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.brand-title {
+  font-family: var(--display); font-weight: 700; font-size: 26px; line-height: 1.05;
+  background: linear-gradient(90deg, #67e8f9, #c4b5fd, var(--gold));
+  -webkit-background-clip: text; background-clip: text; color: transparent; white-space: nowrap;
+}
+.brand-sub { font-size: 13px; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); font-weight: 800; }
+.top-center { flex: 1; display: flex; justify-content: center; gap: 12px; }
+.pill {
+  font-family: var(--display); font-size: 22px; font-weight: 600;
+  padding: 6px 18px; border-radius: 999px; background: rgba(0, 0, 0, .3);
+  border: 1px solid var(--line); white-space: nowrap;
+}
+.pill.clock { color: var(--cyan); font-variant-numeric: tabular-nums; }
+.pill.clock.low { color: #fff; background: var(--red); animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { transform: scale(1.06); } }
+.top-actions { display: flex; gap: 8px; }
+.icon-btn {
+  height: 46px; min-width: 46px; padding: 0 12px; border-radius: 12px;
+  border: 1px solid var(--line); background: rgba(255, 255, 255, .06); color: var(--text);
+  font-size: 20px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  transition: background .15s, transform .1s;
+}
+.icon-btn:hover { background: rgba(255, 255, 255, .14); }
+.icon-btn:active { transform: scale(.95); }
+.icon-btn.teacher { background: linear-gradient(135deg, #7c3aed, #2563eb); border-color: transparent; font-weight: 800; font-size: 17px; }
+.icon-btn.teacher span { font-size: 16px; }
+
+/* ─────────── Stage ─────────── */
+.stage {
+  display: flex; gap: 18px; padding: 14px 18px 16px;
+  height: calc(100vh - 72px); position: relative; z-index: 1;
+}
+.board-wrap { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; }
+.side { width: clamp(340px, 27vw, 460px); display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+.panel {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 12px 14px; backdrop-filter: blur(6px);
+}
+.panel-title { font-family: var(--display); font-weight: 600; font-size: 20px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: baseline; }
+.panel-title small { font-family: var(--body); color: var(--muted); font-size: 13px; }
+
+/* ─────────── Board ─────────── */
+.board {
+  position: relative; width: 600px; height: 600px;
+  border-radius: 16px; padding: 0;
+  box-shadow: 0 0 0 4px rgba(251, 191, 36, .85), 0 0 0 9px rgba(34, 211, 238, .25), 0 0 60px rgba(124, 58, 237, .55), 0 20px 60px rgba(0, 0, 0, .6);
+}
+.cells { position: absolute; inset: 0; display: grid; border-radius: 16px; overflow: hidden; }
+.cell {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  background: hsl(var(--h) 62% 24%);
+  border: 1px solid rgba(255, 255, 255, .06);
+}
+.cell.alt { background: hsl(var(--h) 58% 31%); }
+.nums { position: absolute; inset: 0; display: grid; pointer-events: none; }
+.nums > div { position: relative; }
+.nums .fin .num { color: #451a03; text-shadow: none; }
+.num {
+  position: absolute; top: 4%; left: 7%;
+  font-family: var(--display); font-weight: 700; font-size: calc(var(--cell) * .25);
+  color: rgba(255, 255, 255, .9); text-shadow: 0 0 3px #000, 0 2px 3px rgba(0, 0, 0, .8); line-height: 1;
+}
+.cell .doodle { font-size: calc(var(--cell) * .42); opacity: .17; filter: grayscale(.3); }
+.cell .sp-icon { font-size: calc(var(--cell) * .44); filter: drop-shadow(0 0 6px rgba(0, 0, 0, .5)); z-index: 1; margin-top: 12%; }
+.cell.special { animation: glow 2.4s ease-in-out infinite; box-shadow: inset 0 0 0 3px var(--sc), inset 0 0 calc(var(--cell) * .35) var(--sc); }
+.cell.special::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle, color-mix(in srgb, var(--sc) 35%, transparent), transparent 70%); }
+@keyframes glow { 50% { box-shadow: inset 0 0 0 3px var(--sc), inset 0 0 calc(var(--cell) * .6) var(--sc); filter: brightness(1.2); } }
+.cell.ladder-foot { box-shadow: inset 0 0 0 3px rgba(251, 191, 36, .75); }
+.cell.snake-head { box-shadow: inset 0 0 0 3px rgba(239, 68, 68, .75); }
+.cell.start { background: linear-gradient(135deg, #0e7490, #1d4ed8); }
+.cell.start .label { font-family: var(--display); font-weight: 700; font-size: calc(var(--cell) * .19); margin-top: 22%; letter-spacing: .05em; }
+.cell.finish { background: radial-gradient(circle at 50% 40%, #fde68a, #f59e0b 55%, #b45309); animation: finish 2s ease-in-out infinite; }
+.cell.finish .sp-icon { font-size: calc(var(--cell) * .5); }
+@keyframes finish { 50% { filter: brightness(1.25); } }
+.board svg.overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.ladder { filter: drop-shadow(0 0 5px rgba(251, 191, 36, .65)) drop-shadow(0 4px 3px rgba(0, 0, 0, .6)); }
+.ladder.active { animation: ladderGlow .5s ease-in-out infinite alternate; }
+@keyframes ladderGlow { to { filter: drop-shadow(0 0 16px #fde68a) drop-shadow(0 0 30px #fbbf24); } }
+.snake { filter: drop-shadow(0 6px 4px rgba(0, 0, 0, .55)); }
+.snake .scales { animation: slither 1.6s linear infinite; }
+@keyframes slither { to { stroke-dashoffset: -42; } }
+.snake .tongue { animation: tongue 1.8s ease-in-out infinite; transform-box: fill-box; transform-origin: left center; }
+@keyframes tongue { 0%, 60%, 100% { transform: scaleX(0); } 70%, 90% { transform: scaleX(1); } }
+.snake.active { animation: snakeShake .12s linear infinite; }
+@keyframes snakeShake { 50% { transform: translate(2px, -2px); } }
+
+/* Tokens */
+.tokens { position: absolute; inset: 0; pointer-events: none; }
+.token {
+  position: absolute; width: calc(var(--cell) * .52); height: calc(var(--cell) * .52);
+  transform: translate(-50%, -50%); z-index: 3;
+  transition: left .24s ease-out, top .24s ease-out;
+}
+.token.flying { transition: left 1.2s cubic-bezier(.45, 0, .3, 1), top 1.2s cubic-bezier(.45, 0, .3, 1); z-index: 6; }
+.token.sliding { transition: none; z-index: 6; }
+.token .tk {
+  width: 100%; height: 100%; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 35% 30%, var(--l), var(--c) 55%, color-mix(in srgb, var(--c) 60%, #000));
+  border: 3px solid #fff; box-shadow: 0 0 0 2px rgba(0, 0, 0, .35), 0 0 14px var(--c), 0 6px 10px rgba(0, 0, 0, .55);
+  font-size: calc(var(--cell) * .26); position: relative;
+}
+.token .tk b { position: absolute; bottom: -22%; right: -18%; background: #0b1030; border: 2px solid var(--c); color: #fff;
+  font-family: var(--display); font-size: calc(var(--cell) * .17); width: 52%; height: 52%; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; }
+.token.hop .tk { animation: hop .24s ease-out; }
+@keyframes hop { 40% { transform: translateY(-45%) scale(1.15); } }
+.token.current { z-index: 5; }
+.token.current::before {
+  content: ''; position: absolute; inset: -22%; border-radius: 50%;
+  border: 3px dashed var(--c); animation: spin 4s linear infinite; box-shadow: 0 0 18px var(--c);
+}
+.token.a0 .tk { animation: bob 2.2s ease-in-out infinite; }
+.token.a1 .tk { animation: throb 1.6s ease-in-out infinite; }
+.token.a2 .tk { animation: wob 2.6s ease-in-out infinite; }
+.token.a3 .tk { animation: flick 1.9s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateY(-9%); } }
+@keyframes throb { 50% { transform: scale(1.1); } }
+@keyframes wob { 25% { transform: rotate(-12deg); } 75% { transform: rotate(12deg); } }
+@keyframes flick { 0%, 100% { filter: brightness(1); } 45% { filter: brightness(1.5); } 50% { filter: brightness(.9); } 55% { filter: brightness(1.5); } }
+
+/* ─────────── Turn card & die ─────────── */
+.turn-card {
+  border-radius: var(--radius); padding: 14px 16px; position: relative; overflow: hidden;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--tc, #3b82f6) 45%, #141a46), #141a46 70%);
+  border: 2px solid var(--tc, #3b82f6); box-shadow: 0 0 30px color-mix(in srgb, var(--tc, #3b82f6) 45%, transparent);
+  transition: background .4s, border-color .4s, box-shadow .4s;
+}
+.turn-label { font-size: 13px; letter-spacing: .25em; text-transform: uppercase; color: var(--muted); font-weight: 800; }
+.turn-team { font-family: var(--display); font-weight: 700; font-size: clamp(26px, 2.3vw, 36px); line-height: 1.1; display: flex; align-items: center; gap: 10px; }
+.turn-team .mini { font-size: 30px; }
+.turn-student { font-size: 19px; color: #e0e7ff; margin-top: 2px; }
+.turn-student b { color: var(--gold); }
+.dice-row { display: flex; align-items: center; gap: 18px; margin: 12px 0 10px; }
+.roll-btn {
+  flex: 1; height: 76px; border: none; border-radius: 16px; font-family: var(--display); font-size: 30px; font-weight: 700;
+  color: #1e1b4b; background: linear-gradient(180deg, #fde68a, var(--gold) 50%, var(--gold2));
+  box-shadow: 0 6px 0 #b45309, 0 10px 24px rgba(251, 191, 36, .45); transition: transform .1s, box-shadow .1s, filter .2s;
+}
+.roll-btn:hover { filter: brightness(1.08); }
+.roll-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b45309; }
+.roll-btn:disabled { filter: grayscale(.85) brightness(.7); cursor: not-allowed; animation: none; }
+.roll-btn.ready { animation: ready 1.4s ease-in-out infinite; }
+.roll-btn.final { background: linear-gradient(180deg, #f0abfc, #c026d3); color: #fff; box-shadow: 0 6px 0 #701a75, 0 10px 24px rgba(192, 38, 211, .5); font-size: 24px; }
+@keyframes ready { 50% { box-shadow: 0 6px 0 #b45309, 0 10px 40px rgba(251, 191, 36, .85); } }
+.turn-hint { font-size: 16px; color: var(--muted); min-height: 22px; }
+
+.die-scene { width: 66px; height: 66px; perspective: 900px; flex: none; margin: 6px 8px 6px 4px; }
+.die { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transition: transform 1.3s cubic-bezier(.2, .7, .25, 1); }
+.die .face {
+  position: absolute; inset: 0; border-radius: 14px; background: linear-gradient(145deg, #ffffff, #dbe4ff);
+  border: 2px solid #c7d2fe; display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); padding: 12%;
+  box-shadow: inset 0 -4px 8px rgba(30, 27, 75, .25);
+}
+.die .pip { width: 72%; height: 72%; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #6366f1, #1e1b4b); place-self: center; }
+.die .f1 { transform: translateZ(33px); }
+.die .f6 { transform: rotateY(180deg) translateZ(33px); }
+.die .f2 { transform: rotateY(90deg) translateZ(33px); }
+.die .f5 { transform: rotateY(-90deg) translateZ(33px); }
+.die .f3 { transform: rotateX(90deg) translateZ(33px); }
+.die .f4 { transform: rotateX(-90deg) translateZ(33px); }
+.die .f1 .pip { background: radial-gradient(circle at 35% 35%, #f87171, #991b1b); }
+
+/* ─────────── Scoreboard ─────────── */
+.scoreboard-panel { flex: none; }
+.scoreboard { display: flex; flex-direction: column; gap: 8px; }
+.score-row {
+  display: grid; grid-template-columns: 40px 44px 1fr auto auto; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 14px; position: relative;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c) 28%, transparent), rgba(255, 255, 255, .03));
+  border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
+}
+.score-row.current { box-shadow: 0 0 0 2px var(--c), 0 0 22px color-mix(in srgb, var(--c) 60%, transparent); }
+.score-row .rank { font-family: var(--display); font-size: 26px; text-align: center; }
+.score-row .tok { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 21px;
+  background: radial-gradient(circle at 35% 30%, var(--l), var(--c)); border: 2px solid #fff; }
+.score-row .nm { font-family: var(--display); font-weight: 600; font-size: 21px; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.score-row .sub { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.score-row .bar { height: 5px; background: rgba(255, 255, 255, .1); border-radius: 4px; margin-top: 4px; overflow: hidden; }
+.score-row .bar span { display: block; height: 100%; background: var(--c); border-radius: 4px; transition: width .5s; }
+.score-row .stat { text-align: center; min-width: 54px; }
+.score-row .stat b { display: block; font-family: var(--display); font-size: 27px; line-height: 1; font-variant-numeric: tabular-nums; }
+.score-row .stat small { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.score-row .stat.pts b { color: var(--gold); }
+.score-row .badges { position: absolute; top: -9px; right: 10px; display: flex; gap: 3px; font-size: 15px; }
+.score-row .badges span { background: #0b1030; border: 1px solid var(--line); border-radius: 999px; padding: 0 6px; }
+.float-pts { position: absolute; right: 18px; top: 4px; font-family: var(--display); font-size: 30px; font-weight: 700; color: var(--gold);
+  text-shadow: 0 0 10px rgba(251, 191, 36, .8); animation: floatUp 1.6s ease-out forwards; pointer-events: none; }
+@keyframes floatUp { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-50px); opacity: 0; } }
+
+/* Log */
+.log-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.log { list-style: none; margin: 0; padding: 0; overflow: auto; flex: 1; font-size: 16px; }
+.log li { padding: 5px 0 5px 12px; border-left: 4px solid var(--c, var(--muted)); margin-bottom: 4px; color: #dbe2ff; animation: fadeIn .4s; }
+.log li:first-child { font-weight: 800; color: #fff; }
+@keyframes fadeIn { from { opacity: 0; transform: translateX(10px); } }
+
+/* ─────────── Buttons ─────────── */
+.btn {
+  border: 1px solid var(--line); background: rgba(255, 255, 255, .08); color: var(--text); border-radius: 12px;
+  padding: 10px 16px; font-size: 17px; font-weight: 800; transition: transform .1s, filter .15s, background .15s;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn:hover { background: rgba(255, 255, 255, .15); }
+.btn:active { transform: scale(.97); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn.big { font-size: 22px; padding: 14px 26px; border-radius: 14px; font-family: var(--display); font-weight: 600; }
+.btn.gold { background: linear-gradient(180deg, #fde68a, var(--gold2)); color: #1e1b4b; border-color: transparent; }
+.btn.cyan { background: linear-gradient(180deg, #67e8f9, #0891b2); color: #042f2e; border-color: transparent; }
+.btn.purple { background: linear-gradient(180deg, #c084fc, #7c3aed); color: #fff; border-color: transparent; }
+.btn.green { background: linear-gradient(180deg, #4ade80, #15803d); color: #fff; border-color: transparent; }
+.btn.red { background: linear-gradient(180deg, #f87171, #b91c1c); color: #fff; border-color: transparent; }
+.btn.ghost { background: transparent; }
+.btn.sm { font-size: 14px; padding: 6px 10px; border-radius: 9px; }
+.btn kbd, .kbd { font-family: var(--body); font-size: .62em; background: rgba(0, 0, 0, .28); padding: 1px 6px; border-radius: 5px; opacity: .85; }
+
+/* ─────────── Modals ─────────── */
+.modal {
+  position: fixed; inset: 0; z-index: 40; display: none; align-items: center; justify-content: center;
+  background: rgba(3, 6, 20, .72); backdrop-filter: blur(5px); padding: 16px;
+}
+.modal.show { display: flex; animation: fadeBg .25s; }
+.modal.tool { z-index: 60; }
+.modal.dialog { z-index: 80; }
+@keyframes fadeBg { from { opacity: 0; } }
+.modal-card {
+  width: min(1180px, 100%); max-height: calc(100vh - 32px); overflow: auto;
+  background: linear-gradient(160deg, #1a1f5c, #120f3a 70%); border: 1px solid var(--line); border-radius: 24px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .6), 0 0 0 1px rgba(255, 255, 255, .05) inset; padding: 26px 30px;
+  animation: pop .35s cubic-bezier(.2, 1.4, .4, 1);
+}
+@keyframes pop { from { transform: scale(.85); opacity: 0; } }
+.modal.dialog .modal-card { width: min(560px, 100%); }
+.modal h2 { font-family: var(--display); font-size: 34px; margin: 0 0 12px; }
+.modal h3 { font-family: var(--display); font-size: 22px; margin: 18px 0 8px; color: var(--cyan); }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.row.end { justify-content: flex-end; }
+.row.center { justify-content: center; }
+.muted { color: var(--muted); }
+
+/* Question modal */
+.q-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.chip { padding: 6px 14px; border-radius: 999px; font-weight: 800; font-size: 17px; background: rgba(255, 255, 255, .1); border: 1px solid var(--line); white-space: nowrap; }
+.chip.E { background: var(--easy); color: #052e16; border-color: transparent; }
+.chip.M { background: var(--mod); color: #451a03; border-color: transparent; }
+.chip.C { background: var(--chal); color: #fff; border-color: transparent; }
+.chip.kind { background: linear-gradient(90deg, #7c3aed, #2563eb); border: none; font-size: 19px; }
+.chip.kind.ladder { background: linear-gradient(90deg, #f59e0b, #b45309); }
+.chip.kind.snake { background: linear-gradient(90deg, #16a34a, #065f46); }
+.chip.kind.final { background: linear-gradient(90deg, #c026d3, #f59e0b); }
+.chip.kind.challenge { background: linear-gradient(90deg, #ef4444, #7c3aed); }
+.chip.pts { background: rgba(251, 191, 36, .18); color: var(--gold); border-color: rgba(251, 191, 36, .5); }
+.q-team { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 14px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c) 40%, transparent), transparent); border-left: 6px solid var(--c);
+  font-size: 22px; margin-bottom: 14px; }
+.q-team b { font-family: var(--display); font-size: 26px; }
+.q-team .student { margin-left: auto; color: var(--gold); font-weight: 800; }
+.q-body { display: grid; grid-template-columns: 1fr auto; gap: 22px; align-items: start; }
+.q-text { font-family: var(--display); font-weight: 500; font-size: clamp(26px, 2.5vw, 42px); line-height: 1.3; }
+.q-type { font-size: 15px; letter-spacing: .15em; text-transform: uppercase; color: var(--cyan); font-weight: 800; margin-bottom: 6px; }
+.options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
+.options.tf { grid-template-columns: 1fr 1fr; }
+.opt {
+  display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 16px; text-align: left;
+  background: rgba(255, 255, 255, .06); border: 2px solid var(--line); color: var(--text);
+  font-size: clamp(20px, 1.8vw, 30px); font-weight: 700; transition: all .2s;
+}
+.opt:hover { background: rgba(255, 255, 255, .12); }
+.opt .letter { flex: none; width: 1.7em; height: 1.7em; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--purple), var(--blue)); font-family: var(--display); }
+.opt.picked { border-color: var(--cyan); background: rgba(34, 211, 238, .15); }
+.opt.right { border-color: var(--green); background: rgba(34, 197, 94, .25); box-shadow: 0 0 24px rgba(34, 197, 94, .5); }
+.opt.right .letter { background: var(--green); }
+.opt.wrong { opacity: .45; }
+.opt.picked.wrong { opacity: 1; border-color: var(--red); background: rgba(239, 68, 68, .2); }
+.answer-box {
+  margin-top: 16px; padding: 14px 18px; border-radius: 16px; background: rgba(34, 197, 94, .14); border: 2px solid rgba(34, 197, 94, .6);
+  font-size: clamp(20px, 1.7vw, 28px); animation: pop .35s;
+}
+.answer-box b { color: #86efac; }
+.answer-box.bad { background: rgba(239, 68, 68, .14); border-color: rgba(239, 68, 68, .65); }
+.answer-box .verdict-line { font-family: var(--display); font-weight: 700; font-size: 1.25em; margin-bottom: 4px; }
+.opt:disabled { cursor: default; }
+.opt .tag { margin-left: auto; flex: none; color: #fff; font-family: var(--display); font-size: .7em; padding: 2px 10px; border-radius: 999px; border: 2px solid #fff; }
+.opt.locked-a { border-color: var(--gold); background: rgba(251, 191, 36, .2); }
+.answer-box .why { font-size: .78em; color: #d1fae5; margin-top: 6px; }
+.hidden-answer { margin-top: 16px; padding: 12px 18px; border-radius: 14px; border: 2px dashed var(--line); color: var(--muted); font-size: 18px; }
+.q-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; align-items: center; }
+.q-actions .spacer { flex: 1; }
+.q-actions .btn.big { min-width: 150px; }
+.timer { width: 130px; height: 130px; position: relative; flex: none; }
+.timer svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.timer .track { fill: none; stroke: rgba(255, 255, 255, .1); stroke-width: 10; }
+.timer .prog { fill: none; stroke: var(--cyan); stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset 1s linear, stroke .3s; }
+.timer .t-num { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column;
+  font-family: var(--display); font-size: 44px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.timer .t-num small { font-size: 12px; font-family: var(--body); color: var(--muted); letter-spacing: .1em; }
+.timer.warn .prog { stroke: var(--red); }
+.timer.warn .t-num { color: #fca5a5; animation: pulse .5s ease-in-out infinite; }
+.timer.done .t-num { color: var(--red); font-size: 22px; animation: none; }
+.timer.paused .t-num { opacity: .5; }
+
+/* Difficulty picker */
+.diff-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 12px; }
+.diff-card {
+  border-radius: 20px; padding: 22px 16px; text-align: center; border: 3px solid transparent; color: #fff;
+  font-family: var(--display); transition: transform .15s, box-shadow .15s;
+}
+.diff-card:hover { transform: translateY(-6px) scale(1.03); }
+.diff-card .dc-icon { font-size: 54px; }
+.diff-card .dc-name { font-size: 32px; font-weight: 700; }
+.diff-card .dc-pts { font-size: 26px; color: #fff; opacity: .95; }
+.diff-card .dc-sub { font-family: var(--body); font-size: 15px; opacity: .85; margin-top: 4px; }
+.diff-card.E { background: linear-gradient(160deg, #22c55e, #166534); box-shadow: 0 10px 30px rgba(34, 197, 94, .35); }
+.diff-card.M { background: linear-gradient(160deg, #f59e0b, #92400e); box-shadow: 0 10px 30px rgba(245, 158, 11, .35); }
+.diff-card.C { background: linear-gradient(160deg, #ef4444, #7f1d1d); box-shadow: 0 10px 30px rgba(239, 68, 68, .35); }
+.rolled-banner { display: flex; align-items: center; gap: 16px; font-size: 26px; }
+.rolled-banner .big-num { font-family: var(--display); font-size: 64px; color: var(--gold); line-height: 1; text-shadow: 0 0 20px rgba(251, 191, 36, .6); }
+
+/* Special card */
+.special-card { text-align: center; padding: 10px 10px 4px; position: relative; }
+.special-card .sp-big { font-size: 120px; line-height: 1.1; display: inline-block; animation: spBounce 1s cubic-bezier(.2, 1.6, .4, 1); filter: drop-shadow(0 0 30px var(--sc)); }
+@keyframes spBounce { 0% { transform: scale(0) rotate(-180deg); } 100% { transform: scale(1) rotate(0); } }
+.special-card .sp-title { font-family: var(--display); font-size: 48px; font-weight: 700; color: var(--sc); text-shadow: 0 0 24px color-mix(in srgb, var(--sc) 60%, transparent); }
+.special-card .sp-desc { font-size: 26px; margin: 8px auto 18px; max-width: 760px; }
+.special-card .sp-tag { font-size: 15px; letter-spacing: .25em; text-transform: uppercase; color: var(--muted); font-weight: 800; }
+.special-card .rays { position: absolute; inset: -30%; z-index: -1; opacity: .25; pointer-events: none;
+  background: repeating-conic-gradient(from 0deg, var(--sc) 0 10deg, transparent 10deg 20deg); animation: spin 18s linear infinite;
+  mask: radial-gradient(circle, #000 20%, transparent 60%); -webkit-mask: radial-gradient(circle, #000 20%, transparent 60%); }
+.modal-card.has-rays { position: relative; overflow: hidden; isolation: isolate; }
+.team-pick { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 10px 0 16px; }
+.team-pick button {
+  padding: 16px; border-radius: 16px; border: 3px solid var(--c); color: #fff; font-family: var(--display); font-size: 24px;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--c) 55%, #0b1030), #0b1030);
+}
+.team-pick button small { display: block; font-family: var(--body); font-size: 15px; color: #dbe2ff; }
+.team-pick button:hover { transform: translateY(-4px); box-shadow: 0 0 24px var(--c); }
+
+/* Announce */
+.announce {
+  position: fixed; inset: 0; z-index: 70; pointer-events: none; display: flex; align-items: center; justify-content: center; flex-direction: column;
+  opacity: 0; transition: opacity .25s;
+}
+.announce.show { opacity: 1; background: radial-gradient(circle, rgba(3, 6, 20, .55), transparent 70%); }
+.announce .an-icon { font-size: 140px; line-height: 1; filter: drop-shadow(0 0 30px var(--ac)); }
+.announce .an-title { font-family: var(--display); font-weight: 700; font-size: clamp(48px, 7vw, 110px); color: #fff; line-height: 1;
+  text-shadow: 0 0 30px var(--ac), 0 6px 0 rgba(0, 0, 0, .4); -webkit-text-stroke: 2px var(--ac); text-align: center; }
+.announce .an-sub { font-size: clamp(22px, 2.2vw, 34px); font-weight: 800; margin-top: 10px; background: rgba(3, 6, 20, .75); padding: 8px 22px; border-radius: 999px; border: 2px solid var(--ac); text-align: center; }
+.announce.show .an-icon, .announce.show .an-title { animation: zoomIn .5s cubic-bezier(.2, 1.6, .4, 1); }
+@keyframes zoomIn { from { transform: scale(.2); opacity: 0; } }
+
+/* Pause */
+.pause-overlay { position: fixed; inset: 0; z-index: 75; display: none; align-items: center; justify-content: center; background: rgba(3, 6, 20, .82); backdrop-filter: blur(8px); }
+.pause-overlay.show { display: flex; }
+.pause-box { text-align: center; }
+.pause-icon { font-size: 110px; animation: pulse 1.6s ease-in-out infinite; }
+.pause-title { font-family: var(--display); font-size: 64px; margin-bottom: 20px; }
+
+/* Toasts */
+.toast-wrap { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 90; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
+.toast { background: #0b1030; border: 1px solid var(--cyan); color: #fff; padding: 10px 20px; border-radius: 999px; font-weight: 800; font-size: 17px; box-shadow: 0 10px 30px rgba(0, 0, 0, .5); animation: toastIn .3s; }
+@keyframes toastIn { from { transform: translateY(20px); opacity: 0; } }
+
+#confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 95; }
+
+/* ─────────── Drawer ─────────── */
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(520px, 100vw); z-index: 50;
+  background: linear-gradient(180deg, #171c55, #0e0c30); border-left: 1px solid var(--line); box-shadow: -20px 0 60px rgba(0, 0, 0, .6);
+  transform: translateX(105%); transition: transform .3s ease; display: flex; flex-direction: column;
+}
+.drawer.open { transform: none; }
+.drawer-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.drawer-head h2 { margin: 0; font-family: var(--display); font-size: 24px; }
+.drawer-body { overflow: auto; padding: 8px 18px 24px; }
+.drawer section { border-bottom: 1px solid var(--line); padding: 12px 0; }
+.drawer section h3 { margin: 0 0 10px; font-family: var(--display); font-size: 18px; color: var(--cyan); }
+.drawer .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.drawer .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.drawer .btn { font-size: 15px; padding: 10px 8px; }
+.adj-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 10px; margin-bottom: 6px;
+  background: color-mix(in srgb, var(--c) 18%, transparent); border-left: 4px solid var(--c); }
+.adj-row .an { font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.adj-row .grp { display: flex; align-items: center; gap: 4px; }
+.adj-row .grp span { min-width: 34px; text-align: center; font-family: var(--display); font-size: 18px; }
+.adj-row .grp small { color: var(--muted); font-size: 11px; }
+
+/* ─────────── Forms ─────────── */
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--muted); font-weight: 800; }
+.field input, .field select, .field textarea, input.inp, select.inp {
+  background: rgba(0, 0, 0, .3); border: 1px solid var(--line); color: var(--text); border-radius: 10px; padding: 9px 11px; font-size: 16px; font-weight: 700;
+}
+.field textarea { resize: vertical; min-height: 70px; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--cyan); outline-offset: 1px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.seg button { background: transparent; color: var(--text); border: none; padding: 9px 16px; font-weight: 800; font-size: 16px; }
+.seg button.on { background: linear-gradient(135deg, var(--purple), var(--blue)); }
+.check { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--text); font-size: 15px; }
+.check input { width: 18px; height: 18px; accent-color: var(--purple); }
+
+/* Setup */
+.setup-hero { text-align: center; margin-bottom: 14px; }
+.setup-hero .logo { font-size: 64px; line-height: 1; }
+.setup-hero .logo span { display: inline-block; animation: bob 2s ease-in-out infinite; }
+.setup-hero .logo span:nth-child(2) { animation-delay: .3s; }
+.setup-hero .logo span:nth-child(3) { animation-delay: .6s; }
+.setup-hero h1 { font-family: var(--display); font-size: clamp(32px, 4vw, 54px); margin: 6px 0 0; line-height: 1.05;
+  background: linear-gradient(90deg, #67e8f9, #c4b5fd, var(--gold)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.setup-hero p { color: var(--muted); margin: 6px 0 0; font-size: 17px; }
+.teams-setup { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.team-setup { border-radius: 16px; padding: 12px; border: 2px solid var(--c); background: linear-gradient(170deg, color-mix(in srgb, var(--c) 30%, transparent), transparent 80%); }
+.team-setup .ts-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-family: var(--display); font-size: 18px; }
+.team-setup .ts-head .tok { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 35% 30%, var(--l), var(--c)); border: 2px solid #fff; }
+.team-setup input { width: 100%; }
+.team-setup textarea { width: 100%; min-height: 96px; font-size: 14px; }
+.settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+.cat-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 6px 14px; }
+.timers-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.timers-row input { width: 100%; }
+.setup-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+
+/* Bank */
+.bank-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+.bank-tools input.inp { flex: 1; min-width: 160px; }
+.bank-list { display: flex; flex-direction: column; gap: 6px; max-height: 52vh; overflow: auto; padding-right: 4px; }
+.bank-item { display: grid; grid-template-columns: 36px 44px 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 12px; background: rgba(255, 255, 255, .05); border: 1px solid var(--line); }
+.bank-item.used { opacity: .6; }
+.bank-item .bi-q { font-size: 15px; line-height: 1.3; }
+.bank-item .bi-q small { color: var(--muted); display: block; font-size: 12px; }
+.bank-item .chip { font-size: 13px; padding: 3px 8px; text-align: center; }
+.bank-stats { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; font-size: 14px; }
+.editor-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.editor-grid .wide { grid-column: 1 / -1; }
+.opts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.help-grid { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: 18px; }
+.help-grid kbd { background: #0b1030; border: 1px solid var(--line); border-bottom-width: 3px; border-radius: 8px; padding: 2px 10px; font-family: var(--display); }
+.legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 8px; }
+.legend div { display: flex; gap: 10px; align-items: center; background: rgba(255, 255, 255, .05); padding: 8px 10px; border-radius: 12px; font-size: 15px; }
+.legend div span { font-size: 28px; }
+table.pts { border-collapse: collapse; font-size: 16px; }
+table.pts td, table.pts th { padding: 4px 14px; border-bottom: 1px solid var(--line); text-align: left; }
+
+/* ─────────── Podium ─────────── */
+.podium-screen {
+  position: fixed; inset: 0; z-index: 65; display: none; flex-direction: column; align-items: center; overflow: auto;
+  background: radial-gradient(circle at 50% 30%, #4c1d95, #0b0a2a 65%); padding: 18px 16px 30px;
+}
+.podium-screen.show { display: flex; animation: fadeBg .6s; }
+.podium-screen .p-rays { position: fixed; top: 22%; left: 50%; width: 160vmax; height: 160vmax; transform: translate(-50%, -50%); pointer-events: none; opacity: .18;
+  background: repeating-conic-gradient(from 0deg, #fbbf24 0 8deg, transparent 8deg 16deg); animation: spin 40s linear infinite;
+  mask: radial-gradient(circle, #000 5%, transparent 45%); -webkit-mask: radial-gradient(circle, #000 5%, transparent 45%); }
+.podium-screen h1 { font-family: var(--display); font-size: clamp(36px, 5vw, 70px); margin: 0; text-align: center; position: relative;
+  background: linear-gradient(90deg, #fde68a, #fbbf24, #f0abfc, #67e8f9); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.podium-screen .p-reason { color: #e9d5ff; font-size: 20px; font-weight: 800; position: relative; text-align: center; }
+.trophy-wrap { position: relative; margin: 6px 0 0; }
+.trophy { width: clamp(120px, 15vh, 190px); animation: trophyFloat 3s ease-in-out infinite; filter: drop-shadow(0 0 40px rgba(251, 191, 36, .7)); }
+@keyframes trophyFloat { 50% { transform: translateY(-12px) rotate(2deg); } }
+.trophy .shine { animation: shine 2.6s ease-in-out infinite; }
+@keyframes shine { 0% { transform: translateX(-160px); } 60%, 100% { transform: translateX(220px); } }
+.winner-name { font-family: var(--display); font-size: clamp(34px, 4.5vw, 64px); font-weight: 700; text-align: center; position: relative; text-shadow: 0 0 30px var(--c); color: #fff; }
+.podium { display: flex; align-items: flex-end; justify-content: center; gap: 14px; margin-top: 12px; width: min(900px, 100%); position: relative; }
+.pod { flex: 1; display: flex; flex-direction: column; align-items: center; max-width: 260px; }
+.pod .p-tok { width: 74px; height: 74px; border-radius: 50%; font-size: 38px; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 35% 30%, var(--l), var(--c)); border: 4px solid #fff; box-shadow: 0 0 30px var(--c); animation: bob 2s ease-in-out infinite; }
+.pod .p-name { font-family: var(--display); font-size: 24px; font-weight: 700; margin: 6px 0 2px; text-align: center; }
+.pod .p-stats { color: #e0e7ff; font-size: 16px; margin-bottom: 6px; text-align: center; }
+.pod .block { width: 100%; border-radius: 14px 14px 0 0; display: flex; align-items: flex-start; justify-content: center; padding-top: 10px;
+  font-family: var(--display); font-size: 58px; font-weight: 700; color: rgba(0, 0, 0, .45); animation: rise 1s cubic-bezier(.2, 1.2, .4, 1) both; transform-origin: bottom; }
+.pod.p1 .block { height: 190px; background: linear-gradient(180deg, #fde68a, #f59e0b); animation-delay: .9s; }
+.pod.p2 .block { height: 140px; background: linear-gradient(180deg, #f1f5f9, #94a3b8); animation-delay: .5s; }
+.pod.p3 .block { height: 100px; background: linear-gradient(180deg, #fdba74, #b45309); animation-delay: .2s; }
+@keyframes rise { from { transform: scaleY(0); } }
+.fourth { margin-top: 10px; padding: 10px 18px; border-radius: 14px; background: rgba(255, 255, 255, .08); border-left: 6px solid var(--c); font-size: 20px; font-weight: 800; position: relative; }
+.standings { margin-top: 14px; border-collapse: collapse; font-size: 18px; position: relative; background: rgba(0, 0, 0, .25); border-radius: 12px; overflow: hidden; }
+.standings th, .standings td { padding: 8px 16px; text-align: center; border-bottom: 1px solid var(--line); }
+.standings th { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .1em; }
+.standings td:nth-child(2) { text-align: left; font-weight: 800; }
+.podium-actions { display: flex; gap: 12px; margin-top: 18px; position: relative; flex-wrap: wrap; justify-content: center; }
+
+
+/* ─────────── Ask the Audience banner ─────────── */
+.aud-banner { margin-top: 16px; padding: 16px 20px; border-radius: 18px; text-align: center; border: 3px solid #c084fc;
+  background: linear-gradient(135deg, rgba(168, 85, 247, .35), rgba(236, 72, 153, .25)); animation: pop .4s; }
+.aud-banner .ab-title { font-family: var(--display); font-weight: 700; font-size: clamp(30px, 3vw, 48px); color: #fff; text-shadow: 0 0 20px #c084fc; }
+.aud-banner .ab-sub { font-size: clamp(18px, 1.6vw, 24px); margin: 4px 0 6px; }
+.aud-banner .ab-count { font-family: var(--display); font-size: clamp(40px, 4vw, 64px); color: var(--gold); line-height: 1.1; margin-bottom: 8px; }
+
+/* ─────────── Welcome slideshow ─────────── */
+.welcome { position: fixed; inset: 0; z-index: 66; display: none; flex-direction: column; overflow: hidden;
+  background: radial-gradient(circle at 50% 30%, #3b0764, #0b0a2a 70%); }
+.welcome.show { display: flex; animation: fadeBg .5s; }
+.w-rays { position: absolute; top: 30%; left: 50%; width: 160vmax; height: 160vmax; transform: translate(-50%, -50%); opacity: .12; pointer-events: none;
+  background: repeating-conic-gradient(from 0deg, #22d3ee 0 8deg, transparent 8deg 16deg); animation: spin 60s linear infinite;
+  mask: radial-gradient(circle, #000 5%, transparent 45%); -webkit-mask: radial-gradient(circle, #000 5%, transparent 45%); }
+.w-stage { flex: 1; position: relative; min-height: 0; }
+.w-slide { position: absolute; inset: 0; padding: 4vh 5vw 2vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  opacity: 0; transform: translateX(40px); transition: opacity .6s, transform .6s; pointer-events: none; overflow: auto; }
+.w-slide.on { opacity: 1; transform: none; pointer-events: auto; }
+.w-kicker { font-size: clamp(18px, 2vw, 30px); letter-spacing: .3em; text-transform: uppercase; color: var(--gold); font-weight: 800; }
+.w-title { font-family: var(--display); font-size: clamp(36px, 6vw, 92px); line-height: 1.05; margin: 8px 0 3vh;
+  background: linear-gradient(90deg, #67e8f9, #c4b5fd, var(--gold)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.w-teams { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2vw; width: min(1400px, 100%); }
+.w-team { border: 3px solid var(--c); border-radius: 22px; padding: 2.4vh 1vw; background: linear-gradient(170deg, color-mix(in srgb, var(--c) 40%, transparent), transparent 85%); }
+.w-tok { width: clamp(60px, 7vw, 110px); height: clamp(60px, 7vw, 110px); margin: 0 auto 10px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: clamp(32px, 3.6vw, 58px); background: radial-gradient(circle at 35% 30%, var(--l), var(--c)); border: 4px solid #fff; box-shadow: 0 0 30px var(--c); animation: bob 2.2s ease-in-out infinite; }
+.w-name { font-family: var(--display); font-weight: 700; font-size: clamp(22px, 2.4vw, 40px); }
+.w-sec { font-size: clamp(14px, 1.3vw, 20px); color: #e0e7ff; margin-top: 4px; }
+.w-foot { margin-top: 3vh; font-size: clamp(18px, 1.8vw, 28px); font-weight: 800; color: #e9d5ff; }
+.w-h { font-family: var(--display); font-size: clamp(36px, 4.6vw, 72px); margin: 0 0 3vh; color: #fff; text-shadow: 0 0 24px rgba(34, 211, 238, .6); }
+.w-list { list-style: none; margin: 0; padding: 0; text-align: left; font-size: clamp(22px, 2.4vw, 40px); line-height: 1.35; max-width: 1300px; }
+.w-list li { padding: 1.2vh 1.4vw; margin-bottom: 1.2vh; border-radius: 16px; background: rgba(255, 255, 255, .07); border-left: 6px solid var(--cyan); }
+.w-list .tE { color: #4ade80; } .w-list .tM { color: #fbbf24; } .w-list .tC { color: #f87171; }
+.w-two { display: grid; grid-template-columns: 1fr 1fr; gap: 2vw; width: min(1300px, 100%); margin-bottom: 3vh; }
+.w-card { border: 3px solid var(--c); border-radius: 20px; padding: 2.4vh 1.5vw; font-size: clamp(20px, 2.1vw, 34px); background: color-mix(in srgb, var(--c) 18%, transparent); }
+.w-specials { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.2vh 1.4vw; width: min(1300px, 100%); }
+.w-specials div { display: flex; align-items: center; gap: 12px; padding: 1vh 1vw; border-radius: 14px; font-size: clamp(16px, 1.6vw, 26px); font-weight: 800;
+  background: color-mix(in srgb, var(--c) 20%, transparent); border: 2px solid var(--c); text-align: left; }
+.w-specials span { font-size: 1.5em; }
+.w-bar { display: flex; align-items: center; gap: 12px; padding: 12px 24px 18px; position: relative; }
+.w-bar .spacer { flex: 1; }
+.w-dots { display: flex; gap: 10px; }
+.w-dots i { width: 14px; height: 14px; border-radius: 50%; background: rgba(255, 255, 255, .25); cursor: pointer; }
+.w-dots i.on { background: var(--gold); box-shadow: 0 0 12px var(--gold); }
+@media (max-width: 900px) {
+  .w-teams { grid-template-columns: 1fr 1fr; }
+  .w-specials { grid-template-columns: 1fr 1fr; }
+  .w-two { grid-template-columns: 1fr; }
+}
+
+/* ─────────── Responsive ─────────── */
+@media (max-width: 1100px) {
+  .teams-setup { grid-template-columns: repeat(2, 1fr); }
+  .timers-row { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 900px) {
+  body { overflow: auto; }
+  .topbar { height: auto; flex-wrap: wrap; padding: 10px 16px; gap: 8px; }
+  .brand-title { font-size: 20px; }
+  .top-center { order: 3; flex-basis: 100%; }
+  .top-actions { margin-left: auto; flex-wrap: wrap; }
+  .icon-btn.teacher span { display: none; }
+  .stage { flex-direction: column; height: auto; padding: 12px 16px; }
+  .board-wrap { width: 100%; }
+  .side { width: 100%; }
+  .log-panel { max-height: 260px; }
+  .q-body { grid-template-columns: 1fr; }
+  .timer { width: 100px; height: 100px; order: -1; }
+  .options { grid-template-columns: 1fr; }
+  .diff-grid { grid-template-columns: 1fr; }
+  .editor-grid { grid-template-columns: 1fr; }
+  .modal-card { padding: 18px 16px; }
+}
+@media (max-width: 560px) {
+  .teams-setup { grid-template-columns: 1fr; }
+  .timers-row { grid-template-columns: repeat(2, 1fr); }
+  .brand-sub { display: none; }
+  .pill { font-size: 17px; }
+  .score-row { grid-template-columns: 30px 34px 1fr auto; }
+  .score-row .stat:not(.pts) { display: none; }
+  .podium .pod .p-name { font-size: 16px; }
+  .pod .block { font-size: 36px; }
+  .bank-item { grid-template-columns: 30px 1fr auto; }
+  .bank-item .chip.cat { display: none; }
+}
+
+</style>
+</head>
+<body>
+  <div class="bg-stars" aria-hidden="true"></div>
+
+  <!-- ═════════ TOP BAR ═════════ -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-icon">⚛️</span>
+      <div class="brand-text">
+        <div class="brand-title">Physics Snakes &amp; Ladders</div>
+        <div class="brand-sub">Grade 10 Championship</div>
+      </div>
+    </div>
+    <div class="top-center">
+      <div class="pill" id="roundPill">Round 1</div>
+      <div class="pill clock" id="clockPill" title="Competition time remaining">⏱ <span id="clock">∞</span></div>
+    </div>
+    <nav class="top-actions">
+      <button class="icon-btn" data-act="welcome" title="Welcome / rules slideshow (W)">📺</button>
+      <button class="icon-btn" data-act="audience" title="Audience question (Q)">🎤</button>
+      <button class="icon-btn" data-act="pause" title="Pause / resume (P)">⏸</button>
+      <button class="icon-btn" data-act="undo" title="Undo last move (U)">↶</button>
+      <button class="icon-btn" data-act="save" title="Save game">💾</button>
+      <button class="icon-btn" data-act="sound" id="soundBtn" title="Sound on/off (M)">🔊</button>
+      <button class="icon-btn" data-act="fullscreen" title="Projector full-screen (F)">⛶</button>
+      <button class="icon-btn teacher" data-act="panel" title="Teacher control panel (T)">🎛️ <span>Teacher</span></button>
+    </nav>
+  </header>
+
+  <!-- ═════════ STAGE ═════════ -->
+  <main class="stage">
+    <section class="board-wrap" id="boardWrap">
+      <div class="board" id="board"></div>
+    </section>
+
+    <aside class="side">
+      <div class="turn-card" id="turnCard">
+        <div class="turn-label">Now playing</div>
+        <div class="turn-team" id="turnTeam"></div>
+        <div class="turn-student" id="turnStudent"></div>
+        <div class="dice-row">
+          <div class="die-scene"><div class="die" id="die"></div></div>
+          <button class="roll-btn" id="rollBtn" data-act="roll">🎲 Roll</button>
+        </div>
+        <div class="turn-hint" id="turnHint"></div>
+      </div>
+      <div class="panel scoreboard-panel">
+        <div class="panel-title">🏅 Leaderboard <small>points · square</small></div>
+        <div class="scoreboard" id="scoreboard"></div>
+      </div>
+      <div class="panel log-panel">
+        <div class="panel-title">📜 Game Feed</div>
+        <ul class="log" id="log"></ul>
+      </div>
+    </aside>
+  </main>
+
+  <!-- ═════════ TEACHER PANEL (drawer) ═════════ -->
+  <div class="drawer" id="drawer" aria-hidden="true">
+    <div class="drawer-head">
+      <h2>🎛️ Teacher Control Panel</h2>
+      <button class="icon-btn" data-act="panel" title="Close (T)">✕</button>
+    </div>
+    <div class="drawer-body" id="drawerBody"></div>
+  </div>
+
+  <!-- Flow modal: dice/questions/specials -->
+  <div class="modal" id="flowModal"><div class="modal-card"></div></div>
+  <!-- Tool modal: setup, bank, adjust, help -->
+  <div class="modal tool" id="toolModal"><div class="modal-card"></div></div>
+  <!-- Dialog: confirmations -->
+  <div class="modal dialog" id="dialog"><div class="modal-card"></div></div>
+
+  <div class="announce" id="announce"></div>
+  <div class="pause-overlay" id="pauseOverlay">
+    <div class="pause-box">
+      <div class="pause-icon">⏸</div>
+      <div class="pause-title">Game Paused</div>
+      <button class="btn big gold" data-act="pause">▶ Resume</button>
+    </div>
+  </div>
+  <div class="podium-screen" id="podium"></div>
+  <div class="welcome" id="welcome"></div>
+  <div class="toast-wrap" id="toasts"></div>
+  <canvas id="confetti" aria-hidden="true"></canvas>
+  <input type="file" id="fileInput" accept=".json,.csv,application/json,text/csv" hidden>
+
+  <script>
+/* Grade 10 Physics question bank — based on the course book
+ *   Chapter 2: Strength of Solids (Sections 2-1 and 2-2, Chapter 2 Review)
+ *   Chapter 3, Section 3-1: Fluids and Buoyant Force
+ * All multiple choice (4 options). The game shuffles the options every time.
+ * Fields: id, c (topic 1-8), d (E/M/C), q (question), o (options), a (index of correct option), x (explanation).
+ * Symbols follow the book: T tension, σ stress, ε strain, E Young's modulus, l − l₀ elongation,
+ * Mm molar mass, Vm molar volume, NA = 6.02 × 10²³ mol⁻¹, g = 9.81 m/s².
+ */
+window.BANK_TOPICS = {
+  1: { name: 'Phases of Matter', icon: '🧊' },
+  2: { name: 'Moles & Molecular Quantities', icon: '⚛️' },
+  3: { name: 'Interatomic Forces & Bonds', icon: '🔗' },
+  4: { name: 'Solids, Rigidity & Elasticity', icon: '🧱' },
+  5: { name: 'Tension, Stress & Strain', icon: '🪢' },
+  6: { name: 'Young’s Modulus', icon: '📏' },
+  7: { name: 'Fluids & Density', icon: '💧' },
+  8: { name: 'Buoyant Force & Archimedes', icon: '🚢' }
+};
+
+window.DEFAULT_QUESTIONS = (function () {
+  const Q = [
+    // ───────── 1. Phases of Matter (Section 2-1) ─────────
+    { c: 1, d: 'E', q: 'How many phases (states) of matter are there?', o: ['2', '3', '4', '5'], a: 2, x: 'Solid, liquid, gas and plasma.' },
+    { c: 1, d: 'E', q: 'Which phase of matter is reached at very high temperatures?', o: ['Solid', 'Liquid', 'Gas', 'Plasma'], a: 3, x: 'Plasma is a phase of matter achieved at very high temperatures.' },
+    { c: 1, d: 'E', q: 'Plasma consists of:', o: ['Atomic nuclei and electrons moving at very high speed', 'Neutral atoms at rest', 'Molecules locked in a fixed pattern', 'Water vapour only'], a: 0, x: 'In plasma, atoms are split into nuclei and electrons that move very fast.' },
+    { c: 1, d: 'E', q: 'Which of these is an example of plasma?', o: ['Ice', 'Steam', 'Lightning', 'Sand'], a: 2, x: 'Lightning, the aurora and the stars are examples of plasma.' },
+    { c: 1, d: 'E', q: 'Which phase has a fixed shape AND a fixed volume?', o: ['Solid', 'Liquid', 'Gas', 'Plasma'], a: 0, x: 'Solid particles are closely bound, so solids keep their shape and volume.' },
+    { c: 1, d: 'M', q: 'Which phase has a fixed volume but takes the shape of its container?', o: ['Solid', 'Liquid', 'Gas', 'Plasma'], a: 1, x: 'Liquid particles slide over each other, so the shape changes but the volume does not.' },
+    { c: 1, d: 'M', q: 'Which phase can be compressed most easily?', o: ['Solid', 'Liquid', 'Gas', 'They are all equally easy'], a: 2, x: 'Gas particles are far apart (low density), so a gas can be compressed easily.' },
+    { c: 1, d: 'M', q: 'How can a material be changed from one phase into another?', o: ['By changing its mass', 'By changing its electric charge', 'By giving it energy — changing its temperature and pressure', 'By changing its colour'], a: 2, x: 'Phase changes happen by exchanging mechanical and thermal energy (temperature and pressure).' },
+    { c: 1, d: 'M', q: 'Why is it difficult to compress a solid?', o: ['Its particles are far apart', 'Its particles are closely packed together', 'It has no particles', 'It has a very low density'], a: 1, x: 'The closely packed particles resist being pushed closer.' },
+    { c: 1, d: 'M', q: 'Why is most of the matter in the universe in the plasma phase?', o: ['Most of the mass is in stars, which are at very high temperatures', 'Planets are very cold', 'Space is full of liquid', 'Gases turn into solids in space'], a: 0, x: 'Stars contain most of the mass in the universe and are hot enough to form plasma.' },
+    { c: 1, d: 'C', q: 'Arrange the three common phases from HIGHEST to LOWEST density (in general).', o: ['Gas > liquid > solid', 'Solid > liquid > gas', 'Liquid > solid > gas', 'All have the same density'], a: 1, x: 'Particles are most tightly packed in solids and furthest apart in gases.' },
+    { c: 1, d: 'C', q: 'In which phase do the molecules have the most organised (ordered) positions?', o: ['Gas', 'Liquid', 'Solid', 'Plasma'], a: 2, x: 'In solids, atoms are arranged in regular arrays around fixed positions.' },
+    { c: 1, d: 'C', q: 'Why does a liquid not fill its whole container, while a gas does?', o: ['A liquid has a greater density — its particles stay close together', 'A liquid has no mass', 'Gas particles are heavier', 'A liquid can be compressed easily'], a: 0, x: 'Gas particles move freely and fill all the space; liquid particles stay close together.' },
+
+    // ───────── 2. Moles & Molecular Quantities (Section 2-1) ─────────
+    { c: 2, d: 'E', q: 'What is the value of the Avogadro constant (NA)?', o: ['6.02 × 10²³ mol⁻¹', '1.66 × 10⁻²⁷ mol⁻¹', '9.81 mol⁻¹', '3.0 × 10⁸ mol⁻¹'], a: 0, x: 'NA = 6.02 × 10²³ mol⁻¹, the number of atoms in 0.012 kg of carbon-12.' },
+    { c: 2, d: 'E', q: 'What is the unit of molar mass (Mm)?', o: ['kg', 'kg/mol', 'mol/kg', 'm³/mol'], a: 1, x: 'Molar mass is mass per mole: kg mol⁻¹.' },
+    { c: 2, d: 'E', q: 'What is the unit of molar volume (Vm)?', o: ['m³', 'kg/m³', 'm³/mol', 'mol/m³'], a: 2, x: 'Molar volume is volume per mole: m³ mol⁻¹.' },
+    { c: 2, d: 'E', q: 'One mole contains as many entities as there are atoms in:', o: ['1 kg of hydrogen', '0.012 kg of carbon-12', '1 g of oxygen', '1 m³ of air'], a: 1, x: 'This is the definition of the mole.' },
+    { c: 2, d: 'M', q: 'One atomic mass unit (1 u) is equal to:', o: ['1.66 × 10⁻²⁷ kg', '6.02 × 10²³ kg', '1 kg', '0.012 kg'], a: 0, x: '1 u is one-twelfth of the mass of a carbon-12 atom = 1.66 × 10⁻²⁷ kg.' },
+    { c: 2, d: 'M', q: 'Dividing molar mass by molar volume (Mm ÷ Vm) gives:', o: ['The mass of one atom', 'The density', 'Avogadro’s number', 'The volume of one atom'], a: 1, x: 'ρ = Mm / Vm, in kg/m³.' },
+    { c: 2, d: 'M', q: 'Which equation gives the mass of ONE atom (M)?', o: ['M = Mm × NA', 'M = Mm ÷ NA', 'M = NA ÷ Mm', 'M = Vm ÷ NA'], a: 1, x: 'Mass of one atom = molar mass ÷ Avogadro’s number.' },
+    { c: 2, d: 'M', q: 'Which equation gives the volume of ONE atom (V)?', o: ['V = Vm ÷ NA', 'V = Vm × NA', 'V = Mm ÷ NA', 'V = ρ ÷ NA'], a: 0, x: 'Volume of one atom = molar volume ÷ Avogadro’s number.' },
+    { c: 2, d: 'M', q: 'The distance between two neighbouring atoms (l) is found from the volume of one atom (V) using:', o: ['l = V²', 'l = ∛V (cube root)', 'l = √V (square root)', 'l = V ÷ NA'], a: 1, x: 'l = ∛V — each atom is treated as occupying a small cube.' },
+    { c: 2, d: 'M', q: 'Copper has Mm = 0.064 kg/mol and density 8000 kg/m³. What is its molar volume?', o: ['8.0 × 10⁻⁶ m³/mol', '512 m³/mol', '1.25 × 10⁵ m³/mol', '8.0 × 10⁻³ m³/mol'], a: 0, x: 'Vm = Mm ÷ ρ = 0.064 ÷ 8000 = 8.0 × 10⁻⁶ m³/mol.' },
+    { c: 2, d: 'C', q: 'Sodium has Mm = 23 × 10⁻³ kg/mol and Vm = 23.78 × 10⁻⁶ m³/mol. What is its density?', o: ['About 9.7 kg/m³', 'About 967 kg/m³', 'About 1.03 × 10⁻³ kg/m³', 'About 5.5 × 10⁻⁷ kg/m³'], a: 1, x: 'ρ = Mm ÷ Vm = 23 × 10⁻³ ÷ 23.78 × 10⁻⁶ ≈ 967 kg/m³.' },
+    { c: 2, d: 'C', q: 'What is the mass of ONE sodium atom? (Mm = 23 × 10⁻³ kg/mol, NA = 6.02 × 10²³ mol⁻¹)', o: ['3.82 × 10⁻²⁶ kg', '1.38 × 10²² kg', '3.82 × 10⁻²³ kg', '2.6 × 10⁻²⁵ kg'], a: 0, x: 'M = Mm ÷ NA = 23 × 10⁻³ ÷ 6.02 × 10²³ ≈ 3.82 × 10⁻²⁶ kg.' },
+    { c: 2, d: 'C', q: 'For copper, Vm = 8.0 × 10⁻⁶ m³/mol. Estimate the distance between two copper atoms. (NA = 6.02 × 10²³ mol⁻¹)', o: ['1.33 × 10⁻²⁹ m', '2.37 × 10⁻¹⁰ m', '3.65 × 10⁻¹⁵ m', '2.0 × 10⁻³ m'], a: 1, x: 'V = Vm ÷ NA = 1.33 × 10⁻²⁹ m³, then l = ∛V ≈ 2.37 × 10⁻¹⁰ m.' },
+    { c: 2, d: 'C', q: 'Silicon has Mm = 28.0855 × 10⁻³ kg/mol and Vm = 1.206 × 10⁻⁵ m³/mol. Estimate its density.', o: ['About 2.33 × 10³ kg/m³', 'About 4.29 × 10⁻⁴ kg/m³', 'About 3.39 × 10⁻⁷ kg/m³', 'About 23.3 kg/m³'], a: 0, x: 'ρ = Mm ÷ Vm = 0.0280855 ÷ 1.206 × 10⁻⁵ ≈ 2.33 × 10³ kg/m³.' },
+
+    // ───────── 3. Interatomic Forces & Bonds (Section 2-1) ─────────
+    { c: 3, d: 'E', q: 'What are the three types of bonds between atoms?', o: ['Ionic, covalent and metallic', 'Gravitational, magnetic and nuclear', 'Ionic, gravitational and friction', 'Covalent, nuclear and elastic'], a: 0, x: 'The book lists ionic, covalent and metallic bonding.' },
+    { c: 3, d: 'E', q: 'Bonds between atoms are caused by:', o: ['Gravitational forces', 'Electric forces between charges', 'Friction', 'Air pressure'], a: 1, x: 'A bond is an attraction due to the interaction of positive and negative charges.' },
+    { c: 3, d: 'E', q: 'In which type of bond does one atom GIVE electrons to another atom?', o: ['Covalent bond', 'Metallic bond', 'Ionic bond', 'No bond does this'], a: 2, x: 'In ionic bonding the donor becomes a positive ion and the receiver a negative ion.' },
+    { c: 3, d: 'E', q: 'Crystals of sodium chloride (NaCl) are held together by:', o: ['Ionic bonds', 'Covalent bonds', 'Metallic bonds', 'Gravitational bonds'], a: 0, x: 'Sodium gives an electron to chlorine: Na⁺ and Cl⁻ ions attract.' },
+    { c: 3, d: 'M', q: 'In a covalent bond, atoms:', o: ['Give away all their electrons', 'Share electrons', 'Share protons', 'Lose their nuclei'], a: 1, x: 'Shared electrons act as a bond between the atoms.' },
+    { c: 3, d: 'M', q: 'The oxygen molecule (O₂) is held together by:', o: ['An ionic bond', 'A covalent bond', 'A metallic bond', 'Gravity'], a: 1, x: 'Each O atom shares two electrons to complete its outer shell.' },
+    { c: 3, d: 'M', q: 'In metallic bonding, the metal ions are held in place by:', o: ['Shared protons', 'The electric force between positive ions and free electrons', 'Gravity', 'Magnetic poles'], a: 1, x: 'Metal atoms lose their outer electrons, which move freely among the positive ions.' },
+    { c: 3, d: 'M', q: 'Which type of bond exists among LEAD atoms?', o: ['Ionic', 'Covalent', 'Metallic', 'No bond'], a: 2, x: 'Lead is a metal, so its atoms are held by metallic bonding.' },
+    { c: 3, d: 'M', q: 'When the distance between two atoms is LESS than the equilibrium distance (r < r₀), the force between them is:', o: ['Attractive', 'Repulsive', 'Zero', 'Gravitational only'], a: 1, x: 'r < r₀ → repulsive force.' },
+    { c: 3, d: 'M', q: 'When the distance between two atoms equals the equilibrium distance (r = r₀), the force between them is:', o: ['Maximum attraction', 'Maximum repulsion', 'Zero — the atoms are in equilibrium', 'Infinite'], a: 2, x: 'At r = r₀ the force is zero and the atoms are in equilibrium.' },
+    { c: 3, d: 'C', q: 'The equilibrium distance between two atoms is 1.2 × 10⁻¹⁰ m. What is the force when they are 1.4 × 10⁻¹⁰ m apart?', o: ['Repulsive', 'Attractive', 'Zero', 'It cannot be known'], a: 1, x: 'r > r₀, so the force is attractive.' },
+    { c: 3, d: 'C', q: 'The equilibrium distance between two atoms is 1.2 × 10⁻¹⁰ m. What is the force when they are 1.0 × 10⁻¹⁰ m apart?', o: ['Attractive', 'Zero', 'Repulsive', 'It cannot be known'], a: 2, x: 'r < r₀, so the force is repulsive.' },
+    { c: 3, d: 'C', q: 'Why is the interaction between helium (or neon) atoms very weak?', o: ['They have full outer electron shells', 'They are very heavy', 'They carry a large charge', 'They are metals'], a: 0, x: 'With full outer shells they cannot attract each other strongly.' },
+    { c: 3, d: 'C', q: 'At very small distances, the repulsion between atoms comes from their electron clouds. It is due to the electrons’:', o: ['Small size', 'Electric charge', 'Mass', 'Colour'], a: 1, x: 'Like (negative) charges repel each other.' },
+    { c: 3, d: 'C', q: 'Silicon has atomic number 14. How many electrons are in its outer shell, and what bond holds silicon atoms together?', o: ['4 electrons — covalent bond', '2 electrons — ionic bond', '8 electrons — metallic bond', '4 electrons — ionic bond'], a: 0, x: 'Silicon is 2, 8, 4: it shares its 4 outer electrons in covalent bonds.' },
+
+    // ───────── 4. Solids, Rigidity & Elasticity (Section 2-2) ─────────
+    { c: 4, d: 'E', q: 'A rigid body is a body that:', o: ['Changes shape easily', 'Preserves its shape when forces are applied on it', 'Flows like a liquid', 'Has no mass'], a: 1, x: 'This is the book’s definition of a rigid body.' },
+    { c: 4, d: 'E', q: 'Elasticity is the ability of a body to:', o: ['Flow', 'Restore its original shape after being deformed', 'Conduct heat', 'Be magnetised'], a: 1, x: 'An elastic body returns to its shape when the force is removed.' },
+    { c: 4, d: 'E', q: 'Which of these is an ELASTIC body?', o: ['Clay', 'Slime', 'A tennis ball', 'Dough'], a: 2, x: 'Springs, tennis balls and rubber are elastic.' },
+    { c: 4, d: 'E', q: 'Which of these is an INELASTIC body?', o: ['A spring', 'A rubber band', 'A tennis ball', 'Clay'], a: 3, x: 'Clay and slime keep the new shape — the change is permanent.' },
+    { c: 4, d: 'E', q: 'Which statement is correct?', o: ['All solids are rigid', 'All rigid bodies are solids, but not all solids are rigid', 'Liquids are rigid bodies', 'Gases are rigid bodies'], a: 1, x: 'Rigidity is a property of some solids only.' },
+    { c: 4, d: 'M', q: 'Why do solids have a definite shape?', o: ['Their particles move freely', 'Their atoms are arranged regularly and keep fixed positions', 'Their particles are far apart', 'There are no forces between their particles'], a: 1, x: 'The regular arrangement of atoms keeps the shape fixed.' },
+    { c: 4, d: 'M', q: 'On the atomic scale, the atoms in a solid:', o: ['Move freely from place to place', 'Vibrate around their equilibrium positions', 'Are completely at rest', 'Move as fast as in a plasma'], a: 1, x: 'Atoms in solids are arranged in regular arrays and vibrate around equilibrium positions.' },
+    { c: 4, d: 'M', q: 'Which factors influence how molecules are arranged in a material?', o: ['Shape of the molecules, inter-atomic forces and temperature', 'Colour, smell and taste', 'Only the mass', 'Only the volume'], a: 0, x: 'These three factors are listed in Section 2-2.' },
+    { c: 4, d: 'M', q: 'The density of a solid depends on:', o: ['Its colour', 'How closely its molecules are packed', 'Its electric charge', 'How fast it moves'], a: 1, x: 'Closer packing means more mass in the same volume.' },
+    { c: 4, d: 'M', q: 'The change in shape of an ELASTIC body is:', o: ['Permanent', 'Temporary', 'Impossible', 'Always destructive'], a: 1, x: 'An elastic body goes back to its original shape.' },
+    { c: 4, d: 'C', q: 'Which of these is a RIGID solid?', o: ['A sponge', 'A plastic sheet', 'A railway track', 'A rubber band'], a: 2, x: 'Railway tracks and bricks preserve their shape; sponges and plastic sheets deform.' },
+    { c: 4, d: 'C', q: 'Two wooden blocks are connected by an elastic spring. This system is:', o: ['Solid and rigid', 'Solid but not rigid', 'Neither solid nor rigid — its parts can move relative to each other', 'Rigid but not solid'], a: 2, x: 'It is made of separate parts, and the spring lets the blocks move.' },
+    { c: 4, d: 'C', q: 'Two masses are connected by a light rod of fixed length. Is this a rigid body?', o: ['Yes — the distance between the masses cannot change', 'No — the masses can move apart', 'Only if the masses are equal', 'Only in a vacuum'], a: 0, x: 'A rigid body keeps the distances between its parts fixed.' },
+    { c: 4, d: 'C', q: 'You press a ball and then a piece of dough against a wall. What happens?', o: ['Both keep their new shape', 'The ball returns to its shape (elastic); the dough stays deformed (inelastic)', 'The dough returns to its shape; the ball stays deformed', 'Neither changes shape'], a: 1, x: 'The ball is elastic; the dough is inelastic.' },
+    { c: 4, d: 'C', q: 'A large force is applied to a rigid body. What happens on the atomic scale?', o: ['The particles come closer and repulsive forces between them help keep the shape', 'The particles disappear', 'The particles become plasma', 'The bonds become ionic'], a: 0, x: 'Pushing particles closer than r₀ creates repulsive forces that resist the change.' },
+
+    // ───────── 5. Tension, Stress & Strain (Section 2-2) ─────────
+    { c: 5, d: 'E', q: 'Tension (T) is the force that arises in a body while it is:', o: ['Stretched or compressed', 'Heated', 'Floating', 'At rest on a table'], a: 0, x: 'This is the book’s definition of tension.' },
+    { c: 5, d: 'E', q: 'Stress is defined as:', o: ['The force applied on a unit area of a cross section', 'Elongation ÷ initial length', 'Mass ÷ volume', 'Force × distance'], a: 0, x: 'σ = T ÷ A.' },
+    { c: 5, d: 'E', q: 'What is the unit of stress?', o: ['N', 'N/m² (pascal)', 'm', 'It has no unit'], a: 1, x: 'σ = T/A, so the unit is N/m² = Pa.' },
+    { c: 5, d: 'E', q: 'Strain is defined as:', o: ['Force ÷ area', 'The ratio of elongation to initial length', 'Mass ÷ volume', 'Tension × length'], a: 1, x: 'ε = (l − l₀) ÷ l₀.' },
+    { c: 5, d: 'E', q: 'What is the unit of strain?', o: ['N/m²', 'Pa', 'm', 'It has no unit — it is a ratio'], a: 3, x: 'Strain is length ÷ length, so it is unitless.' },
+    { c: 5, d: 'M', q: 'Which equation is Hooke’s law?', o: ['T = k(l − l₀)', 'ρ = m ÷ V', 'σ = l ÷ l₀', 'E = T × A'], a: 0, x: 'The tension in a spring is directly proportional to its elongation.' },
+    { c: 5, d: 'M', q: 'Stress depends on:', o: ['The tension and the cross-sectional area', 'The length only', 'The mass and the volume', 'The temperature only'], a: 0, x: 'σ = T ÷ A.' },
+    { c: 5, d: 'M', q: 'When the applied force is PERPENDICULAR to the cross section of a wire, the stress is called:', o: ['Shear stress', 'Tensile or compressive stress', 'Buoyant stress', 'Density'], a: 1, x: 'Shear stress is when the force is along (tangent to) the cross section.' },
+    { c: 5, d: 'M', q: 'In SHEAR stress, the applied force is:', o: ['Perpendicular to the cross section', 'Tangent (parallel) to the cross section', 'Always upward', 'Zero'], a: 1, x: 'Shear stress acts in the tangent direction of the cross section.' },
+    { c: 5, d: 'M', q: 'A wire of length 0.4 m is compressed by 0.05 m. What is the strain?', o: ['0.125', '8', '0.02', '0.45'], a: 0, x: 'ε = 0.05 ÷ 0.4 = 0.125 (no unit).' },
+    { c: 5, d: 'M', q: 'A wire is under a stress of 2 × 10⁷ N/m². Its cross-sectional area is 1.5 × 10⁻⁶ m². What force causes this stress?', o: ['3 N', '30 N', '300 N', '1.33 × 10¹³ N'], a: 1, x: 'T = σ × A = 2 × 10⁷ × 1.5 × 10⁻⁶ = 30 N.' },
+    { c: 5, d: 'M', q: 'Which factors affect the elongation of a metal wire under tension?', o: ['Tension, radius of the cross section, length and type of material', 'Colour and temperature only', 'Only the mass of the wire', 'Only the shape of the support'], a: 0, x: 'These four factors are listed in Section 2-2.' },
+    { c: 5, d: 'C', q: 'A 5.0 N weight stretches a spring by 450 mm. What is the spring constant k?', o: ['2.25 N/m', 'About 11.1 N/m', '0.09 N/m', '22.2 N/m'], a: 1, x: 'k = T ÷ (l − l₀) = 5.0 ÷ 0.450 ≈ 11.1 N/m.' },
+    { c: 5, d: 'C', q: 'The spring has k ≈ 11.1 N/m. What weight would stretch it by only 50 mm?', o: ['About 0.56 N', '5.0 N', '4.5 N', '55 N'], a: 0, x: 'T = k(l − l₀) = 11.1 × 0.050 ≈ 0.56 N.' },
+    { c: 5, d: 'C', q: 'Two identical springs (k = 400 N/m each) are connected in SERIES and hold 10 N. What is the elongation?', o: ['0.025 m', '0.05 m', '0.0125 m', '0.1 m'], a: 1, x: '1/k = 1/400 + 1/400 → k = 200 N/m; l − l₀ = 10 ÷ 200 = 0.05 m.' },
+    { c: 5, d: 'C', q: 'Two identical springs (k = 400 N/m each) are connected in PARALLEL and hold 10 N. What is the elongation?', o: ['0.05 m', '0.025 m', '0.0125 m', '0.1 m'], a: 2, x: 'k = 400 + 400 = 800 N/m; l − l₀ = 10 ÷ 800 = 0.0125 m.' },
+    { c: 5, d: 'C', q: 'What happens to a spring if a large force exceeds its limit of elasticity?', o: ['It returns to its original length', 'It is permanently deformed and cannot return to its initial length', 'It becomes rigid', 'It becomes stronger'], a: 1, x: 'Beyond the elastic limit the deformation becomes permanent.' },
+
+    // ───────── 6. Young’s Modulus (Section 2-2) ─────────
+    { c: 6, d: 'E', q: 'Young’s modulus (E) is the ratio of:', o: ['Stress to strain', 'Strain to stress', 'Mass to volume', 'Force to length'], a: 0, x: 'E = σ ÷ ε.' },
+    { c: 6, d: 'E', q: 'What is the SI unit of Young’s modulus?', o: ['m', 'N/m² (pascal)', 'It has no unit', 'kg'], a: 1, x: 'Stress (Pa) ÷ strain (no unit) = Pa.' },
+    { c: 6, d: 'M', q: 'Which formula gives Young’s modulus?', o: ['E = T l₀ ÷ A(l − l₀)', 'E = A(l − l₀) ÷ T l₀', 'E = T A ÷ l₀', 'E = l₀ ÷ T A'], a: 0, x: 'E = (T/A) ÷ ((l − l₀)/l₀) = T l₀ ÷ A(l − l₀).' },
+    { c: 6, d: 'M', q: 'Young’s modulus mainly depends on:', o: ['The type of material', 'The length of the wire', 'The load hung on the wire', 'The colour of the wire'], a: 0, x: 'E is a property of the material itself.' },
+    { c: 6, d: 'M', q: 'Two wires of the same material and length carry the same weight. One is thinner. Which elongates more?', o: ['The thinner wire', 'The thicker wire', 'Both elongate equally', 'Neither elongates'], a: 0, x: 'l − l₀ = T l₀ ÷ (E A): a smaller area gives a bigger elongation.' },
+    { c: 6, d: 'M', q: 'If a wire’s length is doubled (same material, area and load), its elongation:', o: ['Halves', 'Doubles', 'Stays the same', 'Becomes 4 times bigger'], a: 1, x: 'l − l₀ = T l₀ ÷ (E A) is proportional to l₀.' },
+    { c: 6, d: 'M', q: 'In a stress–strain graph, the region where stress is directly proportional to strain is called the:', o: ['Elastic (proportional) limit region', 'Breaking point', 'Buoyant region', 'Plasma region'], a: 0, x: 'Beyond this region the curve is no longer a straight line.' },
+    { c: 6, d: 'C', q: 'A material with a LARGER Young’s modulus is:', o: ['Harder to stretch (stiffer)', 'Easier to stretch', 'Always lighter', 'Always a liquid'], a: 0, x: 'A larger E means less strain for the same stress.' },
+    { c: 6, d: 'C', q: 'A steel wire (diameter 0.40 mm, length 2.0 m) carries 80 N and stretches 6.4 mm. What is Young’s modulus of steel?', o: ['2.0 × 10¹¹ Pa', '1.0 × 10⁸ Pa', '6.4 × 10⁻³ Pa', '5.0 × 10⁹ Pa'], a: 0, x: 'A = π(2 × 10⁻⁴)² = 1.26 × 10⁻⁷ m²; E = 80 × 2.0 ÷ (1.26 × 10⁻⁷ × 6.4 × 10⁻³) ≈ 2.0 × 10¹¹ Pa.' },
+    { c: 6, d: 'C', q: 'What is the cross-sectional area of a wire with a diameter of 1.0 mm?', o: ['7.85 × 10⁻⁷ m²', '3.14 × 10⁻⁶ m²', '1.0 × 10⁻³ m²', '2.5 × 10⁻⁷ m²'], a: 0, x: 'r = 5 × 10⁻⁴ m; A = πr² = 7.85 × 10⁻⁷ m².' },
+    { c: 6, d: 'C', q: 'A copper wire 2.3 m long stretches by 0.85 mm. What is the strain?', o: ['3.7 × 10⁻⁴', '2.7 × 10³', '0.85', '1.96 × 10⁻³'], a: 0, x: 'ε = 8.5 × 10⁻⁴ ÷ 2.3 ≈ 3.7 × 10⁻⁴.' },
+    { c: 6, d: 'C', q: 'A copper wire (E = 1.1 × 10¹¹ Pa) has a strain of 3.7 × 10⁻⁴. What is the stress?', o: ['About 4.1 × 10⁷ Pa', 'About 3.0 × 10¹⁴ Pa', 'About 3.4 × 10⁻¹⁵ Pa', '1.1 × 10¹¹ Pa'], a: 0, x: 'σ = E × ε = 1.1 × 10¹¹ × 3.7 × 10⁻⁴ ≈ 4.1 × 10⁷ Pa.' },
+    { c: 6, d: 'C', q: 'A bronze wire (l₀ = 2.5 m, A = 6.5 × 10⁻⁷ m², E = 2.0 × 10¹¹ Pa) is stretched by a force of 10³ N. What is its elongation?', o: ['About 1.9 × 10⁻² m', 'About 1.9 × 10⁻⁵ m', 'About 5.2 m', 'About 0.19 m'], a: 0, x: 'l − l₀ = T l₀ ÷ (E A) = 1000 × 2.5 ÷ (2.0 × 10¹¹ × 6.5 × 10⁻⁷) ≈ 0.019 m.' },
+    { c: 6, d: 'C', q: 'Rod 1: force F, area A, elongation ΔL, length L. Rod 4: force 2F, area A, elongation ΔL, length 2L. How do their Young’s moduli compare?', o: ['E₄ = 4 × E₁', 'E₄ = 2 × E₁', 'E₄ = E₁', 'E₄ = ½ × E₁'], a: 0, x: 'E = T l₀ ÷ A(l − l₀): E₄ = (2F × 2L) ÷ (A ΔL) = 4 FL/(A ΔL) = 4 E₁.' },
+
+    // ───────── 7. Fluids & Density (Section 3-1) ─────────
+    { c: 7, d: 'E', q: 'A fluid is:', o: ['A non-solid state of matter whose particles move past each other, like a liquid or a gas', 'Only a liquid', 'Only a solid', 'Any object that is heavy'], a: 0, x: 'Both liquids and gases are fluids.' },
+    { c: 7, d: 'E', q: 'What are the two properties of fluids?', o: ['They can flow and they can change shape', 'They have a fixed shape and cannot flow', 'They are always hot and light', 'They have no mass and no volume'], a: 0, x: 'Fluids flow and alter their shape.' },
+    { c: 7, d: 'E', q: 'Why are solids NOT considered fluids?', o: ['They cannot flow or change their shape', 'They are too heavy', 'They are always cold', 'They contain no atoms'], a: 0, x: 'Fluids must be able to flow.' },
+    { c: 7, d: 'E', q: 'Which equation defines mass density?', o: ['ρ = m ÷ V', 'ρ = V ÷ m', 'ρ = m × V', 'ρ = F ÷ A'], a: 0, x: 'Density is mass per unit volume.' },
+    { c: 7, d: 'E', q: 'What is the SI unit of density?', o: ['kg/m³', 'N/m²', 'm³/kg', 'kg·m'], a: 0, x: 'ρ = m (kg) ÷ V (m³).' },
+    { c: 7, d: 'M', q: 'What is the difference between a liquid and a gas?', o: ['A liquid has a definite volume; a gas does not', 'A gas has a definite volume; a liquid does not', 'Both have a definite shape', 'A liquid cannot flow'], a: 0, x: 'Both flow and take the container’s shape, but only the liquid keeps a fixed volume.' },
+    { c: 7, d: 'M', q: 'Which two factors affect the density of a gas?', o: ['Temperature and pressure', 'Colour and smell', 'Container shape only', 'Mass only'], a: 0, x: 'Gases can be compressed or expand, so their density changes.' },
+    { c: 7, d: 'M', q: 'Why does pressure NOT change the density of solids and liquids significantly?', o: ['Their atoms are already very close together', 'They have no particles', 'They are always hot', 'They are both gases'], a: 0, x: 'There is little space between the particles to squeeze.' },
+    { c: 7, d: 'M', q: 'Why do gases NOT have a definite density?', o: ['They can be compressed or spread out to fill any space', 'They have no mass', 'They are always hot', 'They are solids'], a: 0, x: 'The same mass of gas can fill different volumes.' },
+    { c: 7, d: 'M', q: 'Using the book’s density table, which substance is the DENSEST?', o: ['Iron (7.86 × 10³ kg/m³)', 'Mercury (13.6 × 10³ kg/m³)', 'Gold (19.3 × 10³ kg/m³)', 'Sea water (1.025 × 10³ kg/m³)'], a: 2, x: 'Gold has the highest density in the table.' },
+    { c: 7, d: 'C', q: 'What is the mass of 2.0 m³ of fresh water? (ρ = 1.00 × 10³ kg/m³)', o: ['500 kg', '2000 kg', '0.002 kg', '1000 kg'], a: 1, x: 'm = ρV = 1000 × 2.0 = 2000 kg.' },
+    { c: 7, d: 'C', q: 'A metal block has a volume of 0.50 m³ and a mass of 3930 kg. Which metal is it? (use the book’s table)', o: ['Iron', 'Gold', 'Mercury', 'Ice'], a: 0, x: 'ρ = 3930 ÷ 0.50 = 7860 kg/m³ = iron.' },
+    { c: 7, d: 'C', q: 'What volume do 27.2 kg of mercury occupy? (ρ = 13.6 × 10³ kg/m³)', o: ['2.0 × 10⁻³ m³', '370 m³', '0.5 m³', '2.0 m³'], a: 0, x: 'V = m ÷ ρ = 27.2 ÷ 13 600 = 2.0 × 10⁻³ m³.' },
+
+    // ───────── 8. Buoyant Force & Archimedes (Section 3-1) ─────────
+    { c: 8, d: 'E', q: 'In which direction does the buoyant force act?', o: ['Downward', 'Upward', 'Sideways', 'It has no direction'], a: 1, x: 'The buoyant force acts upward, opposite to gravity.' },
+    { c: 8, d: 'E', q: 'According to Archimedes’ principle, the buoyant force equals:', o: ['The weight of the object', 'The weight of the fluid displaced by the object', 'The volume of the object', 'The density of the fluid'], a: 1, x: 'FB = weight of the displaced fluid.' },
+    { c: 8, d: 'E', q: 'Why do things feel lighter under water?', o: ['Their mass decreases', 'The water exerts an upward buoyant force', 'Gravity stops under water', 'Water pulls them down'], a: 1, x: 'The buoyant force reduces the net downward force.' },
+    { c: 8, d: 'E', q: 'The weight of an object while it is immersed in a fluid is called its:', o: ['Apparent weight', 'Mass', 'Buoyant force', 'Density'], a: 0, x: 'Apparent weight = Fg − FB for a sinking object.' },
+    { c: 8, d: 'M', q: 'An object SINKS in a fluid when:', o: ['Its density is greater than the fluid’s density', 'Its density is less than the fluid’s density', 'Its density equals the fluid’s density', 'It is large'], a: 0, x: 'If ρ₀ > ρf, the weight is greater than the buoyant force.' },
+    { c: 8, d: 'M', q: 'For a FLOATING object, the buoyant force is:', o: ['Equal to the object’s weight', 'Zero', 'Twice the object’s weight', 'Less than the object’s weight'], a: 0, x: 'FB = Fg = m₀g for a floating object.' },
+    { c: 8, d: 'M', q: 'Mercury has a density of 13.6 × 10³ kg/m³. Which object will SINK in mercury?', o: ['An ice cube', 'An iron bolt', 'A solid gold bead', '5 mL of water'], a: 2, x: 'Only gold (19.3 × 10³ kg/m³) is denser than mercury.' },
+    { c: 8, d: 'M', q: 'A piece of metal weighs 50.0 N in air and 36.0 N in water. What is the buoyant force?', o: ['86.0 N', '14.0 N', '36.0 N', '50.0 N'], a: 1, x: 'FB = Fg − F(apparent) = 50.0 − 36.0 = 14.0 N.' },
+    { c: 8, d: 'M', q: 'Why don’t ships sink?', o: ['The ship is filled with air, so its average density is less than water and the buoyant force balances its weight', 'Ships are made of wood only', 'Water pulls ships upward by magnetism', 'Ships have no weight'], a: 0, x: 'The hull displaces a large weight of water.' },
+    { c: 8, d: 'M', q: 'A fully submerged object has Fg ÷ FB = 3. How does its density compare with the fluid’s density?', o: ['3 times the fluid’s density', '⅓ of the fluid’s density', 'Equal to it', '9 times the fluid’s density'], a: 0, x: 'Fg ÷ FB = ρ₀ ÷ ρf.' },
+    { c: 8, d: 'C', q: 'A “gold” crown weighs 7.84 N in air and 6.86 N in water. What is its density, and is it pure gold? (ρ gold = 19.3 × 10³ kg/m³)', o: ['8.0 × 10³ kg/m³ — not pure gold', '19.3 × 10³ kg/m³ — pure gold', '1.0 × 10³ kg/m³ — not gold', '0.98 × 10³ kg/m³ — not gold'], a: 0, x: 'FB = 0.98 N; ρ₀ = Fg ρf ÷ FB = 7.84 × 1000 ÷ 0.98 = 8.0 × 10³ kg/m³.' },
+    { c: 8, d: 'C', q: 'A metal weighs 50.0 N in air and 36.0 N in water. What is the density of the metal?', o: ['About 3.6 × 10³ kg/m³', 'About 1.4 × 10³ kg/m³', 'About 7.0 × 10³ kg/m³', 'About 0.72 × 10³ kg/m³'], a: 0, x: 'FB = 14.0 N; ρ₀ = 50.0 × 1000 ÷ 14.0 ≈ 3.6 × 10³ kg/m³.' },
+    { c: 8, d: 'C', q: 'The same metal (50.0 N in air, 14.0 N buoyant force in water) weighs 41.0 N in an unknown liquid. What is the liquid’s density?', o: ['About 6.4 × 10² kg/m³', 'About 1.6 × 10³ kg/m³', 'About 8.2 × 10² kg/m³', 'About 9.0 × 10³ kg/m³'], a: 0, x: 'FB in the liquid = 9.0 N; ρf = (9.0 ÷ 14.0) × 1000 ≈ 643 kg/m³.' },
+    { c: 8, d: 'C', q: 'A ferry 4.0 m wide and 6.0 m long sinks 4.00 cm deeper when a truck drives on. What is the truck’s weight? (g = 9.81 m/s²)', o: ['About 9.4 × 10³ N', '960 N', 'About 9.4 × 10⁴ N', '96 N'], a: 0, x: 'Displaced water = 4.0 × 6.0 × 0.04 = 0.96 m³ → 960 kg → W = 960 × 9.81 ≈ 9.4 × 10³ N.' },
+    { c: 8, d: 'C', q: 'A 2.8 kg air mattress is 2.00 m × 0.500 m × 0.100 m. What extra mass can it support in water before sinking?', o: ['97.2 kg', '100 kg', '102.8 kg', '2.8 kg'], a: 0, x: 'V = 0.100 m³ → it can displace 100 kg of water; 100 − 2.8 = 97.2 kg.' },
+    { c: 8, d: 'C', q: 'A helium balloon of radius 0.500 m floats in air (ρ air = 1.29 kg/m³). What is the buoyant force on it? (g = 9.81 m/s²)', o: ['About 6.6 N', 'About 1.0 N', 'About 0.66 N', 'About 66 N'], a: 0, x: 'V = ⁴⁄₃π(0.5)³ = 0.524 m³; FB = ρair V g = 1.29 × 0.524 × 9.81 ≈ 6.6 N.' },
+    { c: 8, d: 'C', q: 'Many kayaks are made of materials denser than water. How can they float?', o: ['Their hollow shape holds air, so their average density is less than water', 'The material becomes lighter in water', 'Water is always denser than any plastic', 'Kayaks have no weight'], a: 0, x: 'The kayak displaces a weight of water equal to its own weight.' },
+  ];
+  return Q.map((q, i) => Object.assign({ id: 'b' + (i + 1), t: 'mcq' }, q));
+})();
+
+</script>
+  <script>
+/* ═══════════════════════════════════════════════════════════════════
+ *  Grade 10 Physics — Snakes & Ladders Championship
+ *  Pure browser game: no build step, no dependencies, works offline.
+ * ═══════════════════════════════════════════════════════════════════ */
+'use strict';
+(function () {
+
+  /* ───────────────────────── Utilities ───────────────────────── */
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const SPEED = /[?&]fast\b/.test(location.search) ? 0.04 : 1; // ?fast = test mode
+  const sleep = ms => new Promise(r => setTimeout(r, ms * SPEED));
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  function rand(n) {
+    try { const a = new Uint32Array(1); window.crypto.getRandomValues(a); return a[0] % n; }
+    catch (e) { return Math.floor(Math.random() * n); }
+  }
+  const fmtTime = s => { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+
+  const STORE = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
+    del(k) { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } }
+  };
+  const KEYS = { prefs: 'pslc.prefs.v1', bank: 'pslc.bank.v1', save: 'pslc.save.v1', bankVer: 'pslc.bankver' };
+
+  /* ───────────────────────── Constants ───────────────────────── */
+  // Topics come from the question bank file (book chapters), with a fallback.
+  const CATS = window.BANK_TOPICS || {
+    1: { name: 'Topic 1', icon: '📘' }, 2: { name: 'Topic 2', icon: '📗' }, 3: { name: 'Topic 3', icon: '📙' }, 4: { name: 'Topic 4', icon: '📕' },
+    5: { name: 'Topic 5', icon: '📓' }, 6: { name: 'Topic 6', icon: '📔' }, 7: { name: 'Topic 7', icon: '📒' }, 8: { name: 'Topic 8', icon: '📚' }
+  };
+  const DIFF = { E: { name: 'Easy', icon: '🌱' }, M: { name: 'Moderate', icon: '🔥' }, C: { name: 'Challenging', icon: '💥' } };
+  const TYPES = { mcq: 'Multiple Choice', tf: 'True or False', short: 'Short Answer', num: 'Numerical Problem', mistake: 'Identify the Mistake', reason: 'Reasoning & Prediction' };
+  const POINTS = { E: 5, M: 10, C: 15, ladder: 15, snake: 15, final: 15, challenge: 10, bonus: 10 };
+
+  const TEAMS = [
+    { name: 'Group A', color: '#3b82f6', light: '#bfdbfe', icon: '⚛️', letter: 'A' },
+    { name: 'Group B', color: '#ef4444', light: '#fecaca', icon: '🧲', letter: 'B' },
+    { name: 'Group C', color: '#22c55e', light: '#bbf7d0', icon: '🌍', letter: 'C' },
+    { name: 'Group D', color: '#eab308', light: '#fef08a', icon: '💡', letter: 'D' }
+  ];
+
+  // Snakes: head → tail. Ladders: foot → top. Special squares never coincide
+  // with any snake/ladder end, square 1 or the final square.
+  const BOARDS = {
+    100: {
+      size: 100, cols: 10, rows: 10,
+      ladders: { 3: 22, 8: 30, 20: 41, 28: 55, 36: 57, 51: 72, 63: 81, 71: 92 },
+      snakes: { 16: 6, 33: 13, 48: 26, 62: 38, 69: 49, 87: 65, 93: 73, 98: 79 },
+      specials: {
+        11: 'bonus', 58: 'bonus', 24: 'extra', 77: 'extra', 45: 'shield', 85: 'shield',
+        15: 'forward5', 60: 'forward5', 39: 'swap', 89: 'swap', 18: 'double', 53: 'double',
+        31: 'challenge', 75: 'challenge', 46: 'back3', 95: 'back3', 27: 'mystery', 66: 'mystery', 83: 'mystery'
+      }
+    },
+    50: {
+      size: 50, cols: 10, rows: 5,
+      ladders: { 4: 25, 9: 31, 18: 38, 27: 46 },
+      snakes: { 16: 6, 29: 12, 37: 23, 48: 33 },
+      specials: { 7: 'bonus', 14: 'extra', 35: 'shield', 13: 'forward5', 42: 'swap', 11: 'double', 30: 'challenge', 44: 'back3', 21: 'mystery' }
+    }
+  };
+
+  const SPECIALS = {
+    bonus: { icon: '🎁', name: '+10 Bonus Points', color: '#f472b6', desc: 'Surprise gift! Your group instantly earns 10 bonus points.' },
+    extra: { icon: '⚡', name: 'Extra Turn', color: '#facc15', desc: 'Full of energy! Your group gets another turn straight after this one.' },
+    shield: { icon: '🛡️', name: 'Snake Protection', color: '#22d3ee', desc: 'A force-field shield! The next snake your group lands on cannot bite you.' },
+    forward5: { icon: '🚀', name: 'Rocket Boost', color: '#fb923c', desc: 'Thrust! Your group blasts forward 5 squares.' },
+    swap: { icon: '🔄', name: 'Swap Positions', color: '#a78bfa', desc: 'Choose any rival group and swap board positions with it — or keep your place.' },
+    double: { icon: '💎', name: 'Double Points', color: '#38bdf8', desc: 'Your group’s next correct answer earns DOUBLE points.' },
+    challenge: { icon: '🎯', name: 'Challenge a Group', color: '#f87171', desc: 'Pick a rival for a head-to-head question. Both groups lock in an answer — each correct group earns 10 points.' },
+    back3: { icon: '⏪', name: 'Move Back 3', color: '#94a3b8', desc: 'Friction strikes! Your group slides back 3 squares.' },
+    mystery: { icon: '❓', name: 'Mystery Square', color: '#e879f9', desc: 'A random power-up is about to be revealed…' }
+  };
+  const EFFECTS = ['bonus', 'extra', 'shield', 'forward5', 'swap', 'double', 'challenge', 'back3'];
+  const DOODLES = ['⚛️', '🧲', '🔭', '🍎', '⚙️', '🔋', '🪐', '💡', '🌡️', '📡', '🧪', '🌍'];
+  const ABORT = { abort: true };
+
+  /* ───────────────────────── Preferences & bank ───────────────────────── */
+  function defaultSetup() {
+    return {
+      names: TEAMS.map(t => t.name), members: ['', '', '', ''], sections: ['', '', '', ''], lifelines: 1, size: 100, minutes: 45,
+      timers: { E: 30, M: 30, C: 30, LS: 30, F: 30 }, exactFinish: false, cats: [1, 2, 3, 4, 5, 6, 7, 8]
+    };
+  }
+  const prefs = Object.assign({ sound: true, used: [] }, STORE.get(KEYS.prefs, {}));
+  prefs.setup = Object.assign(defaultSetup(), prefs.setup || {});
+  prefs.setup.timers = Object.assign(defaultSetup().timers, prefs.setup.timers || {});
+  if (!prefs.timers30) {
+    // One-time switch: every question timer is 30 seconds (also in an autosaved game).
+    prefs.setup.timers = defaultSetup().timers; prefs.timers30 = true;
+    const sv = STORE.get('pslc.save.v1', null);
+    if (sv && sv.game && sv.game.settings) { sv.game.settings.timers = defaultSetup().timers; STORE.set('pslc.save.v1', sv); }
+    STORE.set(KEYS.prefs, prefs);
+  }
+  const savePrefs = () => STORE.set(KEYS.prefs, prefs);
+  prefs.used = (prefs.used || []).filter(id => !/^q\d+$/.test(id)); // drop ids of the old built-in bank
+
+  let bank = STORE.get(KEYS.bank, null);
+  if (!Array.isArray(bank)) bank = clone(window.DEFAULT_QUESTIONS || []);
+  else if (STORE.get(KEYS.bankVer, 1) < 3) {
+    // v3: built-in questions now come from the course book (Ch. 2 and Section 3-1).
+    // Keep the teacher's own multiple-choice questions, replace the old built-ins.
+    bank = clone(window.DEFAULT_QUESTIONS || []).concat(bank.filter(q => /^u/.test(q.id) && q.o && q.o.length >= 3 && q.a != null));
+    STORE.set(KEYS.bank, bank);
+  }
+  STORE.set(KEYS.bankVer, 3);
+  const saveBank = () => STORE.set(KEYS.bank, bank);
+
+  /* ───────────────────────── Sound (Web Audio synth) ───────────────────────── */
+  const SFX = {
+    ctx: null, m: null,
+    unlock() {
+      if (!this.ctx) {
+        try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); this.m = this.ctx.createGain(); this.m.gain.value = .9; this.m.connect(this.ctx.destination); } catch (e) { this.ctx = null; }
+      }
+      if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+    },
+    ok() { return prefs.sound && this.ctx; },
+    tone(f, d, o = {}) {
+      if (!this.ok()) return;
+      const c = this.ctx, t = c.currentTime + (o.at || 0);
+      const osc = c.createOscillator(), g = c.createGain();
+      osc.type = o.type || 'sine'; osc.frequency.setValueAtTime(f, t);
+      if (o.to) osc.frequency.exponentialRampToValueAtTime(o.to, t + d);
+      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(o.vol || .2, t + (o.attack || .01));
+      g.gain.exponentialRampToValueAtTime(.0001, t + d);
+      osc.connect(g); g.connect(this.m); osc.start(t); osc.stop(t + d + .05);
+    },
+    noise(d, o = {}) {
+      if (!this.ok()) return;
+      const c = this.ctx, t = c.currentTime + (o.at || 0);
+      const len = Math.max(1, Math.floor(c.sampleRate * d)), buf = c.createBuffer(1, len, c.sampleRate), data = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+      const src = c.createBufferSource(); src.buffer = buf;
+      const f = c.createBiquadFilter(); f.type = o.type || 'bandpass'; f.frequency.setValueAtTime(o.freq || 1500, t); f.Q.value = o.q || 1;
+      if (o.to) f.frequency.exponentialRampToValueAtTime(o.to, t + d);
+      const g = c.createGain(); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(o.vol || .2, t + .01); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+      src.connect(f); f.connect(g); g.connect(this.m); src.start(t); src.stop(t + d + .05);
+    },
+    click() { this.tone(900, .05, { type: 'triangle', vol: .08 }); },
+    roll() { for (let i = 0; i < 12; i++) this.noise(.05, { vol: .35, at: i * .09 + Math.random() * .03, freq: 1800 + Math.random() * 2200, q: 4 }); },
+    land() { this.tone(160, .18, { type: 'sine', vol: .35, to: 80 }); this.noise(.08, { vol: .2, freq: 900 }); },
+    step(i) { this.tone(480 + (i % 8) * 45, .11, { type: 'triangle', vol: .17 }); },
+    correct() { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, .26, { type: 'triangle', vol: .2, at: i * .09 })); },
+    wrong() { this.tone(240, .4, { type: 'sawtooth', vol: .11, to: 110 }); this.tone(190, .45, { type: 'square', vol: .06, at: .06, to: 85 }); },
+    ladder() { for (let i = 0; i < 12; i++) this.tone(330 * Math.pow(2, i / 7), .16, { type: 'triangle', vol: .15, at: i * .09 }); },
+    snake() { this.noise(1.3, { vol: .16, freq: 6000, type: 'highpass' }); this.tone(900, 1.5, { type: 'sawtooth', vol: .1, to: 60 }); this.tone(600, 1.5, { type: 'triangle', vol: .12, to: 50, at: .1 }); },
+    hiss() { this.noise(.9, { vol: .14, freq: 5000, type: 'highpass' }); },
+    special() { [1319, 1568, 2093, 1760, 2637].forEach((f, i) => this.tone(f, .3, { vol: .1, at: i * .07 })); },
+    shield() { this.tone(300, .6, { type: 'sine', vol: .2, to: 900 }); this.tone(600, .6, { type: 'triangle', vol: .08, at: .1, to: 1500 }); },
+    whoosh() { this.noise(.7, { vol: .25, freq: 400, to: 4000, q: 2 }); },
+    tick() { this.tone(1100, .05, { type: 'square', vol: .07 }); },
+    buzzer() { this.tone(150, .7, { type: 'square', vol: .12 }); this.tone(155, .7, { type: 'sawtooth', vol: .08 }); },
+    drum() { for (let i = 0; i < 16; i++) this.noise(.06, { vol: .12 + i * .01, at: i * .06, freq: 300, q: 1 }); },
+    gong() { this.tone(110, 2.5, { vol: .35 }); this.tone(220, 2, { vol: .12, at: .02 }); this.tone(331, 1.6, { vol: .06, at: .04 }); },
+    win() {
+      const n = [[523, 0, .15], [523, .16, .15], [523, .32, .15], [698, .5, .5], [784, 1.0, .2], [698, 1.2, .2], [784, 1.4, .2], [1047, 1.6, .9]];
+      n.forEach(([f, at, d]) => { this.tone(f, d, { type: 'triangle', vol: .2, at }); this.tone(f / 2, d, { type: 'sine', vol: .12, at }); });
+    }
+  };
+
+  /* ───────────────────────── Confetti ───────────────────────── */
+  const Confetti = (() => {
+    const cv = $('#confetti'), ctx = cv.getContext('2d');
+    const colors = ['#fbbf24', '#22d3ee', '#a855f7', '#3b82f6', '#ef4444', '#22c55e', '#f472b6', '#ffffff'];
+    let parts = [], raf = null;
+    function resize() { const d = window.devicePixelRatio || 1; cv.width = innerWidth * d; cv.height = innerHeight * d; ctx.setTransform(d, 0, 0, d, 0, 0); }
+    function add(p) { parts.push(Object.assign({ rot: Math.random() * 6, vr: (Math.random() - .5) * .35, r: Math.random() * 6 + 5, c: colors[rand(colors.length)], s: rand(3), life: 0, max: 200 + Math.random() * 120 }, p)); }
+    function burst(n = 140, x = innerWidth / 2, y = innerHeight / 2.6, power = 1) {
+      for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, v = (Math.random() * 12 + 4) * power; add({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 6 * power }); }
+      run();
+    }
+    function rain(n = 220) { for (let i = 0; i < n; i++) add({ x: Math.random() * innerWidth, y: -20 - Math.random() * innerHeight * .6, vx: (Math.random() - .5) * 3, vy: Math.random() * 3 + 2, max: 420 }); run(); }
+    function run() { if (!raf) raf = requestAnimationFrame(loop); }
+    function loop() {
+      ctx.clearRect(0, 0, innerWidth, innerHeight);
+      parts = parts.filter(p => p.life < p.max && p.y < innerHeight + 40);
+      for (const p of parts) {
+        p.vx *= .985; p.vy = p.vy * .985 + .32; p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life++;
+        ctx.save(); ctx.globalAlpha = Math.min(1, (p.max - p.life) / 40); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillStyle = p.c;
+        if (p.s === 0) ctx.fillRect(-p.r / 2, -p.r / 4, p.r, p.r / 2);
+        else if (p.s === 1) { ctx.beginPath(); ctx.arc(0, 0, p.r / 2.4, 0, 7); ctx.fill(); }
+        else { ctx.beginPath(); ctx.moveTo(0, -p.r / 2); ctx.lineTo(p.r / 2, p.r / 2); ctx.lineTo(-p.r / 2, p.r / 2); ctx.fill(); }
+        ctx.restore();
+      }
+      if (parts.length) raf = requestAnimationFrame(loop); else { raf = null; ctx.clearRect(0, 0, innerWidth, innerHeight); }
+    }
+    addEventListener('resize', resize); resize();
+    return { burst, rain };
+  })();
+
+  /* ───────────────────────── Game state ───────────────────────── */
+  let game = null;           // current match (serialisable)
+  let history = [];          // JSON snapshots for undo
+  let flowToken = 0;         // invalidates running async turn flows
+  const pending = new Set(); // rejecters of open flow prompts
+  let flowKeys = null;       // keyboard handlers of the open flow prompt
+  let setupOpen = false;
+  let lastCat = 0;
+  const override = {};       // token positions during slide animations
+
+  const B = () => BOARDS[game ? game.size : prefs.setup.size];
+  const cur = () => game.teams[game.turn];
+  const timers = () => (game ? game.settings.timers : prefs.setup.timers);
+  const studentOf = t => t.members[t.memberIdx % t.members.length];
+  function parseMembers(s) {
+    const list = String(s || '').split(/[\n,;]+/).map(x => x.trim()).filter(Boolean);
+    return list.length ? list : ['Student 1', 'Student 2', 'Student 3', 'Student 4'];
+  }
+
+  function newGame(s) {
+    return {
+      v: 1, size: s.size,
+      settings: { timers: Object.assign({}, s.timers), exactFinish: !!s.exactFinish, cats: s.cats.slice() },
+      teams: TEAMS.map((d, i) => ({
+        id: i, name: (String(s.names[i] || '').trim() || d.name).slice(0, 32), color: d.color, light: d.light, icon: d.icon, letter: d.letter,
+        members: parseMembers(s.members[i]), section: String((s.sections || [])[i] || '').trim().slice(0, 30), lifelines: s.lifelines == null ? 1 : +s.lifelines, memberIdx: 0, pos: 1, points: 0, shields: 0, double: false, extraTurn: false, correct: 0, attempts: 0
+      })),
+      turn: 0, round: 1, phase: 'roll', paused: false,
+      timeLimit: Math.round(s.minutes * 60), timeLeft: Math.round(s.minutes * 60),
+      log: [], winner: null, endReason: null, lastRoll: null
+    };
+  }
+
+  function pushSnapshot() { if (!game) return; history.push(JSON.stringify(game)); if (history.length > 60) history.shift(); }
+
+  function log(msg, team) {
+    if (!game) return;
+    game.log.unshift({ m: msg, c: team ? team.color : null });
+    if (game.log.length > 80) game.log.length = 80;
+    renderLog();
+  }
+
+  function ranking() {
+    return game.teams.slice().sort((a, b) => b.points - a.points || b.pos - a.pos || a.id - b.id);
+  }
+  function standings() {
+    const r = ranking();
+    if (game.endReason === 'win' && game.winner != null) {
+      const w = r.findIndex(t => t.id === game.winner);
+      if (w > 0) r.unshift(r.splice(w, 1)[0]);
+    }
+    return r;
+  }
+
+  /* ───────────────────────── Board ───────────────────────── */
+  function center(n) {
+    const b = B(), i = n - 1, rb = Math.floor(i / b.cols);
+    const c = rb % 2 === 0 ? i % b.cols : b.cols - 1 - (i % b.cols);
+    return { x: (c + .5) * 100, y: (b.rows - 1 - rb + .5) * 100 };
+  }
+  const pct = p => ({ x: p.x / B().cols, y: p.y / B().rows });
+
+  function ladderSVG(a, b) {
+    const p = center(a), q = center(b), dx = q.x - p.x, dy = q.y - p.y, L = Math.hypot(dx, dy);
+    const nx = -dy / L * 16, ny = dx / L * 16;
+    const ex = dx / L * 8, ey = dy / L * 8; // extend slightly past centres
+    const P = { x: p.x - ex, y: p.y - ey }, Q = { x: q.x + ex, y: q.y + ey };
+    const line = (x1, y1, x2, y2, cls) => `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" class="${cls}"/>`;
+    let rungs = '', shadows = '';
+    const n = Math.max(2, Math.floor((L + 36) / 34));
+    for (let k = 1; k < n; k++) {
+      const t = k / n, cx = P.x + (Q.x - P.x) * t, cy = P.y + (Q.y - P.y) * t;
+      shadows += line(cx + nx, cy + ny, cx - nx, cy - ny, 'rs');
+      rungs += line(cx + nx, cy + ny, cx - nx, cy - ny, 'rung');
+    }
+    return `<g class="ladder" id="ladder-${a}">
+      <style>.rs{stroke:#3b1d04;stroke-width:9;stroke-linecap:round}.rung{stroke:#fcd34d;stroke-width:5.5;stroke-linecap:round}.rail-s{stroke:#3b1d04;stroke-width:12;stroke-linecap:round}.rail{stroke:#f59e0b;stroke-width:7;stroke-linecap:round}.rail-h{stroke:#fde68a;stroke-width:2;stroke-linecap:round;opacity:.8}</style>
+      ${shadows}
+      ${line(P.x + nx, P.y + ny, Q.x + nx, Q.y + ny, 'rail-s')}${line(P.x - nx, P.y - ny, Q.x - nx, Q.y - ny, 'rail-s')}
+      ${rungs}
+      ${line(P.x + nx, P.y + ny, Q.x + nx, Q.y + ny, 'rail')}${line(P.x - nx, P.y - ny, Q.x - nx, Q.y - ny, 'rail')}
+      ${line(P.x + nx, P.y + ny, Q.x + nx, Q.y + ny, 'rail-h')}${line(P.x - nx, P.y - ny, Q.x - nx, Q.y - ny, 'rail-h')}
+    </g>`;
+  }
+
+  const SNAKE_COLORS = [['#4ade80', '#166534'], ['#c084fc', '#581c87'], ['#fb923c', '#9a3412'], ['#f472b6', '#831843'], ['#2dd4bf', '#115e59'], ['#f87171', '#7f1d1d'], ['#a3e635', '#3f6212'], ['#38bdf8', '#075985']];
+  function snakeSVG(h, t, i) {
+    const p = center(h), q = center(t), dx = q.x - p.x, dy = q.y - p.y, L = Math.hypot(dx, dy);
+    const nx = -dy / L, ny = dx / L, k = Math.max(2, Math.round(L / 115)), amp = Math.min(32, 12 + L / 16) * (i % 2 ? 1 : -1);
+    const N = 48, pts = [];
+    for (let j = 0; j <= N; j++) {
+      const s = j / N, off = amp * Math.sin(s * Math.PI * k);
+      pts.push([p.x + dx * s + nx * off, p.y + dy * s + ny * off]);
+    }
+    const f = v => v.toFixed(1);
+    let d = `M${f(pts[0][0])} ${f(pts[0][1])}`;
+    for (let j = 1; j < N; j++) d += ` Q${f(pts[j][0])} ${f(pts[j][1])} ${f((pts[j][0] + pts[j + 1][0]) / 2)} ${f((pts[j][1] + pts[j + 1][1]) / 2)}`;
+    d += ` L${f(pts[N][0])} ${f(pts[N][1])}`;
+    const [light, dark] = SNAKE_COLORS[i % SNAKE_COLORS.length];
+    const ang = Math.atan2(pts[0][1] - pts[1][1], pts[0][0] - pts[1][0]) * 180 / Math.PI;
+    const tailA = Math.atan2(pts[N][1] - pts[N - 1][1], pts[N][0] - pts[N - 1][0]) * 180 / Math.PI;
+    return `<g class="snake" id="snakeg-${h}">
+      <path d="${d}" fill="none" stroke="${dark}" stroke-width="27" stroke-linecap="round" stroke-linejoin="round"/>
+      <path id="snake-${h}" d="${d}" fill="none" stroke="${light}" stroke-width="19" stroke-linecap="round" stroke-linejoin="round"/>
+      <path class="scales" d="${d}" fill="none" stroke="${dark}" stroke-width="7" stroke-dasharray="4 17" stroke-linecap="round" opacity=".7"/>
+      <path d="${d}" fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="1 20" stroke-linecap="round" opacity=".35"/>
+      <g transform="translate(${f(pts[N][0])} ${f(pts[N][1])}) rotate(${tailA.toFixed(0)})"><path d="M-4 -8 L18 0 L-4 8 Z" fill="${light}" stroke="${dark}" stroke-width="3" stroke-linejoin="round"/></g>
+      <g transform="translate(${f(pts[0][0])} ${f(pts[0][1])}) rotate(${ang.toFixed(0)})">
+        <path class="tongue" d="M24 0 H42 M42 0 l7 -6 M42 0 l7 6" stroke="#ef4444" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+        <ellipse cx="4" cy="0" rx="27" ry="21" fill="${dark}"/>
+        <ellipse cx="4" cy="0" rx="23" ry="17" fill="${light}"/>
+        <circle cx="12" cy="-8.5" r="6.5" fill="#fff"/><circle cx="14.5" cy="-8.5" r="3.4" fill="#111"/>
+        <circle cx="12" cy="8.5" r="6.5" fill="#fff"/><circle cx="14.5" cy="8.5" r="3.4" fill="#111"/>
+        <circle cx="25" cy="-4" r="1.6" fill="${dark}"/><circle cx="25" cy="4" r="1.6" fill="${dark}"/>
+      </g>
+    </g>`;
+  }
+
+  function buildBoard() {
+    const b = B(), board = $('#board');
+    const ends = new Set([...Object.keys(b.ladders), ...Object.values(b.ladders), ...Object.keys(b.snakes), ...Object.values(b.snakes)].map(Number));
+    let cells = '', nums = '';
+    for (let r = 0; r < b.rows; r++) {
+      for (let c = 0; c < b.cols; c++) {
+        const rb = b.rows - 1 - r, n = rb * b.cols + (rb % 2 === 0 ? c + 1 : b.cols - c);
+        const h = Math.round(228 + (rb / (b.rows - 1)) * 58);
+        const cls = ['cell'], extra = [];
+        let style = `--h:${h}`, inner = '', title = `Square ${n}`;
+        nums += `<div${n === b.size ? ' class="fin"' : ''}><span class="num">${n}</span></div>`;
+        if ((r + c) % 2) cls.push('alt');
+        const sp = b.specials[n];
+        if (n === 1) { cls.push('start'); inner += '<span class="label">START</span>'; }
+        else if (n === b.size) { cls.push('finish'); inner += '<span class="sp-icon">🏆</span>'; title += ' — Final challenge'; }
+        else if (sp) { cls.push('special'); style += `;--sc:${SPECIALS[sp].color}`; inner += `<span class="sp-icon">${SPECIALS[sp].icon}</span>`; title += ` — ${SPECIALS[sp].name}: ${SPECIALS[sp].desc}`; }
+        else if (b.ladders[n]) { cls.push('ladder-foot'); title += ` — Ladder to ${b.ladders[n]}`; }
+        else if (b.snakes[n]) { cls.push('snake-head'); title += ` — Snake down to ${b.snakes[n]}`; }
+        else if (!ends.has(n) && n % 9 === 5) { inner += `<span class="doodle">${DOODLES[Math.floor(n / 9) % DOODLES.length]}</span>`; }
+        cells += `<div class="${cls.join(' ')}" style="${style}" title="${esc(title)}" data-n="${n}"${extra.join('')}>${inner}</div>`;
+      }
+    }
+    let svg = '';
+    Object.entries(b.ladders).forEach(([a, t]) => { svg += ladderSVG(+a, t); });
+    Object.entries(b.snakes).forEach(([h, t], i) => { svg += snakeSVG(+h, t, i); });
+    board.innerHTML = `
+      <div class="cells" style="grid-template-columns:repeat(${b.cols},1fr);grid-template-rows:repeat(${b.rows},1fr)">${cells}</div>
+      <svg class="overlay" viewBox="0 0 ${b.cols * 100} ${b.rows * 100}" preserveAspectRatio="none">${svg}</svg>
+      <div class="nums" style="grid-template-columns:repeat(${b.cols},1fr);grid-template-rows:repeat(${b.rows},1fr)">${nums}</div>
+      <div class="tokens" id="tokens"></div>`;
+    buildTokens();
+    sizeBoard();
+  }
+
+  function buildTokens() {
+    const layer = $('#tokens'); if (!layer) return;
+    layer.innerHTML = game ? game.teams.map(t =>
+      `<div class="token a${t.id}" id="tok-${t.id}" style="--c:${t.color};--l:${t.light}"><div class="tk">${t.icon}<b>${t.letter}</b></div></div>`).join('') : '';
+    positionTokens();
+  }
+
+  function sizeBoard() {
+    const b = B(), wrap = $('#boardWrap'), board = $('#board');
+    const w = wrap.clientWidth - 20, h = wrap.clientHeight - 20;
+    let cell = innerWidth <= 900 ? w / b.cols : Math.min(w / b.cols, h / b.rows);
+    cell = Math.max(26, Math.floor(cell));
+    board.style.width = cell * b.cols + 'px';
+    board.style.height = cell * b.rows + 'px';
+    board.style.setProperty('--cell', cell + 'px');
+  }
+
+  const OFFS = [[-.2, -.2], [.2, -.2], [-.2, .2], [.2, .2]];
+  function positionTokens() {
+    if (!game) return;
+    const b = B(), groups = {};
+    game.teams.forEach(t => { (groups[t.pos] = groups[t.pos] || []).push(t.id); });
+    game.teams.forEach(t => {
+      const el = $('#tok-' + t.id); if (!el) return;
+      let p;
+      if (override[t.id]) p = override[t.id];
+      else {
+        p = pct(center(t.pos));
+        const g = groups[t.pos];
+        if (g.length > 1) { const o = OFFS[g.indexOf(t.id)]; p = { x: p.x + o[0] * 100 / b.cols, y: p.y + o[1] * 100 / b.rows }; }
+      }
+      el.style.left = p.x + '%'; el.style.top = p.y + '%';
+      el.classList.toggle('current', game.turn === t.id && game.phase !== 'over');
+    });
+  }
+
+  function hop(id) { const el = $('#tok-' + id); if (!el) return; el.classList.remove('hop'); void el.offsetWidth; el.classList.add('hop'); }
+
+  /* ───────────────────────── Rendering ───────────────────────── */
+  function render() {
+    renderTurn(); renderScores(); renderLog(); renderClock(); positionTokens();
+    $('#soundBtn').textContent = prefs.sound ? '🔊' : '🔇';
+    $('#pauseOverlay').classList.toggle('show', !!(game && game.paused));
+    if ($('#drawer').classList.contains('open')) renderDrawer();
+  }
+
+  function renderTurn() {
+    const card = $('#turnCard'), btn = $('#rollBtn');
+    if (!game) {
+      $('#turnTeam').textContent = 'Welcome!'; $('#turnStudent').textContent = 'Set up the championship to begin.';
+      $('#turnHint').textContent = ''; btn.disabled = true; btn.classList.remove('ready'); return;
+    }
+    const t = cur(), atFinal = t.pos === game.size;
+    card.style.setProperty('--tc', t.color);
+    $('#turnTeam').innerHTML = `<span class="mini">${t.icon}</span><span>${esc(t.name)}</span>`;
+    $('#turnStudent').innerHTML = `🎓 Answering: <b>${esc(studentOf(t))}</b>`;
+    btn.innerHTML = atFinal ? '🏆 Final Challenge' : '🎲 Roll';
+    btn.classList.toggle('final', atFinal);
+    btn.disabled = game.phase !== 'roll' || game.paused;
+    btn.classList.toggle('ready', !btn.disabled);
+    $('#turnHint').textContent = game.phase === 'over' ? '🏁 The championship is over.'
+      : game.phase === 'busy' ? '⏳ Turn in progress…'
+        : atFinal ? 'Answer the final challenge correctly to win!' : 'Press Space or click Roll';
+    $('#roundPill').textContent = 'Round ' + game.round;
+  }
+
+  function renderScores() {
+    const sb = $('#scoreboard');
+    if (!game) { sb.innerHTML = '<div class="muted">No match yet.</div>'; return; }
+    const first = new Map();
+    $$('.score-row', sb).forEach(el => first.set(el.dataset.id, el.getBoundingClientRect().top));
+    if (!$('.score-row', sb)) sb.innerHTML = '';
+    const medals = ['🥇', '🥈', '🥉', '4'];
+    ranking().forEach((t, i) => {
+      let el = sb.querySelector(`.score-row[data-id="${t.id}"]`);
+      if (!el) { el = document.createElement('div'); el.className = 'score-row'; el.dataset.id = t.id; }
+      el.style.cssText = `--c:${t.color};--l:${t.light}`;
+      el.classList.toggle('current', game.turn === t.id && game.phase !== 'over');
+      const badges = [];
+      if (t.shields) badges.push(`<span title="Snake protection">🛡️${t.shields > 1 ? '×' + t.shields : ''}</span>`);
+      if (t.lifelines > 0) badges.push(`<span title="Ask-the-Audience lifelines left">🙋${t.lifelines > 1 ? '×' + t.lifelines : ''}</span>`);
+      if (t.double) badges.push('<span title="Double points on next correct answer">💎×2</span>');
+      if (t.extraTurn) badges.push('<span title="Extra turn">⚡</span>');
+      if (t.pos === game.size) badges.push('<span title="Waiting for the final challenge">🏁</span>');
+      el.innerHTML = `<div class="rank">${medals[i]}</div><div class="tok">${t.icon}</div>
+        <div style="min-width:0"><div class="nm">${esc(t.name)}</div>
+        <div class="sub">${t.section ? `📣 ${esc(t.section)} · ` : ''}🎓 ${esc(studentOf(t))} · ✔ ${t.correct}/${t.attempts}</div>
+        <div class="bar"><span style="width:${(t.pos / game.size * 100).toFixed(1)}%"></span></div></div>
+        <div class="stat"><b>${t.pos}</b><small>square</small></div>
+        <div class="stat pts"><b>${t.points}</b><small>points</small></div>
+        <div class="badges">${badges.join('')}</div>`;
+      sb.appendChild(el);
+    });
+    $$('.score-row', sb).forEach(el => {
+      const f = first.get(el.dataset.id); if (f == null) return;
+      const dy = f - el.getBoundingClientRect().top;
+      if (Math.abs(dy) > 1 && el.animate) el.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: 550, easing: 'cubic-bezier(.2,.8,.3,1)' });
+    });
+  }
+
+  function floatPts(team, text) {
+    const row = $(`.score-row[data-id="${team.id}"]`); if (!row) return;
+    const s = document.createElement('span'); s.className = 'float-pts'; s.textContent = text; row.appendChild(s);
+    setTimeout(() => s.remove(), 1700);
+  }
+
+  function renderLog() {
+    const ul = $('#log');
+    if (!game) { ul.innerHTML = ''; return; }
+    ul.innerHTML = game.log.slice(0, 12).map(l => `<li style="${l.c ? '--c:' + l.c : ''}">${esc(l.m)}</li>`).join('');
+  }
+
+  function renderClock() {
+    const el = $('#clock'), pill = $('#clockPill');
+    if (!game || !game.timeLimit) { el.textContent = '∞'; pill.classList.remove('low'); return; }
+    el.textContent = fmtTime(game.timeLeft);
+    pill.classList.toggle('low', game.timeLeft <= 60 && game.phase !== 'over');
+  }
+
+  /* Die */
+  const PIPS = { 1: [5], 2: [1, 9], 3: [1, 5, 9], 4: [1, 3, 7, 9], 5: [1, 3, 5, 7, 9], 6: [1, 3, 4, 6, 7, 9] };
+  const FACE_ROT = { 1: [0, 0], 2: [0, -90], 3: [-90, 0], 4: [90, 0], 5: [0, 90], 6: [0, 180] };
+  const dieRot = { x: -20, y: 25 };
+  function buildDie() {
+    $('#die').innerHTML = [1, 2, 3, 4, 5, 6].map(n => `<div class="face f${n}">${PIPS[n].map(p => `<span class="pip" style="grid-area:${Math.ceil(p / 3)}/${(p - 1) % 3 + 1}"></span>`).join('')}</div>`).join('');
+    $('#die').style.transform = `rotateX(${dieRot.x}deg) rotateY(${dieRot.y}deg)`;
+  }
+  function spinTo(cur, target, extra) { const m = ((target - cur) % 360 + 360) % 360; return cur + extra + m; }
+  async function rollDieAnim(n) {
+    const [fx, fy] = FACE_ROT[n];
+    dieRot.x = spinTo(dieRot.x, fx, 720); dieRot.y = spinTo(dieRot.y, fy, 360 * (2 + rand(2)));
+    SFX.roll();
+    const scene = $('.die-scene'); scene.animate && scene.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-26px)' }, { transform: 'translateY(0)' }, { transform: 'translateY(-8px)' }, { transform: 'translateY(0)' }], { duration: 1300 });
+    $('#die').style.transform = `rotateX(${dieRot.x}deg) rotateY(${dieRot.y}deg)`;
+    await sleep(1350); SFX.land();
+  }
+
+  /* ───────────────────────── Flow helpers ───────────────────────── */
+  function chk(token) { if (token !== flowToken) throw ABORT; }
+  const flowCard = () => $('#flowModal .modal-card');
+  function openFlow(html, cls = '') {
+    const m = $('#flowModal'), card = flowCard();
+    card.className = 'modal-card ' + cls; card.innerHTML = html; card.scrollTop = 0;
+    m.classList.add('show');
+    return card;
+  }
+  function closeFlow() { $('#flowModal').classList.remove('show'); stopQTimer(); flowKeys = null; }
+  const flowOpen = () => $('#flowModal').classList.contains('show');
+  function waitChoice(token, setup) {
+    return new Promise((res, rej) => {
+      const entry = { rej };
+      pending.add(entry);
+      setup(v => { if (!pending.has(entry)) return; pending.delete(entry); res(v); });
+    }).then(v => { chk(token); return v; });
+  }
+  function abortFlow() {
+    flowToken++;
+    pending.forEach(e => e.rej(ABORT)); pending.clear();
+    closeFlow(); hideAnnounce();
+    Object.keys(override).forEach(k => delete override[k]);
+    $$('.token').forEach(t => t.classList.remove('flying', 'sliding'));
+    $$('.ladder.active, .snake.active').forEach(e => e.classList.remove('active'));
+  }
+
+  let annId = 0;
+  function announce({ icon = '', title = '', sub = '', color = '#fbbf24', ms = 1600 }) {
+    const el = $('#announce'), id = ++annId;
+    el.style.setProperty('--ac', color);
+    el.innerHTML = `<div class="an-icon">${icon}</div><div class="an-title">${esc(title)}</div>${sub ? `<div class="an-sub">${esc(sub)}</div>` : ''}`;
+    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+    return sleep(ms).then(() => { if (id === annId) el.classList.remove('show'); });
+  }
+  function hideAnnounce() { annId++; $('#announce').classList.remove('show'); }
+
+  function toast(msg, ms = 2600) {
+    const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+    $('#toasts').appendChild(t); setTimeout(() => t.remove(), ms);
+  }
+
+  /* ───────────────────────── Questions ───────────────────────── */
+  function activeBank() {
+    const cats = game ? game.settings.cats : prefs.setup.cats;
+    const list = bank.filter(q => cats.includes(q.c));
+    return list.length ? list : bank;
+  }
+  function drawQuestion(prefDiffs, excludeId) {
+    const all = activeBank();
+    if (!all.length) return { id: 'none', c: 1, d: 'M', t: 'short', q: 'The question bank is empty — the teacher may ask a question of their choice!', ans: 'Teacher decides', x: '' };
+    let used = new Set(prefs.used);
+    let cand = all.filter(q => !used.has(q.id) && q.id !== excludeId);
+    if (!cand.length) {
+      const ids = new Set(all.map(q => q.id));
+      prefs.used = prefs.used.filter(id => !ids.has(id));
+      toast('♻️ Every question has been used — the bank has been reshuffled.');
+      cand = all.filter(q => q.id !== excludeId);
+      if (!cand.length) cand = all;
+    }
+    const byDiff = cand.filter(q => prefDiffs.includes(q.d)); if (byDiff.length) cand = byDiff;
+    const fresh = cand.filter(q => q.c !== lastCat); if (fresh.length) cand = fresh;
+    const q = cand[rand(cand.length)];
+    prefs.used.push(q.id); lastCat = q.c; savePrefs();
+    return shuffleOptions(q);
+  }
+
+  // Show the options in a fresh random order each time (correct answer moves around).
+  function shuffleOptions(q) {
+    if (!q.o || q.o.length < 2 || q.a == null) return q;
+    const order = q.o.map((_, i) => i);
+    for (let i = order.length - 1; i > 0; i--) { const j = rand(i + 1); [order[i], order[j]] = [order[j], order[i]]; }
+    return Object.assign({}, q, { o: order.map(i => q.o[i]), a: order.indexOf(q.a) });
+  }
+
+  const QT = { left: 0, total: 0, iv: null, el: null, paused: false, onEnd: null };
+  const CIRC = 2 * Math.PI * 52;
+  function startQTimer(sec, el) {
+    stopQTimer(); QT.left = QT.total = Math.max(5, sec | 0); QT.el = el; QT.paused = false; drawQT(); runQT();
+  }
+  function runQT() {
+    clearInterval(QT.iv);
+    QT.iv = setInterval(() => {
+      if (QT.paused || (game && game.paused)) return;
+      QT.left = Math.max(0, QT.left - 1);
+      if (QT.left > 0 && QT.left <= 5) SFX.tick();
+      if (QT.left === 0) { clearInterval(QT.iv); QT.iv = null; SFX.buzzer(); if (QT.onEnd) QT.onEnd(); }
+      drawQT();
+    }, 1000);
+  }
+  function drawQT() {
+    const el = QT.el; if (!el || !el.isConnected) return;
+    $('.prog', el).style.strokeDashoffset = (CIRC * (1 - QT.left / QT.total)).toFixed(1);
+    el.classList.toggle('warn', QT.left <= 5 && QT.left > 0);
+    el.classList.toggle('done', QT.left === 0);
+    el.classList.toggle('paused', QT.paused);
+    $('.t-num', el).innerHTML = QT.left === 0 ? 'TIME’S<br>UP!' : `${QT.left}<small>${QT.paused ? 'PAUSED' : 'SECONDS'}</small>`;
+  }
+  function stopQTimer() { clearInterval(QT.iv); QT.iv = null; }
+  function toggleQTimer() { if (!QT.el || !QT.el.isConnected) return; QT.paused = !QT.paused; drawQT(); }
+  function addQTime(s) {
+    if (!QT.el || !QT.el.isConnected) return;
+    QT.left += s; QT.total = Math.max(QT.total, QT.left); if (!QT.iv) runQT(); drawQT();
+  }
+
+  const KIND_LABEL = {
+    normal: null, ladder: '🪜 Ladder Challenge', snake: '🐍 Snake Rescue', final: '🏆 Final Challenge', challenge: '🎯 Head-to-Head Challenge'
+  };
+
+  function questionHTML(q, o, student) {
+    const t = o.team, kindChip = KIND_LABEL[o.kind] ? `<span class="chip kind ${o.kind}">${KIND_LABEL[o.kind]}</span>` : '';
+    const cat = CATS[q.c] || CATS[1];
+    const pts = o.kind === 'challenge' ? `+${o.points} pts for each correct group` : `+${o.points * (t.double ? 2 : 1)} pts${t.double ? ' 💎×2' : ''}`;
+    const teamStrip = o.kind === 'challenge'
+      ? `<div class="q-team" style="--c:${t.color}"><b>${esc(t.name)}</b> ⚔️ <b style="color:${o.rival.color}">${esc(o.rival.name)}</b><span class="student" data-prompt></span></div>`
+      : `<div class="q-team" style="--c:${t.color}"><span style="font-size:30px">${t.icon}</span><b>${esc(t.name)}</b><span class="student">🎓 ${esc(student)}</span></div>`;
+    const opts = `<div class="options">${q.o.map((x, i) =>
+      `<button class="opt" data-i="${i}"><span class="letter">${'ABCD'[i] || i + 1}</span><span>${esc(x)}</span></button>`).join('')}</div>`;
+    return `
+      <div class="q-head">${kindChip}<span class="chip">${cat.icon} ${esc(cat.name)}</span>
+        <span class="chip ${q.d}">${DIFF[q.d] ? DIFF[q.d].name : q.d}</span><span class="chip pts">${pts}</span></div>
+      ${teamStrip}
+      <div class="q-body">
+        <div>
+          <div class="q-text">${esc(q.q)}</div>
+          ${opts}
+          <div class="answer-slot"><div class="hidden-answer" data-hint>👆 Tap the group’s answer (or press A–D) — it is checked automatically.</div></div>
+        </div>
+        <div class="timer"><svg viewBox="0 0 120 120"><circle class="track" cx="60" cy="60" r="52"/><circle class="prog" cx="60" cy="60" r="52" stroke-dasharray="${CIRC.toFixed(1)}" stroke-dashoffset="0"/></svg><div class="t-num"></div></div>
+      </div>
+      <div class="q-actions" data-pre>
+        <button class="btn" data-act-q="timer" title="Pause / resume timer (P)">⏯ Pause timer</button>
+        <button class="btn" data-act-q="more" title="Add 15 seconds (+)">+15 s</button>
+        <button class="btn" data-act-q="replace" title="Replace with a new question (S)">↻ Replace question <kbd>S</kbd></button>
+        ${o.kind !== 'challenge' && t.lifelines > 0 ? `<span class="spacer"></span><button class="btn big purple" data-act-q="audience" title="Ask the Audience (V)">🙋 Ask the Audience <kbd>V</kbd> <small>(${t.lifelines} left)</small></button>` : ''}
+      </div>`;
+  }
+
+  /* Ask a multiple-choice question. Picking an option locks it in; the game then
+   * reveals the answer and judges it automatically. Running out of time = wrong.
+   * Normal questions resolve to true/false; a head-to-head resolves to {A, B}. */
+  let curQ = null; // question on screen (used by automated tests)
+  const AUTO_NEXT = 6; // seconds before the game moves on after the reveal
+  function ask(o, token) {
+    const team = o.team, duel = o.kind === 'challenge';
+    let q = drawQuestion(o.prefs);
+    const student = duel ? null : studentOf(team);
+    let card, locked, picks, autoIv = null;
+    return waitChoice(token, done => {
+      const finish = v => { clearInterval(autoIv); stopQTimer(); QT.onEnd = null; flowKeys = null; done(v); };
+      const prompt = () => {
+        const el = $('[data-prompt]', card); if (!el) return;
+        const who = picks.length === 0 ? team : o.rival;
+        el.innerHTML = `<span style="color:${who.light}">${esc(who.name)}</span>, choose your answer${picks.length ? ` · ${esc(team.name)} 🔒 locked in` : ''}`;
+      };
+      const reveal = (timedOut) => {
+        locked = true; stopQTimer(); QT.onEnd = null;
+        $('[data-pre]', card).style.display = 'none';
+        const opts = $$('.opt', card);
+        opts.forEach((b, i) => { b.disabled = true; b.classList.toggle('right', i === q.a); b.classList.toggle('wrong', i !== q.a); });
+        let head, result;
+        if (duel) {
+          const [pa, pb] = [picks[0], picks[1]];
+          [[pa, team], [pb, o.rival]].forEach(([p, t]) => { if (p != null && p >= 0) { opts[p].classList.add('picked'); opts[p].insertAdjacentHTML('beforeend', `<span class="tag" style="background:${t.color}">${esc(t.letter)}</span>`); } });
+          result = { A: pa === q.a, B: pb === q.a };
+          head = result.A && result.B ? '🤝 Both groups are correct!' : result.A ? `🏅 ${esc(team.name)} is correct!` : result.B ? `🏅 ${esc(o.rival.name)} is correct!` : '❌ Neither group is correct.';
+        } else {
+          const p = picks[0];
+          if (p != null && p >= 0) opts[p].classList.add('picked');
+          result = p === q.a;
+          head = result ? '✅ Correct!' : timedOut ? '⏰ Time’s up!' : '❌ Not quite!';
+        }
+        if (timedOut && duel) head = '⏰ Time’s up! ' + head;
+        if ((duel ? result.A || result.B : result)) SFX.correct(); else SFX.wrong();
+        $('.answer-slot', card).innerHTML = `<div class="answer-box ${(duel ? result.A || result.B : result) ? '' : 'bad'}">
+          <div class="verdict-line">${head}</div><b>Answer:</b> ${'ABCD'[q.a]}) ${esc(q.o[q.a])}${q.x ? `<div class="why">💡 ${esc(q.x)}</div>` : ''}</div>
+          <div class="q-actions"><span class="spacer"></span><button class="btn big gold" data-next>Continue <kbd>Enter</kbd> <span data-count>${AUTO_NEXT}</span></button></div>`;
+        let left = AUTO_NEXT;
+        autoIv = setInterval(() => {
+          if (game && game.paused) return;
+          left--; const c = $('[data-count]', card); if (c) c.textContent = left;
+          if (left <= 0) finish(result);
+        }, 1000 * SPEED);
+        $('[data-next]', card).addEventListener('click', () => finish(result));
+        flowKeys = { enter: () => finish(result), ' ': () => finish(result), _replace: null };
+      };
+      const pick = i => {
+        if (locked || i < 0 || i >= q.o.length) return;
+        picks.push(i); SFX.click();
+        if (duel && picks.length === 1) {
+          $$('.opt', card)[i].classList.add('locked-a');
+          setTimeout(() => $$('.opt', card).forEach(b => b.classList.remove('locked-a')), 350);
+          prompt(); return;
+        }
+        reveal(false);
+      };
+      const show = () => {
+        locked = false; picks = []; curQ = q;
+        card = openFlow(questionHTML(q, o, student), 'q-wide');
+        $$('.opt', card).forEach(b => b.addEventListener('click', () => pick(+b.dataset.i)));
+        $$('[data-act-q]', card).forEach(b => b.addEventListener('click', () => actions[b.dataset.actQ]()));
+        prompt();
+        startQTimer(o.seconds, $('.timer', card));
+        QT.onEnd = () => { if (!locked) { while (picks.length < (duel ? 2 : 1)) picks.push(-1); reveal(true); } };
+        setKeys();
+      };
+      const askAudience = () => {
+        if (locked || duel || !(team.lifelines > 0)) return;
+        team.lifelines--; renderScores(); log(`🙋 ${team.name} asked the audience`, team);
+        QT.paused = true; drawQT(); SFX.drum();
+        const btn = $('[data-act-q="audience"]', card); if (btn) btn.remove();
+        const slot = $('.answer-slot', card);
+        slot.innerHTML = `<div class="aud-banner"><div class="ab-title">🙋 AUDIENCE VOTE!</div>
+          <div class="ab-sub">Audience: raise your hand for <b>A</b>, <b>B</b>, <b>C</b> or <b>D</b> — the timer is paused.</div>
+          <div class="ab-count" data-c>10</div><button class="btn gold" data-resume>▶ Resume timer <kbd>Enter</kbd></button></div>`;
+        let n = 10;
+        const iv = setInterval(() => { n--; const c = $('[data-c]', card); if (!c || n < 0) { clearInterval(iv); return; } c.textContent = n > 0 ? n : '🗳️ Count the hands!'; if (n > 0 && n <= 3) SFX.tick(); }, 1000 * SPEED);
+        const resume = () => {
+          clearInterval(iv); if (locked) return;
+          slot.innerHTML = '<div class="hidden-answer">👆 Tap the group’s answer (or press A–D) — it is checked automatically.</div>';
+          QT.paused = false; drawQT(); delete flowKeys.enter; delete flowKeys[' '];
+        };
+        $('[data-resume]', slot).addEventListener('click', resume);
+        flowKeys.enter = resume; flowKeys[' '] = resume;
+      };
+      const actions = {
+        audience: askAudience,
+        timer: toggleQTimer, more: () => addQTime(15),
+        replace: () => { if (locked || picks.length) return; q = drawQuestion(o.prefs, q.id); toast('↻ Question replaced'); show(); }
+      };
+      const setKeys = () => {
+        flowKeys = { s: actions.replace, '+': actions.more, '=': actions.more, p: toggleQTimer, v: askAudience, _replace: actions.replace };
+        ['a', 'b', 'c', 'd'].forEach((k, i) => { flowKeys[k] = () => pick(i); flowKeys[String(i + 1)] = () => pick(i); });
+      };
+      show();
+    }).then(v => {
+      closeFlow();
+      if (!duel) { team.attempts++; team.memberIdx++; }
+      return v;
+    });
+  }
+
+  function award(team, base, allowDouble = true) {
+    let pts = base;
+    if (allowDouble && team.double) { pts *= 2; team.double = false; log(`💎 Double points used by ${team.name}!`, team); }
+    team.points += pts; team.correct += allowDouble ? 1 : 0;
+    renderScores(); floatPts(team, '+' + pts);
+    return pts;
+  }
+
+  async function verdict(ok, team, base, token, label) {
+    if (ok) {
+      const pts = award(team, base);
+      Confetti.burst(70, innerWidth / 2, innerHeight / 2.4, .8);
+      log(`✔ ${team.name} answered ${label} correctly (+${pts})`, team);
+      await announce({ icon: '✅', title: 'CORRECT!', sub: `+${pts} points for ${team.name}`, color: '#22c55e', ms: 1200 });
+    } else {
+      log(`✘ ${team.name} missed ${label}`, team);
+      await announce({ icon: '❌', title: 'Not quite!', sub: label === 'the question' ? `${team.name} stays on square ${team.pos}` : '', color: '#ef4444', ms: 1300 });
+    }
+    chk(token);
+    return ok;
+  }
+
+  /* ───────────────────────── Movement ───────────────────────── */
+  async function walk(team, steps, token) {
+    const dir = Math.sign(steps);
+    for (let i = 0; i < Math.abs(steps); i++) {
+      team.pos = clamp(team.pos + dir, 1, game.size);
+      positionTokens(); hop(team.id); SFX.step(i);
+      await sleep(290); chk(token);
+    }
+    renderScores();
+  }
+  async function climb(team, to, token) {
+    const el = $('#tok-' + team.id), lad = $('#ladder-' + team.pos);
+    lad && lad.classList.add('active'); el.classList.add('flying'); SFX.ladder();
+    team.pos = to; positionTokens();
+    await sleep(1350);
+    el.classList.remove('flying'); lad && lad.classList.remove('active');
+    chk(token); renderScores();
+  }
+  function slide(team, head, tail, token) {
+    const path = $('#snake-' + head), el = $('#tok-' + team.id), g = $('#snakeg-' + head);
+    const b = B(), dur = 1900 * SPEED, start = performance.now(), L = path.getTotalLength();
+    el.classList.add('sliding'); g && g.classList.add('active'); SFX.snake();
+    return new Promise(res => {
+      const frame = now => {
+        if (token !== flowToken) { res(); return; }
+        const k = Math.min(1, (now - start) / dur), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+        const pt = path.getPointAtLength(e * L);
+        override[team.id] = { x: pt.x / b.cols, y: pt.y / b.rows }; positionTokens();
+        if (k < 1) requestAnimationFrame(frame); else res();
+      };
+      requestAnimationFrame(frame);
+    }).then(() => {
+      delete override[team.id]; el.classList.remove('sliding'); g && g.classList.remove('active');
+      chk(token); team.pos = tail; positionTokens(); renderScores();
+    });
+  }
+
+  /* ───────────────────────── Turn flow ───────────────────────── */
+  async function onRoll() {
+    if (!game || game.phase !== 'roll' || game.paused || setupOpen || flowOpen()) return;
+    SFX.unlock();
+    pushSnapshot();
+    const token = ++flowToken;
+    game.phase = 'busy'; render();
+    const team = cur();
+    try {
+      if (team.pos === game.size) {
+        await finalChallenge(team, token);
+      } else {
+        const roll = 1 + rand(6);
+        await rollDieAnim(roll); chk(token);
+        game.lastRoll = roll;
+        log(`🎲 ${team.name} rolled a ${roll}`, team);
+        const diff = await chooseDifficulty(team, roll, token);
+        const ok = await ask({ kind: 'normal', team, prefs: [diff], points: POINTS[diff], seconds: timers()[diff] }, token);
+        await verdict(ok, team, POINTS[diff], token, 'the question');
+        if (ok) {
+          let target = team.pos + roll;
+          if (target > game.size) {
+            if (game.settings.exactFinish) { log(`🎯 ${team.name} needs exactly ${game.size - team.pos} to finish — no move`, team); target = team.pos; toast(`Exact roll needed: ${game.size - team.pos}`); }
+            else target = game.size;
+          }
+          if (target !== team.pos) {
+            await walk(team, target - team.pos, token);
+            log(`➡️ ${team.name} moved to square ${team.pos}`, team);
+            await resolveLanding(team, token, true);
+          }
+        }
+      }
+      endTurn();
+    } catch (e) {
+      if (e !== ABORT) { console.error(e); toast('⚠️ Something went wrong — the turn was reset.'); if (game && game.phase === 'busy') { game.phase = 'roll'; render(); } }
+    }
+  }
+
+  // The die decides the difficulty: 1–2 Easy, 3–4 Moderate, 5–6 Challenging.
+  const diffForRoll = roll => (roll <= 2 ? 'E' : roll <= 4 ? 'M' : 'C');
+  function chooseDifficulty(team, roll, token) {
+    const d = diffForRoll(roll);
+    return announce({
+      icon: DIFF[d].icon, title: `${DIFF[d].name} question!`,
+      sub: `Rolled ${roll} → +${POINTS[d] * (team.double ? 2 : 1)} points · move ${roll} if correct`,
+      color: d === 'E' ? '#22c55e' : d === 'M' ? '#f59e0b' : '#ef4444', ms: 1700
+    }).then(() => { chk(token); return d; });
+  }
+
+  async function resolveLanding(team, token, allowSpecial) {
+    const b = B(), pos = team.pos;
+    if (pos === game.size) { await finalChallenge(team, token); return; }
+    if (b.ladders[pos]) {
+      const top = b.ladders[pos];
+      $('#ladder-' + pos) && $('#ladder-' + pos).classList.add('active');
+      SFX.drum();
+      await announce({ icon: '🪜', title: 'LADDER!', sub: `Answer the bonus question to climb to square ${top}`, color: '#fbbf24', ms: 1700 }); chk(token);
+      const ok = await ask({ kind: 'ladder', team, prefs: ['M', 'C'], points: POINTS.ladder, seconds: timers().LS }, token);
+      $('#ladder-' + pos) && $('#ladder-' + pos).classList.remove('active');
+      await verdict(ok, team, POINTS.ladder, token, 'the ladder challenge');
+      if (ok) {
+        await climb(team, top, token);
+        log(`🪜 ${team.name} climbed from ${pos} to ${top}!`, team);
+        Confetti.burst(120);
+        await announce({ icon: '🧗', title: 'CLIMBED!', sub: `${team.name} is now on square ${top}`, color: '#fbbf24', ms: 1300 }); chk(token);
+        if (team.pos === game.size) await finalChallenge(team, token);
+      } else log(`🪜 ${team.name} stays at the bottom of the ladder (${pos})`, team);
+      return;
+    }
+    if (b.snakes[pos]) {
+      const tail = b.snakes[pos], g = $('#snakeg-' + pos);
+      if (team.shields > 0) {
+        team.shields--; SFX.shield(); renderScores();
+        log(`🛡️ ${team.name}'s shield blocked the snake on ${pos}!`, team);
+        await specialCard(token, { icon: '🛡️', title: 'Shield Activated!', color: '#22d3ee', tag: 'Snake protection', desc: `The snake on square ${pos} bounces off ${esc(team.name)}’s force-field. You are safe!` });
+        return;
+      }
+      g && g.classList.add('active'); SFX.hiss();
+      await announce({ icon: '🐍', title: 'SNAKE!', sub: `Answer the rescue question or slide down to ${tail}`, color: '#22c55e', ms: 1700 }); chk(token);
+      g && g.classList.remove('active');
+      const ok = await ask({ kind: 'snake', team, prefs: ['M', 'C'], points: POINTS.snake, seconds: timers().LS }, token);
+      await verdict(ok, team, POINTS.snake, token, 'the snake rescue');
+      if (ok) {
+        log(`🦸 ${team.name} escaped the snake on ${pos}!`, team);
+        await announce({ icon: '🦸', title: 'RESCUED!', sub: `${team.name} escapes the snake`, color: '#22d3ee', ms: 1300 }); chk(token);
+      } else {
+        await slide(team, pos, tail, token);
+        log(`🐍 ${team.name} slid down from ${pos} to ${tail}`, team);
+      }
+      return;
+    }
+    if (allowSpecial && b.specials[pos]) await applySpecial(team, b.specials[pos], token);
+  }
+
+  function specialCard(token, { icon, title, desc, color, tag, btn = 'Continue' }, extraHTML = '', bind) {
+    return waitChoice(token, done => {
+      const card = openFlow(`<div class="special-card" style="--sc:${color}"><div class="rays"></div>
+          <div class="sp-tag">${esc(tag || '')}</div><div class="sp-big">${icon}</div>
+          <div class="sp-title">${esc(title)}</div><div class="sp-desc">${desc}</div>${extraHTML}
+          ${btn ? `<div class="row center"><button class="btn big gold" data-go>${btn} <kbd>Enter</kbd></button></div>` : ''}</div>`, 'has-rays');
+      const go = $('[data-go]', card);
+      if (go) go.addEventListener('click', () => done(null));
+      flowKeys = btn ? { enter: () => done(null), ' ': () => done(null) } : {};
+      if (bind) bind(card, done);
+    }).then(v => { closeFlow(); return v; });
+  }
+
+  function teamPickHTML(list, sub) {
+    return `<div class="team-pick">${list.map(t => `<button style="--c:${t.color}" data-team="${t.id}">${t.icon} ${esc(t.name)}<small>${sub(t)}</small></button>`).join('')}</div>`;
+  }
+
+  async function applySpecial(team, type, token) {
+    if (type === 'mystery') {
+      SFX.drum();
+      await waitChoice(token, done => {
+        const card = openFlow(`<div class="special-card" style="--sc:${SPECIALS.mystery.color}"><div class="rays"></div><div class="sp-tag">Mystery square</div>
+          <div class="sp-big" id="mysIcon">❓</div><div class="sp-title">Mystery Square!</div><div class="sp-desc">Revealing your power-up…</div></div>`, 'has-rays');
+        let i = 0; const icon = $('#mysIcon', card);
+        const iv = setInterval(() => { icon.textContent = SPECIALS[EFFECTS[i++ % EFFECTS.length]].icon; SFX.tick(); }, 110);
+        setTimeout(() => { clearInterval(iv); done(); }, 1900 * SPEED);
+      });
+      closeFlow();
+      type = EFFECTS[rand(EFFECTS.length)];
+      log(`❓ Mystery square revealed: ${SPECIALS[type].name}`, team);
+    }
+    const sp = SPECIALS[type], others = game.teams.filter(t => t.id !== team.id);
+    const base = { icon: sp.icon, title: sp.name, color: sp.color, tag: `${team.name} · square ${team.pos}` };
+    SFX.special();
+    switch (type) {
+      case 'bonus':
+        team.points += POINTS.bonus; renderScores(); floatPts(team, '+10');
+        Confetti.burst(100);
+        log(`🎁 ${team.name} earned +10 bonus points`, team);
+        await specialCard(token, Object.assign(base, { desc: sp.desc }));
+        break;
+      case 'extra':
+        team.extraTurn = true; renderScores();
+        log(`⚡ ${team.name} earned an extra turn`, team);
+        await specialCard(token, Object.assign(base, { desc: sp.desc }));
+        break;
+      case 'shield':
+        team.shields++; renderScores(); SFX.shield();
+        log(`🛡️ ${team.name} picked up snake protection`, team);
+        await specialCard(token, Object.assign(base, { desc: sp.desc }));
+        break;
+      case 'double':
+        team.double = true; renderScores();
+        log(`💎 ${team.name}'s next correct answer earns double points`, team);
+        await specialCard(token, Object.assign(base, { desc: sp.desc }));
+        break;
+      case 'forward5': {
+        await specialCard(token, Object.assign(base, { desc: sp.desc, btn: '🚀 Blast off!' }));
+        SFX.whoosh();
+        const to = Math.min(game.size, team.pos + 5);
+        await walk(team, to - team.pos, token);
+        log(`🚀 ${team.name} boosted to square ${team.pos}`, team);
+        await resolveLanding(team, token, false);
+        break;
+      }
+      case 'back3': {
+        await specialCard(token, Object.assign(base, { desc: sp.desc, btn: '⏪ Slide back' }));
+        const to = Math.max(1, team.pos - 3);
+        await walk(team, to - team.pos, token);
+        log(`⏪ ${team.name} moved back to square ${team.pos}`, team);
+        await resolveLanding(team, token, false);
+        break;
+      }
+      case 'swap': {
+        const pick = await specialCard(token, Object.assign(base, { desc: sp.desc, btn: null }),
+          teamPickHTML(others, t => `on square ${t.pos}`) + `<div class="row center"><button class="btn big" data-keep>🙅 Keep my position (square ${team.pos})</button></div>`,
+          (card, done) => {
+            $$('[data-team]', card).forEach(b => b.addEventListener('click', () => done(+b.dataset.team)));
+            $('[data-keep]', card).addEventListener('click', () => done(-1));
+          });
+        if (pick != null && pick >= 0) {
+          const other = game.teams[pick];
+          const a = team.pos; team.pos = other.pos; other.pos = a;
+          [team, other].forEach(t => $('#tok-' + t.id).classList.add('flying'));
+          SFX.whoosh(); positionTokens();
+          await sleep(1350);
+          [team, other].forEach(t => $('#tok-' + t.id).classList.remove('flying'));
+          chk(token); renderScores();
+          log(`🔄 ${team.name} (now ${team.pos}) swapped with ${other.name} (now ${other.pos})`, team);
+          await announce({ icon: '🔄', title: 'SWAPPED!', sub: `${team.name} ↔ ${other.name}`, color: sp.color, ms: 1300 }); chk(token);
+          if (team.pos === game.size) await finalChallenge(team, token);
+        } else log(`🔄 ${team.name} chose to keep its position`, team);
+        break;
+      }
+      case 'challenge': {
+        const rid = await specialCard(token, Object.assign(base, { desc: sp.desc, btn: null }),
+          teamPickHTML(others, t => `${t.points} points`),
+          (card, done) => $$('[data-team]', card).forEach(b => b.addEventListener('click', () => done(+b.dataset.team))));
+        const rival = game.teams[rid];
+        await announce({ icon: '⚔️', title: 'HEAD TO HEAD!', sub: `${team.name} vs ${rival.name}`, color: sp.color, ms: 1500 }); chk(token);
+        const res = await ask({ kind: 'challenge', team, rival, prefs: ['M'], points: POINTS.challenge, seconds: timers().M }, token);
+        const winners = [res.A && team, res.B && rival].filter(Boolean);
+        if (winners.length) {
+          winners.forEach(w => { award(w, POINTS.challenge, false); log(`🎯 ${w.name} answered the challenge correctly (+${POINTS.challenge})`, w); });
+          Confetti.burst(90);
+          await announce({ icon: '🏅', title: winners.length === 2 ? 'Both score!' : `${winners[0].name} wins!`, sub: `+${POINTS.challenge} points${winners.length === 2 ? ' each' : ''}`, color: winners[0].color, ms: 1500 });
+        } else {
+          log(`🎯 Challenge ${team.name} vs ${rival.name}: no winner`, team);
+          await announce({ icon: '🤝', title: 'No winner', sub: 'Nobody scores this time', color: '#94a3b8', ms: 1300 });
+        }
+        chk(token);
+        break;
+      }
+    }
+  }
+
+  async function finalChallenge(team, token) {
+    SFX.drum();
+    await announce({ icon: '🏆', title: 'FINAL CHALLENGE', sub: `${team.name} must answer correctly to become champion!`, color: '#e879f9', ms: 2000 }); chk(token);
+    const ok = await ask({ kind: 'final', team, prefs: ['C'], points: POINTS.final, seconds: timers().F }, token);
+    if (ok) {
+      award(team, POINTS.final);
+      log(`🏆 ${team.name} answered the final challenge and WON!`, team);
+      game.phase = 'over'; game.endReason = 'win'; game.winner = team.id;
+      saveAuto(); render();
+      await celebrate(team);
+    } else {
+      log(`😮 ${team.name} missed the final challenge — stays on ${game.size}, tries again next turn`, team);
+      await announce({ icon: '😮', title: 'So close!', sub: `${team.name} stays on ${game.size} and tries again next turn`, color: '#ef4444', ms: 1800 });
+      chk(token);
+    }
+  }
+
+  function endTurn() {
+    if (!game || game.phase === 'over') return;
+    const t = cur();
+    if (t.extraTurn) {
+      t.extraTurn = false;
+      log(`⚡ ${t.name} takes an extra turn!`, t);
+      announce({ icon: '⚡', title: 'EXTRA TURN!', sub: `${t.name} rolls again`, color: '#facc15', ms: 1300 });
+    } else {
+      game.turn = (game.turn + 1) % game.teams.length;
+      if (game.turn === 0) { game.round++; if (game.round % 3 === 1) toast('🎤 Good moment for an audience question — press Q or the 🎤 button', 4500); }
+    }
+    game.phase = 'roll';
+    saveAuto(); render();
+  }
+
+  /* ───────────────────────── Game control ───────────────────────── */
+  function startGame(g, opts = {}) {
+    abortFlow();
+    game = g; history = opts.keepHistory ? history : [];
+    if (game.phase === 'busy') game.phase = 'roll';
+    game.teams.forEach(t => { if (t.lifelines == null) t.lifelines = 1; if (t.section == null) t.section = ''; });
+    game.paused = false;
+    hidePodium(); closeTool(); setupOpen = false;
+    buildBoard(); render(); saveAuto();
+    if (opts.announce !== false && game.phase !== 'over') {
+      SFX.special();
+      announce({ icon: '🎲', title: opts.title || 'LET’S PLAY!', sub: `${cur().name} goes first · Good luck, physicists!`, color: '#22d3ee', ms: 2000 });
+    }
+    if (game.phase === 'over') showPodium(false);
+  }
+
+  function saveAuto() {
+    if (!game) return;
+    let g = game;
+    if (game.phase === 'busy' && history.length) { g = JSON.parse(history[history.length - 1]); g.timeLeft = game.timeLeft; }
+    STORE.set(KEYS.save, { game: g, used: prefs.used, savedAt: Date.now() });
+  }
+
+  function togglePause() {
+    if (!game || game.phase === 'over') return;
+    game.paused = !game.paused;
+    log(game.paused ? '⏸ Game paused' : '▶ Game resumed');
+    render();
+  }
+
+  function undo() {
+    if (!history.length) { toast('Nothing to undo'); return; }
+    const tl = game ? game.timeLeft : 0;
+    abortFlow();
+    game = JSON.parse(history.pop());
+    if (game.phase === 'busy') game.phase = 'roll';
+    game.timeLeft = tl; game.paused = false;
+    hidePodium(); buildTokens(); render(); saveAuto();
+    toast('↶ Undone — back to the start of the last turn');
+  }
+
+  function skipTurn() {
+    if (!game || game.phase === 'over') return;
+    abortFlow();
+    log(`⏭ ${cur().name}'s turn was skipped`, cur());
+    cur().extraTurn = false;
+    game.phase = 'busy'; endTurn();
+  }
+
+  async function timeUp() {
+    if (!game || game.phase === 'over') return;
+    abortFlow();
+    game.phase = 'over'; game.endReason = 'time';
+    game.winner = ranking()[0].id;
+    log('⏰ Time is up! Winner decided by points.');
+    saveAuto(); render(); SFX.gong();
+    await announce({ icon: '⏰', title: 'TIME’S UP!', sub: 'Most points wins — board position breaks ties', color: '#ef4444', ms: 2600 });
+    if (game && game.phase === 'over') showPodium(true);
+  }
+
+  function endNow() {
+    if (!game || game.phase === 'over') return;
+    confirmBox('End the championship now? The group with the most points wins (board position breaks ties).', 'End & crown winner').then(ok => { if (ok) { pushSnapshot(); timeUp(); } });
+  }
+
+  async function celebrate(team) {
+    SFX.win(); Confetti.burst(220); Confetti.rain(200);
+    await announce({ icon: '🏆', title: 'CHAMPIONS!', sub: `${team.name} wins the Physics Championship!`, color: team.color, ms: 2600 });
+    if (game && game.phase === 'over') showPodium(true);
+  }
+
+  function star(cx, cy, R, r) {
+    let p = []; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r : R; p.push((cx + Math.cos(a) * rr).toFixed(1) + ',' + (cy + Math.sin(a) * rr).toFixed(1)); }
+    return p.join(' ');
+  }
+  const TROPHY = `<svg class="trophy" viewBox="0 0 200 230" aria-label="Trophy">
+    <defs><linearGradient id="tgG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#92400e"/><stop offset=".35" stop-color="#fde68a"/><stop offset=".55" stop-color="#fbbf24"/><stop offset="1" stop-color="#b45309"/></linearGradient>
+    <clipPath id="tgClip"><path d="M50 18h100v42c0 42-22 68-50 72c-28-4-50-30-50-72z"/></clipPath></defs>
+    <path d="M52 34H24c-4 34 12 54 36 58" fill="none" stroke="url(#tgG)" stroke-width="11" stroke-linecap="round"/>
+    <path d="M148 34h28c4 34-12 54-36 58" fill="none" stroke="url(#tgG)" stroke-width="11" stroke-linecap="round"/>
+    <path d="M50 18h100v42c0 42-22 68-50 72c-28-4-50-30-50-72z" fill="url(#tgG)"/>
+    <g clip-path="url(#tgClip)"><g class="shine"><rect x="40" y="0" width="26" height="160" fill="rgba(255,255,255,.55)" transform="skewX(-20)"/></g></g>
+    <polygon points="${star(100, 62, 22, 9)}" fill="#fff7d6" opacity=".95"/>
+    <rect x="88" y="130" width="24" height="34" fill="url(#tgG)"/>
+    <path d="M62 164h76l10 24H52z" fill="url(#tgG)"/>
+    <rect x="42" y="188" width="116" height="30" rx="6" fill="#4c1d95" stroke="#fbbf24" stroke-width="3"/>
+    <text x="100" y="209" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="15" fill="#fde68a" font-weight="700" letter-spacing="2">CHAMPIONS</text></svg>`;
+
+  function showPodium(withFx = true) {
+    if (!game) return;
+    const st = standings(), w = st[0];
+    const pod = (t, place) => t ? `<div class="pod p${place}" style="--c:${t.color};--l:${t.light}">
+        <div class="p-tok">${t.icon}</div><div class="p-name">${esc(t.name)}</div>
+        <div class="p-stats">⭐ ${t.points} pts · 📍 ${t.pos}</div><div class="block">${place}</div></div>` : '';
+    const reason = game.endReason === 'win' ? `${w.name} reached square ${game.size} and solved the final challenge!`
+      : game.endReason === 'time' ? 'Time is up — ranked by points, board position breaks ties.' : '';
+    $('#podium').innerHTML = `<div class="p-rays"></div>
+      <h1>🏆 Physics Champions 🏆</h1><div class="p-reason">${esc(reason)}</div>
+      <div class="trophy-wrap">${TROPHY}</div>
+      <div class="winner-name" style="--c:${w.color}">${w.icon} ${esc(w.name)}</div>
+      <div class="podium">${pod(st[1], 2)}${pod(st[0], 1)}${pod(st[2], 3)}</div>
+      ${st[3] ? `<div class="fourth" style="--c:${st[3].color}">4th · ${st[3].icon} ${esc(st[3].name)} — ⭐ ${st[3].points} pts · 📍 square ${st[3].pos}</div>` : ''}
+      <table class="standings"><tr><th>Place</th><th>Group</th><th>Points</th><th>Square</th><th>Correct</th><th>Accuracy</th></tr>
+        ${st.map((t, i) => `<tr><td>${['🥇', '🥈', '🥉', '4th'][i]}</td><td style="color:${t.light}">${t.icon} ${esc(t.name)}</td><td>${t.points}</td><td>${t.pos}</td><td>${t.correct}/${t.attempts}</td><td>${t.attempts ? Math.round(t.correct / t.attempts * 100) : 0}%</td></tr>`).join('')}
+      </table>
+      <div class="podium-actions">
+        <button class="btn big" data-act="podium-close">📋 View board</button>
+        <button class="btn big cyan" data-act="results">⬇ Results (CSV)</button>
+        <button class="btn big purple" data-act="rematch">🔁 Rematch</button>
+        <button class="btn big gold" data-act="setup">🆕 New championship</button>
+      </div>`;
+    $('#podium').classList.add('show');
+    if (withFx) { SFX.win(); Confetti.rain(260); setTimeout(() => Confetti.burst(160, innerWidth * .3, innerHeight * .4), 600); setTimeout(() => Confetti.burst(160, innerWidth * .7, innerHeight * .4), 1100); }
+  }
+  function hidePodium() { $('#podium').classList.remove('show'); }
+
+  function download(name, text, type = 'application/json') {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type }));
+    a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+  const stamp = () => new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+  const csvCell = v => /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
+
+  function exportResults() {
+    if (!game) return;
+    const rows = [['Place', 'Group', 'Points', 'Square', 'Correct', 'Attempts', 'Students']];
+    standings().forEach((t, i) => rows.push([i + 1, t.name, t.points, t.pos, t.correct, t.attempts, t.members.join('; ')]));
+    download(`physics-championship-results-${stamp()}.csv`, rows.map(r => r.map(csvCell).join(',')).join('\n'), 'text/csv');
+  }
+  function exportSave() {
+    if (!game) { toast('No game to export'); return; }
+    saveAuto();
+    download(`physics-championship-save-${stamp()}.json`, JSON.stringify(STORE.get(KEYS.save, { game, used: prefs.used }), null, 1));
+  }
+  function validGame(g) {
+    return g && BOARDS[g.size] && Array.isArray(g.teams) && g.teams.length === 4 && g.teams.every(t => typeof t.pos === 'number' && t.pos >= 1 && t.pos <= g.size && Array.isArray(t.members) && t.members.length) && g.settings && g.settings.timers;
+  }
+  function loadSaveObj(obj) {
+    if (!obj || !validGame(obj.game)) { toast('⚠️ That file is not a valid saved game.'); return false; }
+    if (Array.isArray(obj.used)) { prefs.used = obj.used; savePrefs(); }
+    startGame(obj.game, { title: 'WELCOME BACK!' });
+    toast('📂 Game loaded');
+    return true;
+  }
+
+  /* ───────────────────────── File input ───────────────────────── */
+  let fileHandler = null;
+  function pickFile(accept, fn) {
+    const inp = $('#fileInput'); inp.value = ''; inp.accept = accept; fileHandler = fn; inp.click();
+  }
+  $('#fileInput').addEventListener('change', e => {
+    const f = e.target.files[0]; if (!f || !fileHandler) return;
+    const r = new FileReader(); const fn = fileHandler;
+    r.onload = () => fn(String(r.result), f.name);
+    r.readAsText(f);
+  });
+
+  /* ───────────────────────── Tool modal / dialog ───────────────────────── */
+  function openTool(html, cls = '') {
+    const m = $('#toolModal'), old = $('.modal-card', m), c = old.cloneNode(false); // fresh node drops old listeners
+    old.replaceWith(c);
+    c.className = 'modal-card ' + cls; c.innerHTML = html; m.classList.add('show');
+    return c;
+  }
+  function closeTool() {
+    $('#toolModal').classList.remove('show'); if (setupOpen && game) setupOpen = false;
+    if (audienceOpen) { audienceOpen = false; stopQTimer(); QT.onEnd = null; }
+    toolKeys = null;
+  }
+  const toolOpen = () => $('#toolModal').classList.contains('show');
+
+  let dialogDone = null;
+  function confirmBox(msg, okLabel = 'OK', cancelLabel = 'Cancel') {
+    return new Promise(res => {
+      const m = $('#dialog'), c = $('.modal-card', m);
+      c.innerHTML = `<h2 style="font-size:26px">Please confirm</h2><p style="font-size:19px">${esc(msg)}</p>
+        <div class="row end">${cancelLabel ? `<button class="btn" data-dlg="0">${esc(cancelLabel)}</button>` : ''}<button class="btn gold" data-dlg="1">${esc(okLabel)}</button></div>`;
+      m.classList.add('show');
+      dialogDone = v => { m.classList.remove('show'); dialogDone = null; res(v); };
+      $$('[data-dlg]', c).forEach(b => b.addEventListener('click', () => dialogDone(b.dataset.dlg === '1')));
+    });
+  }
+
+  /* ───────────────────────── Setup screen ───────────────────────── */
+  function openSetup() {
+    setupOpen = true;
+    const s = prefs.setup, saved = STORE.get(KEYS.save, null);
+    const canResume = saved && validGame(saved.game);
+    const savedInfo = canResume ? `${saved.game.teams.map(t => t.name).join(', ')} · ${new Date(saved.savedAt).toLocaleString()}${saved.game.phase === 'over' ? ' (finished)' : ''}` : '';
+    const card = openTool(`
+      <div class="setup-hero"><div class="logo"><span>🐍</span><span>🎲</span><span>🪜</span></div>
+        <h1>Physics Snakes &amp; Ladders Championship</h1>
+        <p>Grade 10 Physics · four groups · answer to move · first to the top who solves the final challenge wins!</p></div>
+      ${canResume ? `<div class="panel" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px;border-color:var(--gold)">
+        <div style="flex:1;min-width:200px"><b style="font-size:18px">💾 Saved game found</b><div class="muted">${esc(savedInfo)}</div></div>
+        <button class="btn big gold" data-s="resume">▶ Resume saved game</button></div>` : ''}
+      <h3>👥 The four groups</h3>
+      <div class="teams-setup">${TEAMS.map((t, i) => `<div class="team-setup" style="--c:${t.color};--l:${t.light}">
+        <div class="ts-head"><span class="tok">${t.icon}</span> Group ${t.letter}</div>
+        <div class="field">Group name<input class="inp" data-name="${i}" maxlength="32" value="${esc(s.names[i] || t.name)}"></div>
+        <div class="field" style="margin-top:6px">Supporters’ section in the hall<input class="inp" data-sec="${i}" maxlength="30" placeholder="e.g. Left side, front rows" value="${esc((s.sections || [])[i] || '')}"></div>
+        <div class="field" style="margin-top:6px">Students (one per line — they take turns answering)<textarea data-mem="${i}" placeholder="Leave empty for Student 1–4">${esc(s.members[i] || '')}</textarea></div>
+      </div>`).join('')}</div>
+      <h3>⚙️ Match settings</h3>
+      <div class="settings-grid">
+        <div class="field">Board<div class="seg" data-seg="size"><button data-v="100" class="${s.size === 100 ? 'on' : ''}">100 squares</button><button data-v="50" class="${s.size === 50 ? 'on' : ''}">50 squares</button></div></div>
+        <div class="field">Competition time limit (minutes, 0 = none)<input class="inp" type="number" min="0" max="300" data-f="minutes" value="${s.minutes}"></div>
+        <div class="field">Question difficulty<div style="color:var(--text);font-size:15px">🎲 Set by the die: 1–2 Easy · 3–4 Moderate · 5–6 Challenging</div></div>
+        <div class="field">🙋 Ask-the-Audience lifelines per group<input class="inp" type="number" min="0" max="3" data-f="lifelines" value="${s.lifelines == null ? 1 : s.lifelines}"></div>
+        <div class="field">Finishing<label class="check"><input type="checkbox" data-f="exactFinish" ${s.exactFinish ? 'checked' : ''}> Exact roll needed to reach the last square</label></div>
+      </div>
+      <div class="field" style="margin-top:12px">Question timers (seconds)
+        <div class="timers-row">
+          ${[['E', '🌱 Easy'], ['M', '🔥 Moderate'], ['C', '💥 Challenging'], ['LS', '🪜🐍 Ladder/Snake'], ['F', '🏆 Final']].map(([k, l]) => `<label class="field">${l}<input class="inp" type="number" min="5" max="600" data-t="${k}" value="${s.timers[k]}"></label>`).join('')}
+        </div></div>
+      <h3>📚 Topics in play <small class="muted" style="font-size:14px">(${bank.length} questions in the bank)</small></h3>
+      <div class="cat-list">${Object.entries(CATS).map(([k, c]) => `<label class="check"><input type="checkbox" data-cat="${k}" ${s.cats.includes(+k) ? 'checked' : ''}> ${c.icon} ${esc(c.name)} <span class="muted">(${bank.filter(q => q.c === +k).length})</span></label>`).join('')}</div>
+      <div class="setup-actions">
+        ${game ? '<button class="btn big" data-s="cancel">✕ Back to current game</button>' : ''}
+        <button class="btn big" data-s="bank">📚 Question bank</button>
+        <button class="btn big" data-s="load">📂 Load save file</button>
+        <button class="btn big" data-s="help">❓ How to play</button>
+        <button class="btn big" data-s="welcome">📺 Preview welcome screen</button>
+        <button class="btn big gold" data-s="start">🚀 Start championship</button>
+      </div>`, 'setup');
+
+    const read = () => {
+      const n = {
+        names: TEAMS.map((t, i) => $(`[data-name="${i}"]`, card).value.trim() || t.name),
+        members: TEAMS.map((t, i) => $(`[data-mem="${i}"]`, card).value),
+        sections: TEAMS.map((t, i) => $(`[data-sec="${i}"]`, card).value.trim()),
+        lifelines: clamp(+$('[data-f="lifelines"]', card).value || 0, 0, 3),
+        size: +$('[data-seg="size"] .on', card).dataset.v,
+        minutes: clamp(+$('[data-f="minutes"]', card).value || 0, 0, 300),
+        exactFinish: $('[data-f="exactFinish"]', card).checked,
+        timers: {}, cats: $$('[data-cat]', card).filter(x => x.checked).map(x => +x.dataset.cat)
+      };
+      ['E', 'M', 'C', 'LS', 'F'].forEach(k => { n.timers[k] = clamp(+$(`[data-t="${k}"]`, card).value || 30, 5, 600); });
+      if (!n.cats.length) n.cats = [1, 2, 3, 4, 5, 6, 7, 8];
+      return n;
+    };
+    $$('[data-seg] button', card).forEach(b => b.addEventListener('click', () => {
+      $$('button', b.parentNode).forEach(x => x.classList.toggle('on', x === b));
+      if (!game) { prefs.setup.size = +b.dataset.v; buildBoard(); }
+    }));
+    card.addEventListener('input', () => { prefs.setup = read(); savePrefs(); });
+    $$('[data-s]', card).forEach(b => b.addEventListener('click', async () => {
+      const a = b.dataset.s;
+      if (a === 'start') {
+        prefs.setup = read(); savePrefs();
+        if (game && game.phase !== 'over' && !(await confirmBox('Start a NEW championship? The current match will be replaced.', 'Start new'))) return;
+        startGame(newGame(prefs.setup), { announce: false });
+        openWelcome(true);
+      } else if (a === 'resume') loadSaveObj(STORE.get(KEYS.save, null));
+      else if (a === 'load') pickFile('.json,application/json', txt => { try { loadSaveObj(JSON.parse(txt)); } catch (e) { toast('⚠️ Could not read that file.'); } });
+      else if (a === 'bank') { prefs.setup = read(); savePrefs(); openBank(true); }
+      else if (a === 'help') openHelp(true);
+      else if (a === 'welcome') { prefs.setup = read(); savePrefs(); openWelcome(false); }
+      else if (a === 'cancel') { setupOpen = false; closeTool(); }
+    }));
+  }
+
+  /* ───────────────────────── Audience question ───────────────────────── */
+  let audienceOpen = false, toolKeys = null;
+  function openAudienceQ() {
+    if (!game) { toast('Start the championship first.'); return; }
+    if (game.phase === 'busy' || flowOpen()) { toast('Finish the current turn first — then ask the audience.'); return; }
+    toggleDrawer(false);
+    let q, locked;
+    const show = () => {
+      q = drawQuestion(['E', 'M']); locked = false; audienceOpen = true;
+      const cat = CATS[q.c] || CATS[1];
+      const card = openTool(`
+        <div class="q-head"><span class="chip kind" style="background:linear-gradient(90deg,#ec4899,#7c3aed)">🎤 Audience Question</span>
+          <span class="chip">${cat.icon} ${esc(cat.name)}</span><span class="chip ${q.d}">${DIFF[q.d].name}</span><span class="chip pts">🎁 Prize question</span></div>
+        <div class="q-team" style="--c:#ec4899"><span style="font-size:30px">🙋</span><b>Audience</b><span class="student">First correct hand wins!</span></div>
+        <div class="q-body"><div>
+          <div class="q-text">${esc(q.q)}</div>
+          <div class="options">${q.o.map((x, i) => `<button class="opt" data-i="${i}"><span class="letter">${'ABCD'[i]}</span><span>${esc(x)}</span></button>`).join('')}</div>
+          <div class="answer-slot"><div class="hidden-answer">👆 Choose a student with a raised hand, then tap their answer (or press A–D).</div></div>
+        </div>
+        <div class="timer"><svg viewBox="0 0 120 120"><circle class="track" cx="60" cy="60" r="52"/><circle class="prog" cx="60" cy="60" r="52" stroke-dasharray="${CIRC.toFixed(1)}" stroke-dashoffset="0"/></svg><div class="t-num"></div></div></div>
+        <div class="q-actions">
+          <button class="btn" data-aq="show">👁 Show answer</button><button class="btn" data-aq="next">↻ Another audience question</button>
+          <span class="spacer"></span><button class="btn big gold" data-aq="close">🎲 Back to the game <kbd>Esc</kbd></button></div>`, 'q-wide');
+      const reveal = p => {
+        if (locked) return; locked = true; stopQTimer(); QT.onEnd = null;
+        const ok = p === q.a;
+        $$('.opt', card).forEach((b, i) => { b.disabled = true; b.classList.toggle('right', i === q.a); b.classList.toggle('wrong', i !== q.a); b.classList.toggle('picked', i === p); });
+        if (p != null) { if (ok) { SFX.correct(); Confetti.burst(120); } else SFX.wrong(); } else SFX.special();
+        const head = p == null ? '📢 The answer is…' : ok ? '🎉 Correct — a prize for that student!' : '❌ Not quite — anyone else?';
+        $('.answer-slot', card).innerHTML = `<div class="answer-box ${p == null || ok ? '' : 'bad'}"><div class="verdict-line">${head}</div><b>Answer:</b> ${'ABCD'[q.a]}) ${esc(q.o[q.a])}${q.x ? `<div class="why">💡 ${esc(q.x)}</div>` : ''}</div>`;
+      };
+      $$('.opt', card).forEach(b => b.addEventListener('click', () => reveal(+b.dataset.i)));
+      $$('[data-aq]', card).forEach(b => b.addEventListener('click', () => ({ show: () => reveal(null), next: show, close: closeTool })[b.dataset.aq]()));
+      startQTimer(Math.max(15, timers().E), $('.timer', card));
+      QT.onEnd = () => reveal(null);
+      toolKeys = { n: show, enter: closeTool };
+      ['a', 'b', 'c', 'd'].forEach((k, i) => { toolKeys[k] = () => reveal(i); toolKeys[String(i + 1)] = () => reveal(i); });
+      SFX.special();
+    };
+    show();
+  }
+
+  /* ───────────────────────── Welcome / rules slideshow ───────────────────────── */
+  let welcomeOpen = false, welcomeIv = null, welcomeSlide = 0, welcomeStart = false;
+  function welcomeSlides() {
+    const teams = game ? game.teams : TEAMS.map((t, i) => Object.assign({}, t, { name: prefs.setup.names[i] || t.name, section: (prefs.setup.sections || [])[i] || '' }));
+    const size = game ? game.size : prefs.setup.size;
+    return [
+      `<div class="w-kicker">Welcome to the</div><h1 class="w-title">Grade 10 Physics<br>Snakes &amp; Ladders Championship</h1>
+       <div class="w-teams">${teams.map(t => `<div class="w-team" style="--c:${t.color};--l:${t.light}"><div class="w-tok">${t.icon}</div><div class="w-name">${esc(t.name)}</div>${t.section ? `<div class="w-sec">📣 Supporters: ${esc(t.section)}</div>` : ''}</div>`).join('')}</div>
+       <div class="w-foot">🎲 Four groups · 🧠 Physics questions · 🏆 One champion</div>`,
+      `<h2 class="w-h">🎲 How to play</h2><ul class="w-list">
+        <li>Groups take turns rolling the die.</li>
+        <li>The roll decides the question: <b class="tE">1–2 Easy · 5 pts</b>, <b class="tM">3–4 Moderate · 10 pts</b>, <b class="tC">5–6 Challenging · 15 pts</b></li>
+        <li>✅ Correct answer → earn the points and move forward by the roll.</li>
+        <li>❌ Wrong answer or time runs out → stay where you are.</li>
+        <li>🏆 Reach square ${size} and answer the <b>Final Challenge</b> to win!</li></ul>`,
+      `<h2 class="w-h">🪜 Snakes, ladders &amp; power-ups</h2>
+       <div class="w-two"><div class="w-card" style="--c:#fbbf24">🪜 <b>Ladder</b><br>Answer a bonus question to climb up (+15)</div><div class="w-card" style="--c:#22c55e">🐍 <b>Snake</b><br>Answer a rescue question or slide down (+15)</div></div>
+       <div class="w-specials">${Object.values(SPECIALS).map(sp => `<div style="--c:${sp.color}"><span>${sp.icon}</span>${esc(sp.name)}</div>`).join('')}</div>`,
+      `<h2 class="w-h">📣 Audience rules</h2><ul class="w-list">
+        <li>📣 Cheer loudly for your group!</li>
+        <li>🤫 <b>Never shout out answers</b> — the question will be replaced.</li>
+        <li>🙋 Each group has an <b>Ask the Audience</b> lifeline — when it is used, raise your hand for A, B, C or D.</li>
+        <li>🎤 Watch out for <b>audience questions</b> — the first correct hand wins a prize!</li></ul>`
+    ];
+  }
+  function openWelcome(startAfter) {
+    if (!startAfter && flowOpen()) { toast('Finish the current turn first.'); return; }
+    welcomeOpen = true; welcomeStart = !!startAfter; welcomeSlide = 0;
+    toggleDrawer(false);
+    const el = $('#welcome'), slides = welcomeSlides();
+    el.innerHTML = `<div class="w-rays"></div><div class="w-stage">${slides.map((h, i) => `<section class="w-slide ${i === 0 ? 'on' : ''}">${h}</section>`).join('')}</div>
+      <div class="w-bar"><button class="btn" data-w="prev">←</button><div class="w-dots">${slides.map((_, i) => `<i data-dot="${i}" class="${i === 0 ? 'on' : ''}"></i>`).join('')}</div><button class="btn" data-w="next">→</button>
+      <span class="spacer"></span><button class="btn big gold" data-w="go">${startAfter ? '🎬 Start the show' : '🎲 Back to the game'} <kbd>Enter</kbd></button></div>`;
+    el.classList.add('show');
+    $$('[data-w]', el).forEach(b => b.addEventListener('click', () => ({ prev: () => goSlide(-1), next: () => goSlide(1), go: closeWelcome })[b.dataset.w]()));
+    $$('[data-dot]', el).forEach(d => d.addEventListener('click', () => goSlide(+d.dataset.dot - welcomeSlide)));
+    clearInterval(welcomeIv); welcomeIv = setInterval(() => goSlide(1), 12000);
+  }
+  function goSlide(d) {
+    const el = $('#welcome'), sl = $$('.w-slide', el), n = sl.length;
+    welcomeSlide = ((welcomeSlide + d) % n + n) % n;
+    sl.forEach((x, i) => x.classList.toggle('on', i === welcomeSlide));
+    $$('[data-dot]', el).forEach((x, i) => x.classList.toggle('on', i === welcomeSlide));
+  }
+  function closeWelcome() {
+    if (!welcomeOpen) return;
+    welcomeOpen = false; clearInterval(welcomeIv); $('#welcome').classList.remove('show');
+    if (welcomeStart && game) {
+      welcomeStart = false; SFX.special(); Confetti.burst(160);
+      announce({ icon: '🎲', title: 'LET’S PLAY!', sub: `${cur().name} goes first · Good luck, physicists!`, color: '#22d3ee', ms: 2000 });
+    }
+  }
+
+  /* ───────────────────────── Help ───────────────────────── */
+  function openHelp(fromSetup) {
+    const b = B();
+    const card = openTool(`<h2>❓ How to play</h2>
+      <ol style="font-size:19px;line-height:1.5;margin-top:0">
+        <li>Groups take turns. The teacher rolls the die (<b>Space</b>).</li>
+        <li>The roll sets the question: <b>1–2 Easy</b> (5 pts), <b>3–4 Moderate</b> (10 pts), <b>5–6 Challenging</b> (15 pts). A rotating student answers the multiple-choice question (with help from the group) before the timer ends.</li>
+        <li>Tap the option the group chooses. The game checks it automatically and shows the correct answer. Correct = earn points and move forward by the roll. Wrong (or time runs out) = stay put.</li>
+        <li><b>Ladder foot 🪜</b>: answer a bonus question to climb. <b>Snake head 🐍</b>: answer a rescue question or slide down.</li>
+        <li>Reaching square ${b.size} triggers the <b>Final Challenge</b>. Miss it? Stay on ${b.size} and try again next turn.</li>
+        <li>If the competition clock runs out, the group with the most points wins (board position breaks ties).</li>
+      </ol>
+      <div class="row" style="align-items:flex-start;gap:28px">
+        <div><h3>⭐ Points</h3><table class="pts"><tr><th>Question</th><th>Points</th></tr>
+          <tr><td>🌱 Easy</td><td>5</td></tr><tr><td>🔥 Moderate</td><td>10</td></tr><tr><td>💥 Challenging</td><td>15</td></tr>
+          <tr><td>🪜 Ladder Challenge</td><td>15</td></tr><tr><td>🐍 Snake Rescue</td><td>15</td></tr><tr><td>🏆 Final Challenge</td><td>15</td></tr><tr><td>🎯 Head-to-head win</td><td>10</td></tr></table></div>
+        <div><h3>⌨️ Teacher shortcuts</h3><div class="help-grid">
+          <kbd>Space</kbd><span>Roll the die / continue</span><kbd>1–4</kbd><span>Same as A–D</span>
+          <kbd>A B C D</kbd><span>Lock in the group’s answer</span><kbd>Enter</kbd><span>Continue after the answer</span>
+          <kbd>S</kbd><span>Replace question</span><kbd>+</kbd><span>Add 15 s to the timer</span><kbd>P</kbd><span>Pause game</span>
+          <kbd>V</kbd><span>Ask the Audience (during a question)</span><kbd>Q</kbd><span>Audience question (between turns)</span><kbd>W</kbd><span>Welcome / rules slideshow</span><kbd>U</kbd><span>Undo last move</span><kbd>T</kbd><span>Teacher panel</span><kbd>F</kbd><span>Full-screen</span><kbd>M</kbd><span>Sound on/off</span></div></div>
+      </div>
+      <h3>✨ Special squares</h3>
+      <div class="legend">${Object.values(SPECIALS).map(s => `<div><span>${s.icon}</span><div><b>${s.name}</b><br><span class="muted">${s.desc}</span></div></div>`).join('')}</div>
+      <p class="muted">Movement caused by a special square can trigger a snake or ladder, but never another special square — so effects cannot loop.</p>
+      <div class="row end"><button class="btn big gold" data-close>${fromSetup ? '← Back' : 'Close'}</button></div>`);
+    $('[data-close]', card).addEventListener('click', () => (fromSetup ? openSetup() : closeTool()));
+  }
+
+  /* ───────────────────────── Question bank editor ───────────────────────── */
+  const bankView = { cat: 0, diff: '', text: '' };
+  function openBank(fromSetup) {
+    const usedSet = new Set(prefs.used);
+    const card = openTool(`<h2>📚 Question Bank</h2>
+      <div class="bank-stats">
+        <span class="chip">Total: ${bank.length}</span>
+        ${['E', 'M', 'C'].map(d => `<span class="chip ${d}">${DIFF[d].name}: ${bank.filter(q => q.d === d).length}</span>`).join('')}
+        <span class="chip">Used this cycle: ${bank.filter(q => usedSet.has(q.id)).length}</span>
+      </div>
+      <div class="bank-tools">
+        <select class="inp" data-b="cat"><option value="0">All topics</option>${Object.entries(CATS).map(([k, c]) => `<option value="${k}" ${bankView.cat === +k ? 'selected' : ''}>${c.icon} ${esc(c.name)}</option>`).join('')}</select>
+        <select class="inp" data-b="diff"><option value="">All levels</option>${['E', 'M', 'C'].map(d => `<option value="${d}" ${bankView.diff === d ? 'selected' : ''}>${DIFF[d].name}</option>`).join('')}</select>
+        <input class="inp" data-b="text" placeholder="🔍 Search questions…" value="${esc(bankView.text)}">
+      </div>
+      <div class="bank-tools">
+        <button class="btn gold" data-bk="add">➕ Add question</button>
+        <button class="btn" data-bk="import">⬆ Import (JSON / CSV)</button>
+        <button class="btn" data-bk="export">⬇ Export JSON</button>
+        <button class="btn" data-bk="template">⬇ CSV template</button>
+        <button class="btn" data-bk="resetUsed">♻️ Reset “used”</button>
+        <button class="btn red" data-bk="defaults">↺ Restore 100 defaults</button>
+      </div>
+      <div class="bank-list" id="bankList"></div>
+      <div class="row end" style="margin-top:14px"><button class="btn big gold" data-bk="close">${fromSetup ? '← Back to setup' : 'Close'}</button></div>`, 'bank');
+
+    const list = $('#bankList', card);
+    const paint = () => {
+      const t = bankView.text.toLowerCase();
+      const items = bank.filter(q => (!bankView.cat || q.c === bankView.cat) && (!bankView.diff || q.d === bankView.diff) && (!t || (q.q + ' ' + (q.ans || '') + ' ' + (q.o || []).join(' ')).toLowerCase().includes(t)));
+      list.innerHTML = items.length ? items.map(q => `<div class="bank-item ${usedSet.has(q.id) ? 'used' : ''}">
+          <span class="chip cat" title="${esc((CATS[q.c] || {}).name)}">${(CATS[q.c] || {}).icon || '?'}</span><span class="chip ${q.d}">${q.d}</span>
+          <div class="bi-q">${esc(q.q)}<small>${esc(TYPES[q.t] || q.t)} · ${esc(q.o && q.a != null ? q.o[q.a] : q.ans || '')}${usedSet.has(q.id) ? ' · used' : ''}</small></div>
+          <div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-edit="${esc(q.id)}" title="Edit">✏️</button><button class="btn sm" data-del="${esc(q.id)}" title="Delete">🗑</button></div></div>`).join('')
+        : '<div class="muted" style="padding:20px;text-align:center">No questions match.</div>';
+    };
+    paint();
+    $('[data-b="cat"]', card).addEventListener('change', e => { bankView.cat = +e.target.value; paint(); });
+    $('[data-b="diff"]', card).addEventListener('change', e => { bankView.diff = e.target.value; paint(); });
+    $('[data-b="text"]', card).addEventListener('input', e => { bankView.text = e.target.value; paint(); });
+    list.addEventListener('click', async e => {
+      const ed = e.target.closest('[data-edit]'), del = e.target.closest('[data-del]');
+      if (ed) openEditor(bank.find(q => q.id === ed.dataset.edit), fromSetup);
+      if (del) {
+        const q = bank.find(x => x.id === del.dataset.del);
+        if (q && await confirmBox(`Delete this question?\n“${q.q.slice(0, 120)}”`, 'Delete')) { bank = bank.filter(x => x !== q); saveBank(); openBank(fromSetup); toast('🗑 Question deleted'); }
+      }
+    });
+    $$('[data-bk]', card).forEach(b => b.addEventListener('click', async () => {
+      const a = b.dataset.bk;
+      if (a === 'close') fromSetup ? openSetup() : closeTool();
+      else if (a === 'add') openEditor(null, fromSetup);
+      else if (a === 'export') download(`physics-question-bank-${stamp()}.json`, JSON.stringify(bank, null, 1));
+      else if (a === 'template') download('question-bank-template.csv',
+        'category,difficulty,type,question,optionA,optionB,optionC,optionD,answer,explanation\n' +
+        '5,Easy,mcq,What is the unit of stress?,N,m,N/m² (Pa),no unit,C,σ = T ÷ A\n' +
+        '8,Challenging,mcq,"An object weighs 10 N in air and 6 N in water. What is the buoyant force?",16 N,6 N,4 N,10 N,C,FB = 10 − 6 = 4 N\n', 'text/csv');
+      else if (a === 'resetUsed') { prefs.used = []; savePrefs(); toast('♻️ All questions are available again'); openBank(fromSetup); }
+      else if (a === 'defaults') {
+        if (await confirmBox('Replace the whole bank with the 100 built-in questions? Your custom questions will be removed.', 'Restore defaults')) {
+          bank = clone(window.DEFAULT_QUESTIONS); saveBank(); prefs.used = []; savePrefs(); openBank(fromSetup); toast('↺ Default questions restored');
+        }
+      } else if (a === 'import') pickFile('.json,.csv,application/json,text/csv', (txt, name) => importQuestions(txt, name, fromSetup));
+    }));
+  }
+
+  function openEditor(q, fromSetup) {
+    const isNew = !q;
+    q = q ? clone(q) : { c: bankView.cat || 1, d: bankView.diff || 'M', t: 'mcq', q: '', o: ['', '', '', ''], a: 0, ans: '', x: '' };
+    const opts = (q.o && q.o.length ? q.o : ['', '', '', '']).concat(['', '', '', '']).slice(0, 4);
+    const card = openTool(`<h2>${isNew ? '➕ Add question' : '✏️ Edit question'}</h2>
+      <div class="editor-grid">
+        <label class="field">Topic<select class="inp" data-e="c">${Object.entries(CATS).map(([k, c]) => `<option value="${k}" ${q.c === +k ? 'selected' : ''}>${c.icon} ${esc(c.name)}</option>`).join('')}</select></label>
+        <label class="field">Difficulty<select class="inp" data-e="d">${['E', 'M', 'C'].map(d => `<option value="${d}" ${q.d === d ? 'selected' : ''}>${DIFF[d].name}</option>`).join('')}</select></label>
+        <div class="field">Type<div style="color:var(--text);font-size:16px;padding:9px 0">Multiple choice (4 options)</div></div>
+        <label class="field wide">Question<textarea data-e="q" rows="3">${esc(q.q)}</textarea></label>
+        <div class="field wide">Options (tick the correct one)
+          <div class="opts-grid">${opts.map((o, i) => `<label class="check" style="gap:8px"><input type="radio" name="corr" value="${i}" ${q.a === i ? 'checked' : ''}><b>${'ABCD'[i]}</b><input class="inp" style="flex:1" data-o="${i}" value="${esc(o)}"></label>`).join('')}</div></div>
+        <label class="field wide">Explanation (shown after reveal, optional)<textarea data-e="x" rows="2">${esc(q.x || '')}</textarea></label>
+      </div>
+      <div class="row end" style="margin-top:14px"><button class="btn big" data-ed="cancel">Cancel</button><button class="btn big gold" data-ed="save">💾 Save question</button></div>`, 'bank');
+    $('[data-ed="cancel"]', card).addEventListener('click', () => openBank(fromSetup));
+    $('[data-ed="save"]', card).addEventListener('click', () => {
+      const n = { id: isNew ? 'u' + Date.now().toString(36) + rand(1000) : q.id, c: +$('[data-e="c"]', card).value, d: $('[data-e="d"]', card).value, t: 'mcq', q: $('[data-e="q"]', card).value.trim(), x: $('[data-e="x"]', card).value.trim() };
+      if (!n.q) { toast('⚠️ Please type the question.'); return; }
+      const raw = [0, 1, 2, 3].map(i => $(`[data-o="${i}"]`, card).value.trim());
+      const sel = $('input[name="corr"]:checked', card);
+      if (raw.some(v => !v)) { toast('⚠️ Please fill in all four options.'); return; }
+      if (!sel) { toast('⚠️ Tick the correct option.'); return; }
+      n.o = raw; n.a = +sel.value;
+      if (isNew) bank.push(n); else bank[bank.findIndex(x => x.id === q.id)] = n;
+      saveBank(); toast(isNew ? '➕ Question added' : '💾 Question saved'); openBank(fromSetup);
+    });
+  }
+
+  function parseCSV(text) {
+    const rows = []; let row = [], cell = '', q = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (q) {
+        if (ch === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; }
+        else cell += ch;
+      } else if (ch === '"') q = true;
+      else if (ch === ',') { row.push(cell); cell = ''; }
+      else if (ch === '\n' || ch === '\r') { if (ch === '\r' && text[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }
+      else cell += ch;
+    }
+    if (cell || row.length) { row.push(cell); rows.push(row); }
+    return rows.filter(r => r.some(c => c.trim()));
+  }
+
+  function normQ(o, i) {
+    const s = v => (v == null ? '' : String(v)).trim();
+    let c = s(o.c != null ? o.c : o.category != null ? o.category : o.topic);
+    if (!/^\d$/.test(c)) { const lc = c.toLowerCase(); const f = Object.entries(CATS).find(([, v]) => lc && v.name.toLowerCase().includes(lc.split(/[ &,]/)[0])); c = f ? f[0] : ''; }
+    c = +c; if (!CATS[c]) return null;
+    const dRaw = s(o.d != null ? o.d : o.difficulty != null ? o.difficulty : o.level).toLowerCase();
+    const d = /^e/.test(dRaw) ? 'E' : /^(m|med)/.test(dRaw) ? 'M' : /^(c|h)/.test(dRaw) ? 'C' : null;
+    if (!d) return null;
+    const text = s(o.q != null ? o.q : o.question); if (!text) return null;
+    let opts = Array.isArray(o.o) ? o.o : Array.isArray(o.options) ? o.options : [o.optionA, o.optionB, o.optionC, o.optionD];
+    opts = opts.map(s).filter(Boolean);
+    const ansRaw = s(o.ans != null ? o.ans : o.answer);
+    const n = { id: 'u' + Date.now().toString(36) + '_' + i, c, d, t: 'mcq', q: text, x: s(o.x != null ? o.x : o.explanation) };
+    if (opts.length < 3 || opts.every(x => /^(true|false)$/i.test(x))) return null; // multiple choice only
+    let a = o.a != null ? +o.a : o.correct != null && /^\d+$/.test(String(o.correct)) ? +o.correct : -1;
+    if (a < 0 && /^[A-Da-d]$/.test(ansRaw)) a = 'abcd'.indexOf(ansRaw.toLowerCase());
+    if (a < 0) a = opts.findIndex(x => x.toLowerCase() === ansRaw.toLowerCase());
+    if (!(a >= 0 && a < opts.length)) return null;
+    n.o = opts; n.a = a;
+    return n;
+  }
+
+  async function importQuestions(txt, name, fromSetup) {
+    let raw = [];
+    try {
+      if (/\.json$/i.test(name) || /^\s*[[{]/.test(txt)) {
+        const j = JSON.parse(txt); raw = Array.isArray(j) ? j : Array.isArray(j.questions) ? j.questions : [];
+      } else {
+        const rows = parseCSV(txt);
+        if (rows.length && /categ|topic/i.test(rows[0][0] || '')) rows.shift();
+        raw = rows.map(r => ({ category: r[0], difficulty: r[1], type: r[2], question: r[3], optionA: r[4], optionB: r[5], optionC: r[6], optionD: r[7], answer: r[8], explanation: r[9] }));
+      }
+    } catch (e) { toast('⚠️ Could not read that file.'); return; }
+    const good = raw.map(normQ).filter(Boolean), bad = raw.length - good.length;
+    if (!good.length) { toast('⚠️ No valid multiple-choice questions found. Check the CSV template.'); return; }
+    const replace = await confirmBox(`Found ${good.length} valid question(s)${bad ? ` (${bad} skipped)` : ''}. Add them to the bank, or replace the whole bank?`, 'Replace bank', 'Add to bank');
+    if (replace) { bank = good; prefs.used = []; savePrefs(); } else bank = bank.concat(good);
+    saveBank(); toast(`⬆ Imported ${good.length} question(s)`); openBank(fromSetup);
+  }
+
+  /* ───────────────────────── Teacher drawer ───────────────────────── */
+  function toggleDrawer(force) {
+    const d = $('#drawer'), open = force != null ? force : !d.classList.contains('open');
+    d.classList.toggle('open', open); d.setAttribute('aria-hidden', String(!open));
+    if (open) renderDrawer();
+  }
+  function renderDrawer() {
+    const body = $('#drawerBody'), active = document.activeElement;
+    if (active && body.contains(active) && /INPUT|SELECT/.test(active.tagName)) return; // don't clobber typing
+    const g = game, s = g ? g.settings : prefs.setup;
+    body.innerHTML = `
+      <section><h3>🎮 Game</h3><div class="grid3">
+        <button class="btn ${g && g.paused ? 'gold' : ''}" data-d="pause">${g && g.paused ? '▶ Resume' : '⏸ Pause'}</button>
+        <button class="btn" data-d="restart">⟲ Restart</button>
+        <button class="btn" data-d="setup">🆕 New / setup</button>
+        <button class="btn" data-d="save">💾 Save</button>
+        <button class="btn" data-d="export">⬇ Export save</button>
+        <button class="btn" data-d="load">📂 Load save</button>
+      </div></section>
+      <section><h3>🎲 Current turn ${g ? `— <span style="color:${cur().color}">${esc(cur().name)}</span>` : ''}</h3><div class="grid3">
+        <button class="btn gold" data-d="roll">🎲 Roll</button>
+        <button class="btn" data-d="replace">↻ Replace Q</button>
+        <button class="btn" data-d="skip">⏭ Skip turn</button>
+        <button class="btn" data-d="undo">↶ Undo (${history.length})</button>
+        <button class="btn" data-d="qtimer">⏯ Q-timer</button>
+        <button class="btn" data-d="qmore">+15 s</button>
+      </div>
+      ${g ? `<div class="row" style="margin-top:8px"><span class="muted">Turn order:</span><select class="inp" data-d-set="turn">${g.teams.map(t => `<option value="${t.id}" ${g.turn === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></div>` : ''}
+      </section>
+      <section><h3>🏅 Scores &amp; positions</h3>
+        ${g ? g.teams.map(t => `<div class="adj-row" style="--c:${t.color}"><div class="an">${t.icon} ${esc(t.name)}</div>
+          <div class="grp"><button class="btn sm" data-adj="pts" data-t="${t.id}" data-v="-5">−5</button><span>${t.points}<br><small>pts</small></span><button class="btn sm" data-adj="pts" data-t="${t.id}" data-v="5">+5</button></div>
+          <div class="grp"><button class="btn sm" data-adj="pos" data-t="${t.id}" data-v="-1">−1</button><span>${t.pos}<br><small>sq</small></span><button class="btn sm" data-adj="pos" data-t="${t.id}" data-v="1">+1</button></div></div>`).join('') + '<button class="btn" data-d="adjust" style="width:100%">✏️ Edit exact values, shields &amp; power-ups…</button>' : '<div class="muted">Start a match first.</div>'}
+      </section>
+      <section><h3>⏱ Timers</h3>
+        <div class="row" style="margin-bottom:8px"><span>Competition clock: <b>${g && g.timeLimit ? fmtTime(g.timeLeft) : '∞ (no limit)'}</b></span></div>
+        <div class="grid3"><button class="btn" data-d="clock-5">−5 min</button><button class="btn" data-d="clock+5">+5 min</button><button class="btn" data-d="clockOff">∞ No limit</button></div>
+        <div class="row" style="margin-top:8px"><input class="inp" type="number" min="1" max="300" style="width:90px" data-d-set="clockMin" placeholder="min"><button class="btn" data-d="clockSet">Set clock</button><button class="btn red" data-d="endNow">🏁 End now</button></div>
+        <div class="field" style="margin-top:10px">Question timers (seconds)
+          <div class="grid3">${[['E', 'Easy'], ['M', 'Moderate'], ['C', 'Challenging'], ['LS', 'Ladder/Snake'], ['F', 'Final']].map(([k, l]) => `<label class="field">${l}<input class="inp" type="number" min="5" max="600" data-qt="${k}" value="${s.timers[k]}"></label>`).join('')}</div></div>
+      </section>
+      <section><h3>⚙️ Options</h3>
+        <label class="check"><input type="checkbox" data-opt="sound" ${prefs.sound ? 'checked' : ''}> Sound effects</label><br>
+        <label class="check"><input type="checkbox" data-opt="exact" ${s.exactFinish ? 'checked' : ''}> Exact roll needed to finish</label>
+      </section>
+      <section><h3>🧰 Tools</h3><div class="grid3">
+        <button class="btn" data-d="audienceQ">🎤 Audience Q</button><button class="btn" data-d="welcome">📺 Welcome / rules</button>
+        <button class="btn" data-d="bank">📚 Questions</button><button class="btn" data-d="help">❓ Rules / keys</button><button class="btn" data-d="fullscreen">⛶ Full-screen</button>
+      </div></section>`;
+  }
+
+  $('#drawerBody').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    b.blur();
+    if (b.dataset.adj) {
+      if (!game) return;
+      const t = game.teams[+b.dataset.t], v = +b.dataset.v;
+      pushSnapshot();
+      if (b.dataset.adj === 'pts') { t.points = Math.max(0, t.points + v); log(`✏️ Teacher adjusted ${t.name}'s points to ${t.points}`, t); }
+      else { t.pos = clamp(t.pos + v, 1, game.size); log(`✏️ Teacher moved ${t.name} to square ${t.pos}`, t); }
+      saveAuto(); render(); return;
+    }
+    const a = b.dataset.d, fk = flowKeys || {};
+    const need = fn => fn ? fn() : toast('No question is open right now.');
+    switch (a) {
+      case 'pause': togglePause(); break;
+      case 'restart': restart(); break;
+      case 'setup': toggleDrawer(false); openSetup(); break;
+      case 'save': manualSave(); break;
+      case 'export': exportSave(); break;
+      case 'load': pickFile('.json,application/json', txt => { try { loadSaveObj(JSON.parse(txt)); } catch (err) { toast('⚠️ Could not read that file.'); } }); break;
+      case 'roll': if (game && game.phase === 'roll') { toggleDrawer(false); onRoll(); } else toast('Cannot roll right now.'); break;
+      case 'replace': need(fk._replace); break;
+      case 'skip': skipTurn(); break;
+      case 'undo': undo(); break;
+      case 'qtimer': toggleQTimer(); break;
+      case 'qmore': addQTime(15); break;
+      case 'adjust': openAdjust(); break;
+      case 'clock-5': case 'clock+5':
+        if (game) { if (!game.timeLimit) { game.timeLimit = game.timeLeft = 0; } game.timeLeft = Math.max(10, game.timeLeft + (a === 'clock+5' ? 300 : -300)); game.timeLimit = Math.max(game.timeLimit, game.timeLeft); renderClock(); renderDrawer(); saveAuto(); }
+        break;
+      case 'clockOff': if (game) { game.timeLimit = 0; game.timeLeft = 0; renderClock(); renderDrawer(); saveAuto(); toast('⏱ No time limit'); } break;
+      case 'clockSet': {
+        const m = +$('[data-d-set="clockMin"]').value;
+        if (game && m > 0) { game.timeLimit = game.timeLeft = Math.round(m * 60); renderClock(); renderDrawer(); saveAuto(); toast(`⏱ Clock set to ${m} min`); }
+        break;
+      }
+      case 'endNow': endNow(); break;
+      case 'bank': openBank(false); break;
+      case 'audienceQ': openAudienceQ(); break;
+      case 'welcome': openWelcome(false); break;
+      case 'help': openHelp(false); break;
+      case 'fullscreen': toggleFullscreen(); break;
+    }
+  });
+  $('#drawerBody').addEventListener('change', e => {
+    const el = e.target, s = game ? game.settings : prefs.setup;
+    if (el.dataset.qt) { s.timers[el.dataset.qt] = clamp(+el.value || 30, 5, 600); if (game) prefs.setup.timers[el.dataset.qt] = s.timers[el.dataset.qt]; savePrefs(); saveAuto(); toast('⏱ Timer updated'); }
+    else if (el.dataset.opt === 'sound') toggleSound(el.checked);
+    else if (el.dataset.opt === 'exact') { s.exactFinish = el.checked; saveAuto(); }
+    else if (el.dataset.dSet === 'turn' && game) {
+      if (game.phase !== 'roll') { toast('Finish the current turn first (or Skip turn).'); renderDrawer(); return; }
+      pushSnapshot(); game.turn = +el.value; log(`✏️ Teacher passed the turn to ${cur().name}`, cur()); saveAuto(); render();
+    }
+  });
+
+  function openAdjust() {
+    if (!game) return;
+    const card = openTool(`<h2>✏️ Adjust groups</h2>
+      <p class="muted">Changes apply immediately and can be undone with ↶ Undo. Manual moves never trigger snakes, ladders or special squares.</p>
+      <div style="overflow:auto"><table class="standings" style="width:100%;margin:0">
+        <tr><th>Group</th><th>Name</th><th>Square</th><th>Points</th><th>🛡️ Shields</th><th>💎 Double</th><th>⚡ Extra turn</th><th>Next student</th><th>🙋 Lifelines</th><th>📣 Supporters</th></tr>
+        ${game.teams.map(t => `<tr style="--c:${t.color}"><td style="font-size:26px">${t.icon}</td>
+          <td><input class="inp" data-a="name" data-t="${t.id}" value="${esc(t.name)}" maxlength="32" style="width:150px"></td>
+          <td><input class="inp" type="number" min="1" max="${game.size}" data-a="pos" data-t="${t.id}" value="${t.pos}" style="width:80px"></td>
+          <td><input class="inp" type="number" min="0" data-a="points" data-t="${t.id}" value="${t.points}" style="width:90px"></td>
+          <td><input class="inp" type="number" min="0" max="9" data-a="shields" data-t="${t.id}" value="${t.shields}" style="width:70px"></td>
+          <td><input type="checkbox" data-a="double" data-t="${t.id}" ${t.double ? 'checked' : ''}></td>
+          <td><input type="checkbox" data-a="extraTurn" data-t="${t.id}" ${t.extraTurn ? 'checked' : ''}></td>
+          <td><select class="inp" data-a="memberIdx" data-t="${t.id}">${t.members.map((m, i) => `<option value="${i}" ${t.memberIdx % t.members.length === i ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select></td>
+          <td><input class="inp" type="number" min="0" max="3" data-a="lifelines" data-t="${t.id}" value="${t.lifelines || 0}" style="width:70px"></td>
+          <td><input class="inp" data-a="section" data-t="${t.id}" value="${esc(t.section || '')}" maxlength="30" style="width:150px"></td></tr>`).join('')}
+      </table></div>
+      <div class="field" style="margin-top:12px">Students (one line per group, comma-separated)
+        ${game.teams.map(t => `<input class="inp" data-a="members" data-t="${t.id}" value="${esc(t.members.join(', '))}" style="margin-top:4px">`).join('')}</div>
+      <div class="row end" style="margin-top:14px"><button class="btn big" data-x="cancel">Cancel</button><button class="btn big gold" data-x="apply">✔ Apply</button></div>`, 'bank');
+    $('[data-x="cancel"]', card).addEventListener('click', closeTool);
+    $('[data-x="apply"]', card).addEventListener('click', () => {
+      pushSnapshot();
+      game.teams.forEach(t => {
+        const v = k => $(`[data-a="${k}"][data-t="${t.id}"]`, card);
+        t.name = v('name').value.trim().slice(0, 32) || t.name;
+        t.pos = clamp(Math.round(+v('pos').value || 1), 1, game.size);
+        t.points = Math.max(0, Math.round(+v('points').value || 0));
+        t.shields = clamp(Math.round(+v('shields').value || 0), 0, 9);
+        t.double = v('double').checked; t.extraTurn = v('extraTurn').checked;
+        const mem = parseMembers(v('members').value);
+        const idx = +v('memberIdx').value;
+        t.members = mem; t.memberIdx = idx < mem.length ? idx : 0;
+        t.lifelines = clamp(Math.round(+v('lifelines').value || 0), 0, 3); t.section = v('section').value.trim().slice(0, 30);
+      });
+      log('✏️ Teacher edited group details'); closeTool(); saveAuto(); render(); toast('✔ Changes applied');
+    });
+  }
+
+  function restart() {
+    if (!game) { openSetup(); return; }
+    confirmBox('Restart the championship with the same groups and settings? All positions and points reset to zero.', 'Restart').then(ok => {
+      if (!ok) return;
+      const s = Object.assign({}, prefs.setup, {
+        size: game.size, names: game.teams.map(t => t.name), sections: game.teams.map(t => t.section || ''), members: game.teams.map(t => t.members.join('\n')),
+        minutes: Math.round(game.timeLimit / 60) || 0, timers: game.settings.timers,
+        exactFinish: game.settings.exactFinish, cats: game.settings.cats
+      });
+      startGame(newGame(s), { title: 'NEW MATCH!' });
+    });
+  }
+  function manualSave() { if (!game) { toast('No game to save'); return; } saveAuto(); toast('💾 Game saved on this computer — it can be resumed from the start screen'); }
+  function toggleSound(v) { prefs.sound = v != null ? v : !prefs.sound; savePrefs(); SFX.unlock(); if (prefs.sound) SFX.click(); render(); toast(prefs.sound ? '🔊 Sound on' : '🔇 Sound off', 1200); }
+  function toggleFullscreen() {
+    const d = document;
+    if (!d.fullscreenElement) (d.documentElement.requestFullscreen ? d.documentElement.requestFullscreen() : Promise.reject()).catch(() => toast('Full-screen not available — try F11'));
+    else d.exitFullscreen();
+  }
+
+  /* ───────────────────────── Global actions & keys ───────────────────────── */
+  const ACTIONS = {
+    roll: onRoll, pause: togglePause, audience: openAudienceQ, welcome: () => openWelcome(false), undo, save: manualSave, sound: () => toggleSound(), fullscreen: toggleFullscreen,
+    panel: () => toggleDrawer(), setup: () => { hidePodium(); openSetup(); },
+    'podium-close': hidePodium, results: exportResults, rematch: () => { hidePodium(); restart(); }
+  };
+  document.addEventListener('click', e => {
+    SFX.unlock();
+    const b = e.target.closest('[data-act]');
+    if (b && ACTIONS[b.dataset.act]) { if (e.detail) b.blur(); ACTIONS[b.dataset.act](); }
+    else { const btn = e.target.closest('button'); if (btn && e.detail) btn.blur(); }
+  });
+
+  document.addEventListener('keydown', e => {
+    SFX.unlock();
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') { if (e.key === 'Escape') e.target.blur(); return; }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); return; }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const k = e.key === ' ' ? ' ' : e.key.toLowerCase();
+    if (dialogDone) { if (k === 'escape') dialogDone(false); else if (k === 'enter') { e.preventDefault(); dialogDone(true); } return; }
+    if (welcomeOpen) {
+      if (k === 'arrowright') goSlide(1); else if (k === 'arrowleft') goSlide(-1);
+      else if (k === 'enter' || k === ' ' || k === 'escape') { e.preventDefault(); closeWelcome(); }
+      return;
+    }
+    if (toolOpen() && toolKeys && toolKeys[k]) { e.preventDefault(); toolKeys[k](); return; }
+    if (toolOpen()) { if (k === 'escape' && !(setupOpen && !game)) { closeTool(); setupOpen = false; } return; }
+    if (k === 'escape') { toggleDrawer(false); hidePodium(); return; }
+    if (k === 'p' && !(flowKeys && flowOpen() && QT.el && QT.el.isConnected)) { togglePause(); return; }
+    if (game && game.paused) { if (k === ' ' || k === 'enter') { e.preventDefault(); togglePause(); } return; }
+    if (flowKeys) {
+      const fn = flowKeys[k === ' ' ? ' ' : k] || (k === 'enter' && flowKeys.enter);
+      if (fn) { e.preventDefault(); fn(); return; }
+    }
+    switch (k) {
+      case ' ': case 'enter': case 'r': if (!flowOpen()) { e.preventDefault(); onRoll(); } break;
+      case 'u': undo(); break;
+      case 'f': toggleFullscreen(); break;
+      case 't': toggleDrawer(); break;
+      case 'm': toggleSound(); break;
+      case 'h': case '?': openHelp(false); break;
+      case 'q': openAudienceQ(); break;
+      case 'w': openWelcome(false); break;
+    }
+  });
+
+  // Competition clock
+  setInterval(() => {
+    if (!game || game.phase === 'over' || game.paused || !game.timeLimit || setupOpen || welcomeOpen || audienceOpen) return;
+    game.timeLeft = Math.max(0, game.timeLeft - 1);
+    renderClock();
+    if (game.timeLeft === 60) { toast('⏰ One minute left in the championship!'); SFX.tick(); }
+    if (game.timeLeft % 15 === 0) saveAuto();
+    if (game.timeLeft <= 0) timeUp();
+  }, 1000);
+
+  addEventListener('resize', () => { sizeBoard(); positionTokens(); });
+  document.addEventListener('fullscreenchange', () => setTimeout(() => { sizeBoard(); positionTokens(); }, 120));
+  addEventListener('beforeunload', saveAuto);
+
+  /* ───────────────────────── Boot ───────────────────────── */
+  buildDie();
+  buildBoard();
+  render();
+  openSetup();
+
+  // Small debugging hook (handy for teachers' IT staff; harmless otherwise)
+  window.PSL = { get game() { return game; }, get answer() { return curQ && flowOpen() ? curQ.a : null; }, BOARDS, SPECIALS, bankSize: () => bank.length };
+})();
+
+</script>
+</body>
+</html>

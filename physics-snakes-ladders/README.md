@@ -4,6 +4,9 @@ A classroom game show for four groups. Open `index.html` in any modern browser (
 
 When the repository is published with GitHub Pages it is at `/physics-snakes-ladders/`.
 
+## Offline version
+`physics-championship.html` is the whole game in a single file. Save it on the classroom laptop (or a USB stick) and double-click it to play in Chrome or Edge with no internet. Games save in that browser on that laptop. After changing the game or questions, rebuild it with `python3 build-offline.py`.
+
 ## Quick start
 1. Name the four groups and (optionally) list each group's students — they take turns answering.
 2. Choose a 100- or 50-square board, the competition time limit and the question timers, then press **Start championship**.
