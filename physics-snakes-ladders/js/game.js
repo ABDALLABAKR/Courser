@@ -83,12 +83,19 @@
   function defaultSetup() {
     return {
       names: TEAMS.map(t => t.name), members: ['', '', '', ''], sections: ['', '', '', ''], lifelines: 1, size: 100, minutes: 45,
-      timers: { E: 30, M: 45, C: 60, LS: 45, F: 60 }, exactFinish: false, cats: [1, 2, 3, 4, 5, 6, 7, 8]
+      timers: { E: 30, M: 30, C: 30, LS: 30, F: 30 }, exactFinish: false, cats: [1, 2, 3, 4, 5, 6, 7, 8]
     };
   }
   const prefs = Object.assign({ sound: true, used: [] }, STORE.get(KEYS.prefs, {}));
   prefs.setup = Object.assign(defaultSetup(), prefs.setup || {});
   prefs.setup.timers = Object.assign(defaultSetup().timers, prefs.setup.timers || {});
+  if (!prefs.timers30) {
+    // One-time switch: every question timer is 30 seconds (also in an autosaved game).
+    prefs.setup.timers = defaultSetup().timers; prefs.timers30 = true;
+    const sv = STORE.get('pslc.save.v1', null);
+    if (sv && sv.game && sv.game.settings) { sv.game.settings.timers = defaultSetup().timers; STORE.set('pslc.save.v1', sv); }
+    STORE.set(KEYS.prefs, prefs);
+  }
   const savePrefs = () => STORE.set(KEYS.prefs, prefs);
   prefs.used = (prefs.used || []).filter(id => !/^q\d+$/.test(id)); // drop ids of the old built-in bank
 
