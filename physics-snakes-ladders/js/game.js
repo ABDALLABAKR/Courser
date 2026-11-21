@@ -87,7 +87,7 @@
   /* ───────────────────────── Preferences & bank ───────────────────────── */
   function defaultSetup() {
     return {
-      names: TEAMS.map(t => t.name), members: ['', '', '', ''], size: 100, minutes: 45,
+      names: TEAMS.map(t => t.name), members: ['', '', '', ''], sections: ['', '', '', ''], lifelines: 1, size: 100, minutes: 45,
       timers: { E: 30, M: 45, C: 60, LS: 45, F: 60 }, exactFinish: false, cats: [1, 2, 3, 4, 5, 6, 7, 8]
     };
   }
@@ -214,7 +214,7 @@
       settings: { timers: Object.assign({}, s.timers), exactFinish: !!s.exactFinish, cats: s.cats.slice() },
       teams: TEAMS.map((d, i) => ({
         id: i, name: (String(s.names[i] || '').trim() || d.name).slice(0, 32), color: d.color, light: d.light, icon: d.icon, letter: d.letter,
-        members: parseMembers(s.members[i]), memberIdx: 0, pos: 1, points: 0, shields: 0, double: false, extraTurn: false, correct: 0, attempts: 0
+        members: parseMembers(s.members[i]), section: String((s.sections || [])[i] || '').trim().slice(0, 30), lifelines: s.lifelines == null ? 1 : +s.lifelines, memberIdx: 0, pos: 1, points: 0, shields: 0, double: false, extraTurn: false, correct: 0, attempts: 0
       })),
       turn: 0, round: 1, phase: 'roll', paused: false,
       timeLimit: Math.round(s.minutes * 60), timeLeft: Math.round(s.minutes * 60),
@@ -421,12 +421,13 @@
       el.classList.toggle('current', game.turn === t.id && game.phase !== 'over');
       const badges = [];
       if (t.shields) badges.push(`<span title="Snake protection">🛡️${t.shields > 1 ? '×' + t.shields : ''}</span>`);
+      if (t.lifelines > 0) badges.push(`<span title="Ask-the-Audience lifelines left">🙋${t.lifelines > 1 ? '×' + t.lifelines : ''}</span>`);
       if (t.double) badges.push('<span title="Double points on next correct answer">💎×2</span>');
       if (t.extraTurn) badges.push('<span title="Extra turn">⚡</span>');
       if (t.pos === game.size) badges.push('<span title="Waiting for the final challenge">🏁</span>');
       el.innerHTML = `<div class="rank">${medals[i]}</div><div class="tok">${t.icon}</div>
         <div style="min-width:0"><div class="nm">${esc(t.name)}</div>
-        <div class="sub">🎓 ${esc(studentOf(t))} · ✔ ${t.correct}/${t.attempts}</div>
+        <div class="sub">${t.section ? `📣 ${esc(t.section)} · ` : ''}🎓 ${esc(studentOf(t))} · ✔ ${t.correct}/${t.attempts}</div>
         <div class="bar"><span style="width:${(t.pos / game.size * 100).toFixed(1)}%"></span></div></div>
         <div class="stat"><b>${t.pos}</b><small>square</small></div>
         <div class="stat pts"><b>${t.points}</b><small>points</small></div>
@@ -611,6 +612,7 @@
         <button class="btn" data-act-q="timer" title="Pause / resume timer (P)">⏯ Pause timer</button>
         <button class="btn" data-act-q="more" title="Add 15 seconds (+)">+15 s</button>
         <button class="btn" data-act-q="replace" title="Replace with a new question (S)">↻ Replace question <kbd>S</kbd></button>
+        ${o.kind !== 'challenge' && t.lifelines > 0 ? `<span class="spacer"></span><button class="btn big purple" data-act-q="audience" title="Ask the Audience (V)">🙋 Ask the Audience <kbd>V</kbd> <small>(${t.lifelines} left)</small></button>` : ''}
       </div>`;
   }
 
@@ -682,12 +684,32 @@
         QT.onEnd = () => { if (!locked) { while (picks.length < (duel ? 2 : 1)) picks.push(-1); reveal(true); } };
         setKeys();
       };
+      const askAudience = () => {
+        if (locked || duel || !(team.lifelines > 0)) return;
+        team.lifelines--; renderScores(); log(`🙋 ${team.name} asked the audience`, team);
+        QT.paused = true; drawQT(); SFX.drum();
+        const btn = $('[data-act-q="audience"]', card); if (btn) btn.remove();
+        const slot = $('.answer-slot', card);
+        slot.innerHTML = `<div class="aud-banner"><div class="ab-title">🙋 AUDIENCE VOTE!</div>
+          <div class="ab-sub">Audience: raise your hand for <b>A</b>, <b>B</b>, <b>C</b> or <b>D</b> — the timer is paused.</div>
+          <div class="ab-count" data-c>10</div><button class="btn gold" data-resume>▶ Resume timer <kbd>Enter</kbd></button></div>`;
+        let n = 10;
+        const iv = setInterval(() => { n--; const c = $('[data-c]', card); if (!c || n < 0) { clearInterval(iv); return; } c.textContent = n > 0 ? n : '🗳️ Count the hands!'; if (n > 0 && n <= 3) SFX.tick(); }, 1000 * SPEED);
+        const resume = () => {
+          clearInterval(iv); if (locked) return;
+          slot.innerHTML = '<div class="hidden-answer">👆 Tap the group’s answer (or press A–D) — it is checked automatically.</div>';
+          QT.paused = false; drawQT(); delete flowKeys.enter; delete flowKeys[' '];
+        };
+        $('[data-resume]', slot).addEventListener('click', resume);
+        flowKeys.enter = resume; flowKeys[' '] = resume;
+      };
       const actions = {
+        audience: askAudience,
         timer: toggleQTimer, more: () => addQTime(15),
         replace: () => { if (locked || picks.length) return; q = drawQuestion(o.prefs, q.id); toast('↻ Question replaced'); show(); }
       };
       const setKeys = () => {
-        flowKeys = { s: actions.replace, '+': actions.more, '=': actions.more, p: toggleQTimer, _replace: actions.replace };
+        flowKeys = { s: actions.replace, '+': actions.more, '=': actions.more, p: toggleQTimer, v: askAudience, _replace: actions.replace };
         ['a', 'b', 'c', 'd'].forEach((k, i) => { flowKeys[k] = () => pick(i); flowKeys[String(i + 1)] = () => pick(i); });
       };
       show();
@@ -993,7 +1015,7 @@
       announce({ icon: '⚡', title: 'EXTRA TURN!', sub: `${t.name} rolls again`, color: '#facc15', ms: 1300 });
     } else {
       game.turn = (game.turn + 1) % game.teams.length;
-      if (game.turn === 0) game.round++;
+      if (game.turn === 0) { game.round++; if (game.round % 3 === 1) toast('🎤 Good moment for an audience question — press Q or the 🎤 button', 4500); }
     }
     game.phase = 'roll';
     saveAuto(); render();
@@ -1004,6 +1026,7 @@
     abortFlow();
     game = g; history = opts.keepHistory ? history : [];
     if (game.phase === 'busy') game.phase = 'roll';
+    game.teams.forEach(t => { if (t.lifelines == null) t.lifelines = 1; if (t.section == null) t.section = ''; });
     game.paused = false;
     hidePodium(); closeTool(); setupOpen = false;
     buildBoard(); render(); saveAuto();
@@ -1164,7 +1187,11 @@
     c.className = 'modal-card ' + cls; c.innerHTML = html; m.classList.add('show');
     return c;
   }
-  function closeTool() { $('#toolModal').classList.remove('show'); if (setupOpen && game) setupOpen = false; }
+  function closeTool() {
+    $('#toolModal').classList.remove('show'); if (setupOpen && game) setupOpen = false;
+    if (audienceOpen) { audienceOpen = false; stopQTimer(); QT.onEnd = null; }
+    toolKeys = null;
+  }
   const toolOpen = () => $('#toolModal').classList.contains('show');
 
   let dialogDone = null;
@@ -1196,6 +1223,7 @@
       <div class="teams-setup">${TEAMS.map((t, i) => `<div class="team-setup" style="--c:${t.color};--l:${t.light}">
         <div class="ts-head"><span class="tok">${t.icon}</span> Group ${t.letter}</div>
         <div class="field">Group name<input class="inp" data-name="${i}" maxlength="32" value="${esc(s.names[i] || t.name)}"></div>
+        <div class="field" style="margin-top:6px">Supporters’ section in the hall<input class="inp" data-sec="${i}" maxlength="30" placeholder="e.g. Left side, front rows" value="${esc((s.sections || [])[i] || '')}"></div>
         <div class="field" style="margin-top:6px">Students (one per line — they take turns answering)<textarea data-mem="${i}" placeholder="Leave empty for Student 1–4">${esc(s.members[i] || '')}</textarea></div>
       </div>`).join('')}</div>
       <h3>⚙️ Match settings</h3>
@@ -1203,6 +1231,7 @@
         <div class="field">Board<div class="seg" data-seg="size"><button data-v="100" class="${s.size === 100 ? 'on' : ''}">100 squares</button><button data-v="50" class="${s.size === 50 ? 'on' : ''}">50 squares</button></div></div>
         <div class="field">Competition time limit (minutes, 0 = none)<input class="inp" type="number" min="0" max="300" data-f="minutes" value="${s.minutes}"></div>
         <div class="field">Question difficulty<div style="color:var(--text);font-size:15px">🎲 Set by the die: 1–2 Easy · 3–4 Moderate · 5–6 Challenging</div></div>
+        <div class="field">🙋 Ask-the-Audience lifelines per group<input class="inp" type="number" min="0" max="3" data-f="lifelines" value="${s.lifelines == null ? 1 : s.lifelines}"></div>
         <div class="field">Finishing<label class="check"><input type="checkbox" data-f="exactFinish" ${s.exactFinish ? 'checked' : ''}> Exact roll needed to reach the last square</label></div>
       </div>
       <div class="field" style="margin-top:12px">Question timers (seconds)
@@ -1216,6 +1245,7 @@
         <button class="btn big" data-s="bank">📚 Question bank</button>
         <button class="btn big" data-s="load">📂 Load save file</button>
         <button class="btn big" data-s="help">❓ How to play</button>
+        <button class="btn big" data-s="welcome">📺 Preview welcome screen</button>
         <button class="btn big gold" data-s="start">🚀 Start championship</button>
       </div>`, 'setup');
 
@@ -1223,6 +1253,8 @@
       const n = {
         names: TEAMS.map((t, i) => $(`[data-name="${i}"]`, card).value.trim() || t.name),
         members: TEAMS.map((t, i) => $(`[data-mem="${i}"]`, card).value),
+        sections: TEAMS.map((t, i) => $(`[data-sec="${i}"]`, card).value.trim()),
+        lifelines: clamp(+$('[data-f="lifelines"]', card).value || 0, 0, 3),
         size: +$('[data-seg="size"] .on', card).dataset.v,
         minutes: clamp(+$('[data-f="minutes"]', card).value || 0, 0, 300),
         exactFinish: $('[data-f="exactFinish"]', card).checked,
@@ -1242,13 +1274,110 @@
       if (a === 'start') {
         prefs.setup = read(); savePrefs();
         if (game && game.phase !== 'over' && !(await confirmBox('Start a NEW championship? The current match will be replaced.', 'Start new'))) return;
-        startGame(newGame(prefs.setup));
+        startGame(newGame(prefs.setup), { announce: false });
+        openWelcome(true);
       } else if (a === 'resume') loadSaveObj(STORE.get(KEYS.save, null));
       else if (a === 'load') pickFile('.json,application/json', txt => { try { loadSaveObj(JSON.parse(txt)); } catch (e) { toast('⚠️ Could not read that file.'); } });
       else if (a === 'bank') { prefs.setup = read(); savePrefs(); openBank(true); }
       else if (a === 'help') openHelp(true);
+      else if (a === 'welcome') { prefs.setup = read(); savePrefs(); openWelcome(false); }
       else if (a === 'cancel') { setupOpen = false; closeTool(); }
     }));
+  }
+
+  /* ───────────────────────── Audience question ───────────────────────── */
+  let audienceOpen = false, toolKeys = null;
+  function openAudienceQ() {
+    if (!game) { toast('Start the championship first.'); return; }
+    if (game.phase === 'busy' || flowOpen()) { toast('Finish the current turn first — then ask the audience.'); return; }
+    toggleDrawer(false);
+    let q, locked;
+    const show = () => {
+      q = drawQuestion(['E', 'M']); locked = false; audienceOpen = true;
+      const cat = CATS[q.c] || CATS[1];
+      const card = openTool(`
+        <div class="q-head"><span class="chip kind" style="background:linear-gradient(90deg,#ec4899,#7c3aed)">🎤 Audience Question</span>
+          <span class="chip">${cat.icon} ${esc(cat.name)}</span><span class="chip ${q.d}">${DIFF[q.d].name}</span><span class="chip pts">🎁 Prize question</span></div>
+        <div class="q-team" style="--c:#ec4899"><span style="font-size:30px">🙋</span><b>Audience</b><span class="student">First correct hand wins!</span></div>
+        <div class="q-body"><div>
+          <div class="q-text">${esc(q.q)}</div>
+          <div class="options">${q.o.map((x, i) => `<button class="opt" data-i="${i}"><span class="letter">${'ABCD'[i]}</span><span>${esc(x)}</span></button>`).join('')}</div>
+          <div class="answer-slot"><div class="hidden-answer">👆 Choose a student with a raised hand, then tap their answer (or press A–D).</div></div>
+        </div>
+        <div class="timer"><svg viewBox="0 0 120 120"><circle class="track" cx="60" cy="60" r="52"/><circle class="prog" cx="60" cy="60" r="52" stroke-dasharray="${CIRC.toFixed(1)}" stroke-dashoffset="0"/></svg><div class="t-num"></div></div></div>
+        <div class="q-actions">
+          <button class="btn" data-aq="show">👁 Show answer</button><button class="btn" data-aq="next">↻ Another audience question</button>
+          <span class="spacer"></span><button class="btn big gold" data-aq="close">🎲 Back to the game <kbd>Esc</kbd></button></div>`, 'q-wide');
+      const reveal = p => {
+        if (locked) return; locked = true; stopQTimer(); QT.onEnd = null;
+        const ok = p === q.a;
+        $$('.opt', card).forEach((b, i) => { b.disabled = true; b.classList.toggle('right', i === q.a); b.classList.toggle('wrong', i !== q.a); b.classList.toggle('picked', i === p); });
+        if (p != null) { if (ok) { SFX.correct(); Confetti.burst(120); } else SFX.wrong(); } else SFX.special();
+        const head = p == null ? '📢 The answer is…' : ok ? '🎉 Correct — a prize for that student!' : '❌ Not quite — anyone else?';
+        $('.answer-slot', card).innerHTML = `<div class="answer-box ${p == null || ok ? '' : 'bad'}"><div class="verdict-line">${head}</div><b>Answer:</b> ${'ABCD'[q.a]}) ${esc(q.o[q.a])}${q.x ? `<div class="why">💡 ${esc(q.x)}</div>` : ''}</div>`;
+      };
+      $$('.opt', card).forEach(b => b.addEventListener('click', () => reveal(+b.dataset.i)));
+      $$('[data-aq]', card).forEach(b => b.addEventListener('click', () => ({ show: () => reveal(null), next: show, close: closeTool })[b.dataset.aq]()));
+      startQTimer(Math.max(15, timers().E), $('.timer', card));
+      QT.onEnd = () => reveal(null);
+      toolKeys = { n: show, enter: closeTool };
+      ['a', 'b', 'c', 'd'].forEach((k, i) => { toolKeys[k] = () => reveal(i); toolKeys[String(i + 1)] = () => reveal(i); });
+      SFX.special();
+    };
+    show();
+  }
+
+  /* ───────────────────────── Welcome / rules slideshow ───────────────────────── */
+  let welcomeOpen = false, welcomeIv = null, welcomeSlide = 0, welcomeStart = false;
+  function welcomeSlides() {
+    const teams = game ? game.teams : TEAMS.map((t, i) => Object.assign({}, t, { name: prefs.setup.names[i] || t.name, section: (prefs.setup.sections || [])[i] || '' }));
+    const size = game ? game.size : prefs.setup.size;
+    return [
+      `<div class="w-kicker">Welcome to the</div><h1 class="w-title">Grade 10 Physics<br>Snakes &amp; Ladders Championship</h1>
+       <div class="w-teams">${teams.map(t => `<div class="w-team" style="--c:${t.color};--l:${t.light}"><div class="w-tok">${t.icon}</div><div class="w-name">${esc(t.name)}</div>${t.section ? `<div class="w-sec">📣 Supporters: ${esc(t.section)}</div>` : ''}</div>`).join('')}</div>
+       <div class="w-foot">🎲 Four groups · 🧠 Physics questions · 🏆 One champion</div>`,
+      `<h2 class="w-h">🎲 How to play</h2><ul class="w-list">
+        <li>Groups take turns rolling the die.</li>
+        <li>The roll decides the question: <b class="tE">1–2 Easy · 5 pts</b>, <b class="tM">3–4 Moderate · 10 pts</b>, <b class="tC">5–6 Challenging · 15 pts</b></li>
+        <li>✅ Correct answer → earn the points and move forward by the roll.</li>
+        <li>❌ Wrong answer or time runs out → stay where you are.</li>
+        <li>🏆 Reach square ${size} and answer the <b>Final Challenge</b> to win!</li></ul>`,
+      `<h2 class="w-h">🪜 Snakes, ladders &amp; power-ups</h2>
+       <div class="w-two"><div class="w-card" style="--c:#fbbf24">🪜 <b>Ladder</b><br>Answer a bonus question to climb up (+15)</div><div class="w-card" style="--c:#22c55e">🐍 <b>Snake</b><br>Answer a rescue question or slide down (+15)</div></div>
+       <div class="w-specials">${Object.values(SPECIALS).map(sp => `<div style="--c:${sp.color}"><span>${sp.icon}</span>${esc(sp.name)}</div>`).join('')}</div>`,
+      `<h2 class="w-h">📣 Audience rules</h2><ul class="w-list">
+        <li>📣 Cheer loudly for your group!</li>
+        <li>🤫 <b>Never shout out answers</b> — the question will be replaced.</li>
+        <li>🙋 Each group has an <b>Ask the Audience</b> lifeline — when it is used, raise your hand for A, B, C or D.</li>
+        <li>🎤 Watch out for <b>audience questions</b> — the first correct hand wins a prize!</li></ul>`
+    ];
+  }
+  function openWelcome(startAfter) {
+    if (!startAfter && flowOpen()) { toast('Finish the current turn first.'); return; }
+    welcomeOpen = true; welcomeStart = !!startAfter; welcomeSlide = 0;
+    toggleDrawer(false);
+    const el = $('#welcome'), slides = welcomeSlides();
+    el.innerHTML = `<div class="w-rays"></div><div class="w-stage">${slides.map((h, i) => `<section class="w-slide ${i === 0 ? 'on' : ''}">${h}</section>`).join('')}</div>
+      <div class="w-bar"><button class="btn" data-w="prev">←</button><div class="w-dots">${slides.map((_, i) => `<i data-dot="${i}" class="${i === 0 ? 'on' : ''}"></i>`).join('')}</div><button class="btn" data-w="next">→</button>
+      <span class="spacer"></span><button class="btn big gold" data-w="go">${startAfter ? '🎬 Start the show' : '🎲 Back to the game'} <kbd>Enter</kbd></button></div>`;
+    el.classList.add('show');
+    $$('[data-w]', el).forEach(b => b.addEventListener('click', () => ({ prev: () => goSlide(-1), next: () => goSlide(1), go: closeWelcome })[b.dataset.w]()));
+    $$('[data-dot]', el).forEach(d => d.addEventListener('click', () => goSlide(+d.dataset.dot - welcomeSlide)));
+    clearInterval(welcomeIv); welcomeIv = setInterval(() => goSlide(1), 12000);
+  }
+  function goSlide(d) {
+    const el = $('#welcome'), sl = $$('.w-slide', el), n = sl.length;
+    welcomeSlide = ((welcomeSlide + d) % n + n) % n;
+    sl.forEach((x, i) => x.classList.toggle('on', i === welcomeSlide));
+    $$('[data-dot]', el).forEach((x, i) => x.classList.toggle('on', i === welcomeSlide));
+  }
+  function closeWelcome() {
+    if (!welcomeOpen) return;
+    welcomeOpen = false; clearInterval(welcomeIv); $('#welcome').classList.remove('show');
+    if (welcomeStart && game) {
+      welcomeStart = false; SFX.special(); Confetti.burst(160);
+      announce({ icon: '🎲', title: 'LET’S PLAY!', sub: `${cur().name} goes first · Good luck, physicists!`, color: '#22d3ee', ms: 2000 });
+    }
   }
 
   /* ───────────────────────── Help ───────────────────────── */
@@ -1271,7 +1400,7 @@
           <kbd>Space</kbd><span>Roll the die / continue</span><kbd>1–4</kbd><span>Same as A–D</span>
           <kbd>A B C D</kbd><span>Lock in the group’s answer</span><kbd>Enter</kbd><span>Continue after the answer</span>
           <kbd>S</kbd><span>Replace question</span><kbd>+</kbd><span>Add 15 s to the timer</span><kbd>P</kbd><span>Pause game</span>
-          <kbd>U</kbd><span>Undo last move</span><kbd>T</kbd><span>Teacher panel</span><kbd>F</kbd><span>Full-screen</span><kbd>M</kbd><span>Sound on/off</span></div></div>
+          <kbd>V</kbd><span>Ask the Audience (during a question)</span><kbd>Q</kbd><span>Audience question (between turns)</span><kbd>W</kbd><span>Welcome / rules slideshow</span><kbd>U</kbd><span>Undo last move</span><kbd>T</kbd><span>Teacher panel</span><kbd>F</kbd><span>Full-screen</span><kbd>M</kbd><span>Sound on/off</span></div></div>
       </div>
       <h3>✨ Special squares</h3>
       <div class="legend">${Object.values(SPECIALS).map(s => `<div><span>${s.icon}</span><div><b>${s.name}</b><br><span class="muted">${s.desc}</span></div></div>`).join('')}</div>
@@ -1477,6 +1606,7 @@
         <label class="check"><input type="checkbox" data-opt="exact" ${s.exactFinish ? 'checked' : ''}> Exact roll needed to finish</label>
       </section>
       <section><h3>🧰 Tools</h3><div class="grid3">
+        <button class="btn" data-d="audienceQ">🎤 Audience Q</button><button class="btn" data-d="welcome">📺 Welcome / rules</button>
         <button class="btn" data-d="bank">📚 Questions</button><button class="btn" data-d="help">❓ Rules / keys</button><button class="btn" data-d="fullscreen">⛶ Full-screen</button>
       </div></section>`;
   }
@@ -1519,6 +1649,8 @@
       }
       case 'endNow': endNow(); break;
       case 'bank': openBank(false); break;
+      case 'audienceQ': openAudienceQ(); break;
+      case 'welcome': openWelcome(false); break;
       case 'help': openHelp(false); break;
       case 'fullscreen': toggleFullscreen(); break;
     }
@@ -1539,7 +1671,7 @@
     const card = openTool(`<h2>✏️ Adjust groups</h2>
       <p class="muted">Changes apply immediately and can be undone with ↶ Undo. Manual moves never trigger snakes, ladders or special squares.</p>
       <div style="overflow:auto"><table class="standings" style="width:100%;margin:0">
-        <tr><th>Group</th><th>Name</th><th>Square</th><th>Points</th><th>🛡️ Shields</th><th>💎 Double</th><th>⚡ Extra turn</th><th>Next student</th></tr>
+        <tr><th>Group</th><th>Name</th><th>Square</th><th>Points</th><th>🛡️ Shields</th><th>💎 Double</th><th>⚡ Extra turn</th><th>Next student</th><th>🙋 Lifelines</th><th>📣 Supporters</th></tr>
         ${game.teams.map(t => `<tr style="--c:${t.color}"><td style="font-size:26px">${t.icon}</td>
           <td><input class="inp" data-a="name" data-t="${t.id}" value="${esc(t.name)}" maxlength="32" style="width:150px"></td>
           <td><input class="inp" type="number" min="1" max="${game.size}" data-a="pos" data-t="${t.id}" value="${t.pos}" style="width:80px"></td>
@@ -1547,7 +1679,9 @@
           <td><input class="inp" type="number" min="0" max="9" data-a="shields" data-t="${t.id}" value="${t.shields}" style="width:70px"></td>
           <td><input type="checkbox" data-a="double" data-t="${t.id}" ${t.double ? 'checked' : ''}></td>
           <td><input type="checkbox" data-a="extraTurn" data-t="${t.id}" ${t.extraTurn ? 'checked' : ''}></td>
-          <td><select class="inp" data-a="memberIdx" data-t="${t.id}">${t.members.map((m, i) => `<option value="${i}" ${t.memberIdx % t.members.length === i ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select></td></tr>`).join('')}
+          <td><select class="inp" data-a="memberIdx" data-t="${t.id}">${t.members.map((m, i) => `<option value="${i}" ${t.memberIdx % t.members.length === i ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select></td>
+          <td><input class="inp" type="number" min="0" max="3" data-a="lifelines" data-t="${t.id}" value="${t.lifelines || 0}" style="width:70px"></td>
+          <td><input class="inp" data-a="section" data-t="${t.id}" value="${esc(t.section || '')}" maxlength="30" style="width:150px"></td></tr>`).join('')}
       </table></div>
       <div class="field" style="margin-top:12px">Students (one line per group, comma-separated)
         ${game.teams.map(t => `<input class="inp" data-a="members" data-t="${t.id}" value="${esc(t.members.join(', '))}" style="margin-top:4px">`).join('')}</div>
@@ -1565,6 +1699,7 @@
         const mem = parseMembers(v('members').value);
         const idx = +v('memberIdx').value;
         t.members = mem; t.memberIdx = idx < mem.length ? idx : 0;
+        t.lifelines = clamp(Math.round(+v('lifelines').value || 0), 0, 3); t.section = v('section').value.trim().slice(0, 30);
       });
       log('✏️ Teacher edited group details'); closeTool(); saveAuto(); render(); toast('✔ Changes applied');
     });
@@ -1575,7 +1710,7 @@
     confirmBox('Restart the championship with the same groups and settings? All positions and points reset to zero.', 'Restart').then(ok => {
       if (!ok) return;
       const s = Object.assign({}, prefs.setup, {
-        size: game.size, names: game.teams.map(t => t.name), members: game.teams.map(t => t.members.join('\n')),
+        size: game.size, names: game.teams.map(t => t.name), sections: game.teams.map(t => t.section || ''), members: game.teams.map(t => t.members.join('\n')),
         minutes: Math.round(game.timeLimit / 60) || 0, timers: game.settings.timers,
         exactFinish: game.settings.exactFinish, cats: game.settings.cats
       });
@@ -1592,7 +1727,7 @@
 
   /* ───────────────────────── Global actions & keys ───────────────────────── */
   const ACTIONS = {
-    roll: onRoll, pause: togglePause, undo, save: manualSave, sound: () => toggleSound(), fullscreen: toggleFullscreen,
+    roll: onRoll, pause: togglePause, audience: openAudienceQ, welcome: () => openWelcome(false), undo, save: manualSave, sound: () => toggleSound(), fullscreen: toggleFullscreen,
     panel: () => toggleDrawer(), setup: () => { hidePodium(); openSetup(); },
     'podium-close': hidePodium, results: exportResults, rematch: () => { hidePodium(); restart(); }
   };
@@ -1611,6 +1746,12 @@
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key === ' ' ? ' ' : e.key.toLowerCase();
     if (dialogDone) { if (k === 'escape') dialogDone(false); else if (k === 'enter') { e.preventDefault(); dialogDone(true); } return; }
+    if (welcomeOpen) {
+      if (k === 'arrowright') goSlide(1); else if (k === 'arrowleft') goSlide(-1);
+      else if (k === 'enter' || k === ' ' || k === 'escape') { e.preventDefault(); closeWelcome(); }
+      return;
+    }
+    if (toolOpen() && toolKeys && toolKeys[k]) { e.preventDefault(); toolKeys[k](); return; }
     if (toolOpen()) { if (k === 'escape' && !(setupOpen && !game)) { closeTool(); setupOpen = false; } return; }
     if (k === 'escape') { toggleDrawer(false); hidePodium(); return; }
     if (k === 'p' && !(flowKeys && flowOpen() && QT.el && QT.el.isConnected)) { togglePause(); return; }
@@ -1626,12 +1767,14 @@
       case 't': toggleDrawer(); break;
       case 'm': toggleSound(); break;
       case 'h': case '?': openHelp(false); break;
+      case 'q': openAudienceQ(); break;
+      case 'w': openWelcome(false); break;
     }
   });
 
   // Competition clock
   setInterval(() => {
-    if (!game || game.phase === 'over' || game.paused || !game.timeLimit || setupOpen) return;
+    if (!game || game.phase === 'over' || game.paused || !game.timeLimit || setupOpen || welcomeOpen || audienceOpen) return;
     game.timeLeft = Math.max(0, game.timeLeft - 1);
     renderClock();
     if (game.timeLeft === 60) { toast('⏰ One minute left in the championship!'); SFX.tick(); }

@@ -27,6 +27,8 @@
       <div class="pill clock" id="clockPill" title="Competition time remaining">⏱ <span id="clock">∞</span></div>
     </div>
     <nav class="top-actions">
+      <button class="icon-btn" data-act="welcome" title="Welcome / rules slideshow (W)">📺</button>
+      <button class="icon-btn" data-act="audience" title="Audience question (Q)">🎤</button>
       <button class="icon-btn" data-act="pause" title="Pause / resume (P)">⏸</button>
       <button class="icon-btn" data-act="undo" title="Undo last move (U)">↶</button>
       <button class="icon-btn" data-act="save" title="Save game">💾</button>
@@ -89,6 +91,7 @@
     </div>
   </div>
   <div class="podium-screen" id="podium"></div>
+  <div class="welcome" id="welcome"></div>
   <div class="toast-wrap" id="toasts"></div>
   <canvas id="confetti" aria-hidden="true"></canvas>
   <input type="file" id="fileInput" accept=".json,.csv,application/json,text/csv" hidden>

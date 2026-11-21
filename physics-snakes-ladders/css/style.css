@@ -540,6 +540,56 @@ table.pts td, table.pts th { padding: 4px 14px; border-bottom: 1px solid var(--l
 .standings td:nth-child(2) { text-align: left; font-weight: 800; }
 .podium-actions { display: flex; gap: 12px; margin-top: 18px; position: relative; flex-wrap: wrap; justify-content: center; }
 
+
+/* ─────────── Ask the Audience banner ─────────── */
+.aud-banner { margin-top: 16px; padding: 16px 20px; border-radius: 18px; text-align: center; border: 3px solid #c084fc;
+  background: linear-gradient(135deg, rgba(168, 85, 247, .35), rgba(236, 72, 153, .25)); animation: pop .4s; }
+.aud-banner .ab-title { font-family: var(--display); font-weight: 700; font-size: clamp(30px, 3vw, 48px); color: #fff; text-shadow: 0 0 20px #c084fc; }
+.aud-banner .ab-sub { font-size: clamp(18px, 1.6vw, 24px); margin: 4px 0 6px; }
+.aud-banner .ab-count { font-family: var(--display); font-size: clamp(40px, 4vw, 64px); color: var(--gold); line-height: 1.1; margin-bottom: 8px; }
+
+/* ─────────── Welcome slideshow ─────────── */
+.welcome { position: fixed; inset: 0; z-index: 66; display: none; flex-direction: column; overflow: hidden;
+  background: radial-gradient(circle at 50% 30%, #3b0764, #0b0a2a 70%); }
+.welcome.show { display: flex; animation: fadeBg .5s; }
+.w-rays { position: absolute; top: 30%; left: 50%; width: 160vmax; height: 160vmax; transform: translate(-50%, -50%); opacity: .12; pointer-events: none;
+  background: repeating-conic-gradient(from 0deg, #22d3ee 0 8deg, transparent 8deg 16deg); animation: spin 60s linear infinite;
+  mask: radial-gradient(circle, #000 5%, transparent 45%); -webkit-mask: radial-gradient(circle, #000 5%, transparent 45%); }
+.w-stage { flex: 1; position: relative; min-height: 0; }
+.w-slide { position: absolute; inset: 0; padding: 4vh 5vw 2vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  opacity: 0; transform: translateX(40px); transition: opacity .6s, transform .6s; pointer-events: none; overflow: auto; }
+.w-slide.on { opacity: 1; transform: none; pointer-events: auto; }
+.w-kicker { font-size: clamp(18px, 2vw, 30px); letter-spacing: .3em; text-transform: uppercase; color: var(--gold); font-weight: 800; }
+.w-title { font-family: var(--display); font-size: clamp(36px, 6vw, 92px); line-height: 1.05; margin: 8px 0 3vh;
+  background: linear-gradient(90deg, #67e8f9, #c4b5fd, var(--gold)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.w-teams { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2vw; width: min(1400px, 100%); }
+.w-team { border: 3px solid var(--c); border-radius: 22px; padding: 2.4vh 1vw; background: linear-gradient(170deg, color-mix(in srgb, var(--c) 40%, transparent), transparent 85%); }
+.w-tok { width: clamp(60px, 7vw, 110px); height: clamp(60px, 7vw, 110px); margin: 0 auto 10px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: clamp(32px, 3.6vw, 58px); background: radial-gradient(circle at 35% 30%, var(--l), var(--c)); border: 4px solid #fff; box-shadow: 0 0 30px var(--c); animation: bob 2.2s ease-in-out infinite; }
+.w-name { font-family: var(--display); font-weight: 700; font-size: clamp(22px, 2.4vw, 40px); }
+.w-sec { font-size: clamp(14px, 1.3vw, 20px); color: #e0e7ff; margin-top: 4px; }
+.w-foot { margin-top: 3vh; font-size: clamp(18px, 1.8vw, 28px); font-weight: 800; color: #e9d5ff; }
+.w-h { font-family: var(--display); font-size: clamp(36px, 4.6vw, 72px); margin: 0 0 3vh; color: #fff; text-shadow: 0 0 24px rgba(34, 211, 238, .6); }
+.w-list { list-style: none; margin: 0; padding: 0; text-align: left; font-size: clamp(22px, 2.4vw, 40px); line-height: 1.35; max-width: 1300px; }
+.w-list li { padding: 1.2vh 1.4vw; margin-bottom: 1.2vh; border-radius: 16px; background: rgba(255, 255, 255, .07); border-left: 6px solid var(--cyan); }
+.w-list .tE { color: #4ade80; } .w-list .tM { color: #fbbf24; } .w-list .tC { color: #f87171; }
+.w-two { display: grid; grid-template-columns: 1fr 1fr; gap: 2vw; width: min(1300px, 100%); margin-bottom: 3vh; }
+.w-card { border: 3px solid var(--c); border-radius: 20px; padding: 2.4vh 1.5vw; font-size: clamp(20px, 2.1vw, 34px); background: color-mix(in srgb, var(--c) 18%, transparent); }
+.w-specials { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.2vh 1.4vw; width: min(1300px, 100%); }
+.w-specials div { display: flex; align-items: center; gap: 12px; padding: 1vh 1vw; border-radius: 14px; font-size: clamp(16px, 1.6vw, 26px); font-weight: 800;
+  background: color-mix(in srgb, var(--c) 20%, transparent); border: 2px solid var(--c); text-align: left; }
+.w-specials span { font-size: 1.5em; }
+.w-bar { display: flex; align-items: center; gap: 12px; padding: 12px 24px 18px; position: relative; }
+.w-bar .spacer { flex: 1; }
+.w-dots { display: flex; gap: 10px; }
+.w-dots i { width: 14px; height: 14px; border-radius: 50%; background: rgba(255, 255, 255, .25); cursor: pointer; }
+.w-dots i.on { background: var(--gold); box-shadow: 0 0 12px var(--gold); }
+@media (max-width: 900px) {
+  .w-teams { grid-template-columns: 1fr 1fr; }
+  .w-specials { grid-template-columns: 1fr 1fr; }
+  .w-two { grid-template-columns: 1fr; }
+}
+
 /* ─────────── Responsive ─────────── */
 @media (max-width: 1100px) {
   .teams-setup { grid-template-columns: repeat(2, 1fr); }

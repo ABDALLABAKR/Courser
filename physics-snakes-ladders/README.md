@@ -19,6 +19,12 @@ When the repository is published with GitHub Pages it is at `/physics-snakes-lad
 
 Points: Easy 5 · Moderate 10 · Challenging 15 · Ladder 15 · Snake rescue 15 · Final 15 · Challenge win 10.
 
+## Audience features (for a large hall)
+- **📺 Welcome / rules slideshow** (key **W**): four large slides (groups and their supporter sections, how to play, snakes/ladders/power-ups, audience rules). It opens automatically after **Start championship**, advances every 12 s, and the clock waits until **Start the show**.
+- **🙋 Ask the Audience** (key **V** during a question): each group gets one lifeline by default (set 0–3 in setup). The timer pauses while the hall votes with raised hands.
+- **🎤 Audience question** (key **Q** between turns): a prize question for the audience that doesn't affect scores. Tap the answer the chosen student gives. The competition clock pauses meanwhile, and the game suggests one every 3 rounds.
+- **📣 Supporter sections**: name each group's cheering section in setup. It appears on the scoreboard and the welcome slide.
+
 ## Teacher tools
 Open the **🎛️ Teacher** panel (key **T**) to pause, restart, save/export/load, roll, replace or skip questions, adjust scores and positions, change timers, undo, toggle sound and enter full-screen.
 
