@@ -1,0 +1,115 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>The Invisible Universe</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #000; overflow: hidden; }
+  #stage { position: relative; width: 100vw; height: 100vh; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #scrim { position: absolute; left: 0; right: 0; bottom: 0; height: 40%;
+    background: linear-gradient(to top, rgba(0,2,6,.78), rgba(0,2,6,.45) 50%, rgba(0,2,6,0)); opacity: 0; }
+  .title { position: absolute; left: 0; right: 0; text-align: center; color: #eef8f7;
+    font-family: "Inter Display", "Inter", sans-serif; font-weight: 300; font-size: 4.5vw;
+    line-height: 1.55; letter-spacing: .32em; text-indent: .32em; opacity: 0;
+    text-shadow: 0 0 .6vw rgba(0,0,0,.75), 0 .15vw 1vw rgba(0,0,0,.6); white-space: nowrap; }
+  .title .rule { display: block; margin: 0 auto 2.2vw; width: 7vw; height: .12vw;
+    background: linear-gradient(90deg, rgba(40,220,205,0), rgba(40,220,205,.9), rgba(40,220,205,0)); }
+  .title .sub { font-weight: 250; }
+  .title.big { font-weight: 300; font-size: 5.2vw; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="c"></canvas>
+  <div id="scrim"></div>
+  <div class="title" id="t1" style="top:76%"><span class="rule"></span>AN ENTIRE UNIVERSE…<br><span class="sub">INSIDE YOU.</span></div>
+  <div class="title" id="t2" style="top:77%"><span class="rule"></span>DNA —<br><span class="sub">THE INSTRUCTIONS OF LIFE.</span></div>
+  <div class="title" id="t3" style="top:77%"><span class="rule"></span>MITOCHONDRIA —<br><span class="sub">CELLULAR ENERGY.</span></div>
+  <div class="title" id="t4" style="top:77%"><span class="rule"></span>MILLIONS OF<br><span class="sub">MOLECULAR PROCESSES.</span></div>
+  <div class="title big" id="t5" style="top:75%"><span class="rule"></span>TRILLIONS OF CELLS.</div>
+  <div class="title" id="t6" style="top:83.5%"><span class="sub">ONE EXTRAORDINARY LIFE.</span></div>
+</div>
+<script>
+(function(){
+  const canvas = document.getElementById('c');
+  const W = window.innerWidth, H = window.innerHeight;
+  canvas.width = W; canvas.height = H;
+  const gl = canvas.getContext('webgl2', { antialias: false, preserveDrawingBuffer: true });
+  if (!gl) { document.title = 'NO_WEBGL2'; return; }
+  const vs = `#version 300 es
+  in vec2 a; void main(){ gl_Position = vec4(a, 0., 1.); }`;
+  function sh(type, src){
+    const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { window.SHADER_ERROR = gl.getShaderInfoLog(s); throw new Error(window.SHADER_ERROR); }
+    return s;
+  }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs));
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, window.SHADER));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { window.SHADER_ERROR = gl.getProgramInfoLog(prog); throw new Error(window.SHADER_ERROR); }
+  gl.useProgram(prog);
+  const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(prog, 'a'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  const U = n => gl.getUniformLocation(prog, n);
+  const uRes = U('uRes'), uT = U('uT'), uZ = U('uZ'), uW = U('uW'), uL = U('uL');
+  gl.viewport(0, 0, W, H);
+
+  // ---------------------------------------------------------------- timeline
+  const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+  const ss = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+  const band = (t, a0, a1, b0, b1) => ss(a0, a1, t) * (1 - ss(b0, b1, t));
+  const ease = x => { x = clamp(x, 0, 1); return .3 * x + .7 * (x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2); };
+
+  function timeline(t){
+    const w = [0,0,0,0,0,0,0], l = [0,0,0,0,0,0,0];
+    let Z;
+    // 0 — skin → tissue → cell (intro) and pull-back (outro)
+    const intro = 1 - ss(6.0, 6.7, t);
+    const outro = band(t, 24.2, 24.8, 27.6, 28.3);
+    w[0] = Math.max(intro, outro);
+    if (t < 15) Z = 6.3 * ease(t / 6.6) + Math.max(0, t - 6.6) * 1.1;
+    else Z = 7.6 - 12.2 * ease((t - 24.2) / 3.6);
+    w[1] = band(t, 6.0, 6.7, 9.2, 9.9);   l[1] = t - 6.0;
+    w[2] = band(t, 9.2, 9.9, 12.2, 12.9); l[2] = t - 9.2;
+    w[3] = band(t, 12.2, 12.9, 18.2, 18.9); l[3] = t - 12.2;
+    w[4] = band(t, 18.2, 18.9, 21.4, 22.0); l[4] = t - 18.2;
+    w[5] = band(t, 21.4, 22.0, 24.2, 24.8); l[5] = t - 21.4;
+    w[6] = ss(27.6, 28.3, t);              l[6] = t - 27.6;
+    return { w, l, Z };
+  }
+  const titles = [
+    ['t1', 2.4, 6.0], ['t2', 9.6, 12.4], ['t3', 13.4, 18.1],
+    ['t4', 19.0, 24.0], ['t5', 25.9, 99], ['t6', 28.2, 99]
+  ].map(([id, a, b]) => ({ el: document.getElementById(id), a, b }));
+  const scrim = document.getElementById('scrim');
+
+  window.renderFrame = function(t){
+    const tl = timeline(t);
+    // skip scenes whose weight is negligible
+    const w = tl.w.map(x => x < 1e-3 ? 0 : x);
+    gl.uniform2f(uRes, W, H); gl.uniform1f(uT, t); gl.uniform1f(uZ, tl.Z);
+    gl.uniform1fv(uW, new Float32Array(w)); gl.uniform1fv(uL, new Float32Array(tl.l));
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    let maxA = 0;
+    for (const o of titles){
+      const k = ss(o.a, o.a + .9, t) * (1 - ss(o.b - .6, o.b, t));
+      const r = 1 - ss(o.a, o.a + 1.6, t);
+      o.el.style.opacity = k.toFixed(4);
+      o.el.style.transform = `translateY(${(r * 1.2).toFixed(4)}vw)`;
+      o.el.style.letterSpacing = `${(.32 + .10 * r).toFixed(4)}em`;
+      o.el.style.textIndent = `${(.32 + .10 * r).toFixed(4)}em`;
+      o.el.style.filter = r > .001 ? `blur(${(r * r * .5).toFixed(4)}vw)` : 'none';
+      maxA = Math.max(maxA, k);
+    }
+    scrim.style.opacity = (maxA * .9).toFixed(4);
+    gl.finish();
+    return true;
+  };
+  window.READY = true;
+})();
+</script>
+</body>
+</html>
