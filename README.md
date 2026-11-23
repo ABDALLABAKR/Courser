@@ -80,7 +80,7 @@ src/data/
 
 ### ⚠️ Current status: demonstration dictionary
 
-The bundled list contains **157 answers + 51 extra guesses** — common, everyday Sorani words in standard orthography, each with a short Kurdish definition and an English gloss for reviewers. **None has yet been reviewed by a native speaker**, so every entry is `status: 'unreviewed'`, the dictionary runs in `DICTIONARY_MODE = 'demo'`, and the Settings screen shows a clear "demo dictionary" notice to players.
+The bundled list contains **157 answers + 200 extra guesses (149 of them from a contributed word list)** — common, everyday Sorani words in standard orthography, each with a short Kurdish definition and an English gloss for reviewers. **None has yet been reviewed by a native speaker**, so every entry is `status: 'unreviewed'`, the dictionary runs in `DICTIONARY_MODE = 'demo'`, and the Settings screen shows a clear "demo dictionary" notice to players.
 
 Because the accepted-guess list is small, many real Kurdish words will be rejected as "not in the dictionary" until it is expanded. This is the biggest thing to address before a public launch.
 
