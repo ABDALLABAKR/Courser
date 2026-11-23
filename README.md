@@ -85,7 +85,7 @@ src/data/
 
 ### ⚠️ Current status: demonstration dictionary
 
-The bundled list contains **366 answers** (a full year of daily puzzles) **+ about 140 extra guesses**, including words from a contributed word list — common, everyday Sorani words in standard orthography, each with a short Kurdish definition and an English gloss for reviewers. **None has yet been reviewed by a native speaker**, so every entry is `status: 'unreviewed'`, the dictionary runs in `DICTIONARY_MODE = 'demo'`, and the Settings screen shows a clear "demo dictionary" notice to players.
+The bundled list contains **366 answers** (a full year of daily puzzles) **+ about 3,900 accepted guesses**: about 140 hand-picked (including a contributed word list) and 3,377 from the KLPT Sorani lexicon (see Credits) — common, everyday Sorani words in standard orthography, each with a short Kurdish definition and an English gloss for reviewers. **None has yet been reviewed by a native speaker**, so every entry is `status: 'unreviewed'`, the dictionary runs in `DICTIONARY_MODE = 'demo'`, and the Settings screen shows a clear "demo dictionary" notice to players.
 
 Because the accepted-guess list is small, many real Kurdish words will be rejected as "not in the dictionary" until it is expanded. This is the biggest thing to address before a public launch.
 
@@ -138,6 +138,10 @@ Build command `npm run build`, output directory `dist`. No server configuration 
 **Checked manually in headless Chromium (Playwright):** layouts at 320×568, 375×667, iPhone 14, Pixel 7 and 1280×800 — no horizontal scroll, board centred; light & dark themes; onboarding; invalid-word error; flip reveal order; win celebration and result sheet; loss in Unlimited; abandon-round confirmation; statistics and settings screens; offline reload through the service worker; no console errors.
 
 **Not yet tested:** real iOS Safari and Android Chrome devices (only emulated), the native share sheet and WhatsApp/Telegram/Facebook deep links on real phones, physical Kurdish keyboard layouts on Windows/macOS (simulated with `keydown` events), screen readers (ARIA labels are present but unaudited), sound effects (they require a user gesture and real audio output), and the GitHub Actions workflow (not yet run).
+
+## Credits
+
+- **Word list:** `src/data/externalGuesses.ts` is derived from the Sorani lexicon and Hunspell affix rules of the [Kurdish Language Processing Toolkit (KLPT)](https://github.com/sinaahmadi/klpt) by Sina Ahmadi (based on FreeDict and Wîkîferheng), licensed [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Changes: filtered to five-letter Sorani words, proper names removed, and some regular forms generated with KLPT's own rules. That file is distributed under the same licence. Credit is also shown in the game's Settings screen.
 
 ## License
 

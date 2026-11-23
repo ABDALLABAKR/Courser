@@ -151,6 +151,12 @@ export function SettingsModal({ open, onClose, settings, reducedMotion, update, 
         <div className="mt-4 flex flex-col items-center gap-1.5 border-t border-line pt-4">
           <KurdistanFlag width={44} shimmer />
           <p className="text-xs font-bold text-muted">{t.madeWithLove}</p>
+          <p className="max-w-[280px] text-center text-[0.68rem] leading-relaxed text-muted">
+            {t.creditKlpt} ·{' '}
+            <a className="underline" href="https://github.com/sinaahmadi/klpt" target="_blank" rel="noopener noreferrer">KLPT</a>
+            {' · '}
+            <a className="underline" href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a>
+          </p>
           <p className="latin text-[0.7rem] text-muted">WUSHA v{__APP_VERSION__}</p>
         </div>
       </div>
