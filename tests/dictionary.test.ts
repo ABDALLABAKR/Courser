@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { ANSWER_SOURCE } from '../src/data/answers';
 import { EXTRA_GUESS_SOURCE } from '../src/data/guesses';
-import { DAILY_ORDER } from '../src/data/daily';
+import { DAILY_ERAS } from '../src/data/daily';
 import {
-  ANSWERS, DAILY_ENTRIES, DICTIONARY_MODE, isValidGuess, lookupEntry, WORD_LENGTH,
+  ANSWERS, DAILY_ERA_ENTRIES, DICTIONARY_MODE, isValidGuess, lookupEntry, WORD_LENGTH,
 } from '../src/data/dictionary';
 import { graphemes, isSoraniLetter, normalizeKurdish } from '../src/game/kurdish';
 import { KEY_ROWS } from '../src/components/Keyboard';
@@ -63,14 +63,23 @@ describe('dictionary integrity', () => {
   });
 });
 
-describe('daily order', () => {
-  it('only contains answer words, each once', () => {
+describe('daily schedule eras', () => {
+  it('each era only contains answer words, each once', () => {
     const answers = new Set(ANSWER_SOURCE.map((e) => e.word));
-    expect(new Set(DAILY_ORDER).size).toBe(DAILY_ORDER.length);
-    for (const w of DAILY_ORDER) expect(answers.has(w), w).toBe(true);
+    for (const era of DAILY_ERAS) {
+      expect(new Set(era.words).size).toBe(era.words.length);
+      for (const w of era.words) expect(answers.has(w), w).toBe(true);
+    }
   });
 
-  it('resolves to usable entries', () => {
-    expect(DAILY_ENTRIES.length).toBe(DAILY_ORDER.length);
+  it('eras are ordered and every word resolves to a usable entry', () => {
+    DAILY_ERAS.forEach((era, i) => {
+      if (i > 0) expect(era.fromPuzzle).toBeGreaterThan(DAILY_ERAS[i - 1].fromPuzzle);
+      expect(DAILY_ERA_ENTRIES[i].entries.length).toBe(era.words.length);
+    });
+  });
+
+  it('the current era covers at least a full year without repeating', () => {
+    expect(DAILY_ERAS[DAILY_ERAS.length - 1].words.length).toBeGreaterThanOrEqual(365);
   });
 });

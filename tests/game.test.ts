@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { addLetter, addText, isValidSavedGame, newGame, removeLetter, submitGuess, type GameState } from '../src/game/engine';
 import { dailyEntry, dailyNumber, formatCountdown, kurdistanDateKey, msUntilNextDaily } from '../src/game/daily';
-import { DAILY_ORDER } from '../src/data/daily';
+import { DAILY_ORDER_V1, DAILY_ORDER_V2 } from '../src/data/daily';
 import { effectiveDailyStreak, emptyStats, hydrateStats, recordDaily, recordUnlimited, winRate } from '../src/game/stats';
 import { buildShareText, emojiRow } from '../src/game/share';
 import { newlyUnlocked } from '../src/game/achievements';
@@ -79,8 +79,18 @@ describe('daily challenge (Asia/Baghdad)', () => {
     const n = dailyNumber(new Date('2026-11-23T08:00:00Z'));
     expect(n).toBe(327);
     expect(dailyEntry(n).word).toBe(dailyEntry(n).word);
-    expect(dailyEntry(1).word).toBe(DAILY_ORDER[0]);
-    expect(dailyEntry(DAILY_ORDER.length + 1).word).toBe(DAILY_ORDER[0]);
+    expect(dailyEntry(1).word).toBe(DAILY_ORDER_V1[0]);
+    expect(dailyEntry(DAILY_ORDER_V1.length + 1).word).toBe(DAILY_ORDER_V1[0]);
+  });
+
+  it('switching to a new word list never changes a puzzle that already started', () => {
+    // Today's puzzle (#327, 2026-11-23) still comes from the original list…
+    expect(dailyEntry(327).word).toBe(DAILY_ORDER_V1[(327 - 1) % DAILY_ORDER_V1.length]);
+    expect(dailyEntry(334).word).toBe(DAILY_ORDER_V1[(334 - 1) % DAILY_ORDER_V1.length]);
+    // …and the expanded list starts on 2026-12-01 (#335).
+    expect(dailyNumber(new Date('2026-12-01T06:00:00Z'))).toBe(335);
+    expect(dailyEntry(335).word).toBe(DAILY_ORDER_V2[0]);
+    expect(dailyEntry(335 + DAILY_ORDER_V2.length).word).toBe(DAILY_ORDER_V2[0]);
   });
 
   it('stays the same through the whole Kurdistan day', () => {
