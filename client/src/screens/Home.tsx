@@ -5,6 +5,9 @@ import { prefs, randomAvatar, usePrefs } from '../lib/prefs';
 import { actions, notify, useGame } from '../lib/net';
 import { useT } from '../lib/i18n';
 import { ui } from '../lib/ui';
+import { IS_ARTIFACT, invitedCode } from '../lib/env';
+import { bridgeActions, useBridge } from '../artifact/bridge';
+import { IconSmile } from '../components/Icons';
 import { Logo } from '../components/Logo';
 import { Avatar } from '../components/Avatar';
 import { Button, IconButton, inputCls } from '../components/ui';
@@ -45,11 +48,12 @@ export function Home() {
   const name = usePrefs((p) => p.name);
   const online = useGame((g) => g.online);
   const connected = useGame((g) => g.connected);
-  const invited = new URLSearchParams(location.search).get('room')?.toUpperCase() ?? '';
+  const invited = invitedCode();
   const [code, setCode] = useState(ROOM_CODE_REGEX.test(invited) ? invited : '');
   const [joinOpen, setJoinOpen] = useState(!!code);
   const [busy, setBusy] = useState(false);
   const [nameError, setNameError] = useState(false);
+  const multiplayer = useBridge((b) => b.multiplayer) || !IS_ARTIFACT;
 
   const guard = async (fn: () => Promise<{ ok: boolean; error?: string }>) => {
     if (name.trim().length < 2) { setNameError(true); notify('err_bad_name'); return; }
@@ -94,7 +98,16 @@ export function Home() {
         )}
 
         <div className="grid gap-3 pt-1">
-          <Button size="lg" variant="teal" disabled={busy || !connected} onClick={() => guard(actions.quickPlay)}><IconGlobe /> {t('playOnline')}</Button>
+          {IS_ARTIFACT && !multiplayer && <p className="rounded-2xl bg-sun/25 p-3 text-center text-sm font-bold">{t('soloOnly')}</p>}
+          <Button size="lg" variant="teal" disabled={busy || !connected || !multiplayer} onClick={() => guard(actions.quickPlay)}><IconGlobe /> {t('playOnline')}</Button>
+          {IS_ARTIFACT && (
+            <Button size="lg" variant="leaf" disabled={busy} data-testid="practice"
+              onClick={() => guard(async () => {
+                const r = await bridgeActions.practice({ name: name.trim(), avatar: prefs.get().avatar });
+                if (r?.ok) actions.adoptJoin(r);
+                return r;
+              })}><IconSmile /> {t('practice')}</Button>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <Button variant="sun" disabled={busy || !connected} onClick={() => guard(() => actions.create())}><IconLock /> {t('createRoom')}</Button>
             <Button variant="coral" disabled={busy} onClick={() => setJoinOpen((v) => !v)}><IconDoor /> {t('joinRoom')}</Button>
@@ -112,7 +125,7 @@ export function Home() {
 
       <footer className="text-muted mt-auto space-y-1 pt-6 text-center text-xs">
         <p>{t('demoNotice')}</p>
-        <p><a href="/admin" className="underline">{t('admin')}</a></p>
+        {!IS_ARTIFACT && <p><a href="/admin" className="underline">{t('admin')}</a></p>}
       </footer>
     </div>
   );

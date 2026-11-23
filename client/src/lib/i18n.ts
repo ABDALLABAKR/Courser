@@ -195,6 +195,12 @@ const ckb = {
   how4: 'وێنەکێشیش خاڵ وەردەگرێت کاتێک کەسانی تر وشەکە دەدۆزنەوە. زۆرترین خاڵ دەباتەوە!',
   letsPlay: 'با یاری بکەین!',
   admin: 'بەڕێوەبەر',
+  practice: 'یاری لەگەڵ ڕۆبۆت',
+  addBot: 'ڕۆبۆت زیاد بکە',
+  removeBots: 'ڕۆبۆتەکان لابە',
+  soloOnly: 'یاری ئۆنلاین لێرە بەردەست نییە، بەڵام دەتوانیت لەگەڵ ڕۆبۆت یاری بکەیت.',
+  shareHint: 'ئەم پەڕەیە بۆ هاوڕێکانت بنێرە و کۆدی ژوورەکەیان پێ بڵێ.',
+  practiceHint: 'ژووری ڕاهێنان: تەنها تۆ و ڕۆبۆتەکان.',
 };
 
 type Dict = typeof ckb;
@@ -281,6 +287,10 @@ const en: Dict = {
   how3t: 'Guess', how3: 'Type guesses in the chat. The faster you guess, the more points you get.',
   how4t: 'Win', how4: 'The artist scores when others guess. Most points at the end wins!',
   letsPlay: "Let's play!", admin: 'Admin',
+  practice: 'Practice with bots', addBot: 'Add a bot', removeBots: 'Remove bots',
+  soloOnly: "Online play isn't available here, but you can practice with bots.",
+  shareHint: 'Share this page with friends and tell them the room code.',
+  practiceHint: 'Practice room: just you and the bots.',
 };
 
 const dicts: Record<Lang, Dict> = { ckb, en };

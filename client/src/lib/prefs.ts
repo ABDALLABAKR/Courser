@@ -36,7 +36,9 @@ export function applyPrefsToDocument() {
   const apply = () => {
     const p = prefs.get();
     const root = document.documentElement;
-    const dark = p.theme === 'dark' || (p.theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+    const host = root.dataset.theme; // set by an embedding viewer (claude.ai artifacts)
+    const sysDark = host === 'dark' || (host !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+    const dark = p.theme === 'dark' || (p.theme === 'system' && sysDark);
     root.classList.toggle('dark', dark);
     root.classList.toggle('reduce-motion', p.reduceMotion);
     root.lang = p.lang === 'ckb' ? 'ckb' : 'en';
@@ -46,6 +48,7 @@ export function applyPrefsToDocument() {
   apply();
   prefs.subscribe(apply);
   matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', apply);
+  new MutationObserver(apply).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
   // Keep a CSS variable with the *visual* viewport height so the layout shrinks when the mobile keyboard opens.
   const vv = window.visualViewport;

@@ -35,7 +35,7 @@ export function GameScreen({ view }: { view: RoomView }) {
         <div className="min-w-0 flex-1"><WordDisplay view={view} /></div>
         <span className="text-muted text-xs font-bold sm:hidden">{t.n(view.round)}/{t.n(view.settings.rounds)}</span>
         <IconButton label={t('settings')} onClick={() => ui.set({ settingsOpen: true })}><IconSettings /></IconButton>
-        <IconButton label={t('leave')} onClick={() => { if (confirm(t('leaveConfirm'))) actions.leave(); }}><IconLogout /></IconButton>
+        <LeaveButton />
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col gap-2 lg:flex-row">
@@ -80,6 +80,15 @@ export function GameScreen({ view }: { view: RoomView }) {
       <GuessCelebration />
     </div>
   );
+}
+
+function LeaveButton() {
+  const t = useT();
+  const [armed, setArmed] = useState(false);
+  useEffect(() => { if (!armed) return; const id = setTimeout(() => setArmed(false), 3000); return () => clearTimeout(id); }, [armed]);
+  return armed
+    ? <button onClick={() => actions.leave()} className="h-11 shrink-0 rounded-2xl bg-coral px-3 text-sm font-extrabold text-white">{t('leave')}?</button>
+    : <IconButton label={t('leave')} onClick={() => setArmed(true)}><IconLogout /></IconButton>;
 }
 
 const overlay = 'absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 overflow-y-auto rounded-3xl bg-navy/80 p-3 text-white backdrop-blur-[2px]';

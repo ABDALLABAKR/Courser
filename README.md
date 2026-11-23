@@ -180,3 +180,15 @@ e2e/two-players.cjs  Playwright two-browser game run
 - Chat and names are length-limited and stripped of control and bidi-override characters, and rendered as text (no HTML injection). Blocked terms reject names and mask chat.
 - The admin uses a scrypt password hash, HMAC-signed `HttpOnly; SameSite=Strict` cookie (`Secure` in production), CSRF header check, and a login rate limit.
 - Security headers: CSP, `X-Frame-Options`, `nosniff`, `Referrer-Policy`. CORS is closed by default in production.
+
+---
+
+## Artifact version (no backend)
+
+`npm run build:artifact -w client` produces `client/dist-artifact/wene-bikeshe.html`, a single 1 MB page for claude.ai Artifacts. Everything (code, styles, fonts) is inlined.
+
+- **How multiplayer works there:** the page that creates a room hosts it in the browser. It runs the same `Room`/`socket.ts` game code as the Node server (`client/src/artifact/hostServer.ts`). Other players reach it over the artifact `room` capability.
+- **Privacy:** every page publishes an ECDH P-256 key. Anything addressed to some players only (word choices, the word, guesses, near-miss echoes, session tokens) is AES-GCM encrypted per recipient. Only data everyone sees (drawings, public chat, public state) is sent in plain text (`client/src/artifact/mesh.ts`).
+- **Host leaving:** the remaining players elect a new host. The room reopens with the same code in the lobby (scores reset).
+- **Practice with bots:** works without any connection. Bots guess (with wrong guesses and near misses) and draw their word's emoji as pixel art.
+- **Limits:** players need claude.ai access to the artifact, and Contributor permission or above to send moves. The host's browser is trusted (it knows the word), so this mode isn't cheat-proof. Reports aren't stored, and there is no admin dashboard.

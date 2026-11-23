@@ -9,7 +9,7 @@ export class RoomManager {
 
   constructor(private timing: Timing, private hooks: Omit<RoomHooks, 'onEmpty'>) {
     this.sweeper = setInterval(() => this.sweep(), 30_000);
-    this.sweeper.unref();
+    this.sweeper.unref?.(); // absent when the room logic runs in a browser (artifact build)
   }
 
   create(isPublic: boolean, settings: Partial<RoomSettings> = {}): Room {

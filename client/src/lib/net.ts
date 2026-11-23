@@ -5,6 +5,7 @@ import type {
 import { createStore, useStore } from './store';
 import { prefs } from './prefs';
 import { play } from './sound';
+import { setRoomInUrl } from './env';
 
 const SERVER_URL = (import.meta.env.VITE_SERVER_URL as string | undefined) || undefined;
 
@@ -96,9 +97,7 @@ function onJoined(r: Res) {
   if (r.ok) {
     currentCode = r.code;
     saveSession({ code: r.code, session: r.session, at: Date.now() });
-    const url = new URL(location.href);
-    url.searchParams.set('room', r.code);
-    history.replaceState(null, '', url);
+    setRoomInUrl(r.code);
   }
   return r;
 }
@@ -114,6 +113,8 @@ export const actions = {
     const c = code.trim().toUpperCase();
     return onJoined(await withTimeout<Res>((ack) => socket.emit('room:join', { code: c, profile: profile(), session: sessionFor(c) ?? savedSession()?.session }, ack)));
   },
+  /** Record a join made outside these actions (artifact practice rooms). */
+  adoptJoin(r: Res) { return onJoined(r); },
   leave() {
     socket.emit('room:leave');
     resetLocal();
@@ -145,9 +146,7 @@ function resetLocal() {
   canvasModel.strokes = [];
   canvasModel.redo = [];
   game.set({ view: null, chat: [], reactions: [], celebrate: null });
-  const url = new URL(location.href);
-  url.searchParams.delete('room');
-  history.replaceState(null, '', url);
+  setRoomInUrl(null);
 }
 
 export const notify = (key: string) => game.set({ notice: { key, ts: Date.now() } });

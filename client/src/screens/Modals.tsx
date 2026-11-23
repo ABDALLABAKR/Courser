@@ -4,6 +4,7 @@ import { useT } from '../lib/i18n';
 import { ui, useUi } from '../lib/ui';
 import { API_BASE, useCategories } from '../lib/api';
 import { notify } from '../lib/net';
+import { IS_ARTIFACT } from '../lib/env';
 import { Button, Field, Modal, Segmented, Toggle, inputCls } from '../components/ui';
 import { IconBrush, IconDoor, IconSmile, IconCrown } from '../components/Icons';
 
@@ -38,7 +39,7 @@ export function SettingsModal() {
           <Toggle label={t('reduceMotion')} checked={p.reduceMotion} onChange={(reduceMotion) => prefs.set({ reduceMotion })} />
           <Toggle label={t('kurdishKeyboard')} help={t('kurdishKeyboardHelp')} checked={p.kurdishKeyboard} onChange={(kurdishKeyboard) => prefs.set({ kurdishKeyboard })} />
         </div>
-        <details className="surface-2 rounded-2xl p-3">
+        {!IS_ARTIFACT && <details className="surface-2 rounded-2xl p-3">
           <summary className="cursor-pointer font-extrabold">{t('suggestWord')}</summary>
           <p className="text-muted my-2 text-sm">{t('suggestHelp')}</p>
           <div className="space-y-2">
@@ -49,7 +50,7 @@ export function SettingsModal() {
             </select>
             <Button className="w-full" variant="navy" onClick={submit}>{t('submit')}</Button>
           </div>
-        </details>
+        </details>}
       </div>
     </Modal>
   );

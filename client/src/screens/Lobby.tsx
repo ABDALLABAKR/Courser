@@ -4,30 +4,28 @@ import { DRAW_TIME_OPTIONS, MAX_PLAYERS_LIMIT, ROUND_OPTIONS, type RoomSettings,
 import { actions, notify } from '../lib/net';
 import { useT } from '../lib/i18n';
 import { ui } from '../lib/ui';
+import { IS_ARTIFACT, inviteUrl } from '../lib/env';
+import { bridgeActions, useBridge } from '../artifact/bridge';
 import { useCategories, type Category } from '../lib/api';
 import { Button, Field, IconButton, Segmented, Toggle, inputCls } from '../components/ui';
 import { IconCheck, IconCopy, IconLogout, IconPlay, IconSettings, IconShare } from '../components/Icons';
 import { Chat, PlayerList, useCountdown } from '../game/widgets';
 
-export function inviteUrl(code: string) {
-  const u = new URL(location.origin + location.pathname);
-  u.searchParams.set('room', code);
-  return u.toString();
-}
 
 function RoomCodeCard({ view }: { view: RoomView }) {
   const t = useT();
   const [copied, setCopied] = useState(false);
   const url = inviteUrl(view.code);
   const copy = async () => {
-    try { await navigator.clipboard.writeText(url); } catch { /* insecure context */ }
+    const text = url || t('inviteText', { code: view.code });
+    try { await navigator.clipboard.writeText(text); } catch { /* refused: the code stays visible to copy by hand */ }
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
   };
   const share = async () => {
     const text = t('inviteText', { code: view.code });
-    if (navigator.share) {
-      try { await navigator.share({ title: 'وێنە بکێشە', text, url }); return; } catch { /* cancelled */ }
+    if (navigator.share && url) {
+      try { await navigator.share({ title: 'وێنە بکێشە', text, url }); return; } catch { /* cancelled or refused */ }
     }
     void copy();
   };
@@ -38,12 +36,32 @@ function RoomCodeCard({ view }: { view: RoomView }) {
         <div>
           <div className="text-muted text-sm font-bold">{view.isPublic ? t('publicRoom') : t('privateRoom')} · {t('roomCode')}</div>
           <div className="font-display text-4xl font-bold tracking-[0.25em] text-navy dark:text-white ltr" data-testid="room-code">{view.code}</div>
+          {IS_ARTIFACT && <ArtifactRoomHint />}
         </div>
         <div className="flex gap-2">
           <Button variant="ghost" size="sm" onClick={copy}>{copied ? <IconCheck size={18} /> : <IconCopy size={18} />} {copied ? t('copied') : t('copy')}</Button>
           <Button variant="sun" size="sm" onClick={share}><IconShare size={18} /> {t('invite')}</Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ArtifactRoomHint() {
+  const t = useT();
+  const practice = useBridge((b) => b.practice);
+  return <div className="text-muted mt-1 text-xs font-bold">{practice ? t('practiceHint') : t('shareHint')}</div>;
+}
+
+function BotControls() {
+  const t = useT();
+  const isHost = useBridge((b) => b.isHost);
+  const bots = useBridge((b) => b.bots);
+  if (!IS_ARTIFACT || !isHost) return null;
+  return (
+    <div className="mt-2 flex gap-2">
+      <Button size="sm" variant="ghost" className="flex-1" disabled={bots >= 5} onClick={() => bridgeActions.addBot()} data-testid="add-bot">🤖 {t('addBot')}</Button>
+      {bots > 0 && <Button size="sm" variant="ghost" onClick={() => bridgeActions.removeBots()}>{t('removeBots')}</Button>}
     </div>
   );
 }
@@ -146,6 +164,7 @@ export function Lobby({ view }: { view: RoomView }) {
             <span className="text-muted text-sm">{t('readyCount', { r: readyN, n: connected.length })}</span>
           </h2>
           <PlayerList view={view} />
+          {view.hostId === view.you && <BotControls />}
         </section>
         <SettingsPanel view={view} />
         <Chat view={view} className="h-[360px] lg:h-[calc(var(--vvh)-280px)]" />
