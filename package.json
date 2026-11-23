@@ -1,0 +1,26 @@
+{
+  "name": "wene-bikeshe",
+  "private": true,
+  "version": "1.0.0",
+  "description": "وێنە بکێشە | WÊNE BIKÊŞE — Kurdish multiplayer draw & guess game",
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "dev": "concurrently -n server,client -c cyan,magenta \"npm:dev -w server\" \"npm:dev -w client\"",
+    "build": "npm run build -w client && npm run build -w server",
+    "start": "npm run start -w server",
+    "test": "npm run test -w server",
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w client",
+    "hash-password": "npm run hash-password -w server --"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.7",
+    "typescript": "^5.9.3"
+  }
+}
