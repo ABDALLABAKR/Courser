@@ -21,7 +21,7 @@ export class Moderation {
   /** Returns a clean nickname or null when unacceptable. */
   cleanName(raw: unknown): string | null {
     if (typeof raw !== 'string') return null;
-    const s = normalizeKurdish(raw.replace(CONTROL, '')).slice(0, NAME_MAX).trim();
+    const s = normalizeKurdish(raw.replace(CONTROL, ''), { foldCase: false }).slice(0, NAME_MAX).trim();
     if (s.length < 2 || !/[\p{L}\p{N}]/u.test(s)) return null;
     if (this.containsBlocked(s)) return null;
     return s;

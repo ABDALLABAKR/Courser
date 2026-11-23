@@ -130,7 +130,7 @@ describe('multiplayer over Socket.IO', () => {
     const j = await call<any>((ack) => b.s.emit('room:join', { code: r.code, profile: profile('Hêmin') }, ack));
     await until(() => b.state?.players.length === 2);
     a.s.disconnect();
-    await until(() => b.state?.hostId === j.playerId && b.state.players.find((p) => p.id === r.playerId)?.connected === false);
+    await until(() => b.state?.hostId === j.playerId && b.state!.players.find((p) => p.id === r.playerId)?.connected === false);
     const a2 = await client();
     const back = await call<any>((ack) => a2.s.emit('room:join', { code: r.code, profile: profile('Dilan'), session: r.session }, ack));
     expect(back).toMatchObject({ ok: true, playerId: r.playerId });
@@ -155,7 +155,7 @@ describe('multiplayer over Socket.IO', () => {
   it('exposes health and public categories, and protects admin routes', async () => {
     expect(await (await fetch(`${url}/api/health`)).json()).toEqual({ ok: true });
     const cats = await (await fetch(`${url}/api/categories`)).json();
-    expect(cats.length).toBeGreaterThanOrEqual(8);
+    expect((cats as unknown[]).length).toBeGreaterThanOrEqual(8);
     expect((await fetch(`${url}/api/admin/words`)).status).toBe(401);
     expect((await fetch(`${url}/api/admin/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"password":"x"}' })).status).toBe(503);
   });

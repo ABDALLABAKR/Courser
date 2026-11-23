@@ -1,0 +1,18 @@
+# Example Render.com blueprint (WebSockets supported). Adjust plan/region as needed.
+services:
+  - type: web
+    name: wene-bikeshe
+    runtime: docker
+    plan: starter
+    healthCheckPath: /api/health
+    envVars:
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ADMIN_PASSWORD_HASH
+        sync: false
+      - key: TRUST_PROXY
+        value: "true"
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1

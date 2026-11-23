@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=../.env src/index.ts",
-    "build": "tsup src/index.ts src/scripts/hash-password.ts --format esm --target node22 --out-dir dist --clean --no-splitting",
+    "build": "tsup",
     "start": "node --env-file-if-exists=../.env dist/index.js",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",

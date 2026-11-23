@@ -24,7 +24,7 @@ const MAP: Record<string, string> = {
   'ة': 'ە', // ة → ە
 };
 
-export function normalizeKurdish(input: string): string {
+export function normalizeKurdish(input: string, opts: { foldCase?: boolean } = {}): string {
   let s = input.normalize('NFKC');
   // legacy: heh + ZWNJ = ae
   s = s.replace(/ه‌/g, 'ە');
@@ -37,7 +37,7 @@ export function normalizeKurdish(input: string): string {
   s = s.replace(/[يىكھة]/g, (c) => MAP[c] ?? c);
   // remove tatweel, harakat & other Arabic marks, zero-width & bidi controls
   s = s.replace(/[ـً-ٰٟۖ-ۭ​-‏‪-‮⁦-⁩﻿]/g, '');
-  s = s.toLowerCase();
+  if (opts.foldCase !== false) s = s.toLowerCase();
   s = s.replace(/\s+/g, ' ').trim();
   return s;
 }

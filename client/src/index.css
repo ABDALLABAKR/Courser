@@ -1,0 +1,118 @@
+@import "tailwindcss";
+@import "@fontsource-variable/noto-sans-arabic";
+@import "@fontsource-variable/fredoka";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Noto Sans Arabic Variable", "Fredoka Variable", system-ui, sans-serif;
+  --font-display: "Fredoka Variable", "Noto Sans Arabic Variable", system-ui, sans-serif;
+  --color-teal: #20C5C5;
+  --color-teal-dark: #149A9A;
+  --color-sun: #FFCA45;
+  --color-sun-dark: #E0A820;
+  --color-coral: #FF746A;
+  --color-coral-dark: #E0544A;
+  --color-navy: #18243B;
+  --color-navy-2: #22314F;
+  --color-navy-3: #2D3F63;
+  --color-paper: #F7FAFC;
+  --color-leaf: #2B9348;
+}
+
+:root {
+  --bg: #F7FAFC;
+  --surface: #FFFFFF;
+  --surface-2: #EEF4F8;
+  --text: #18243B;
+  --muted: #5F6C84;
+  --line: #DCE5EE;
+  --vvh: 100dvh;
+  color-scheme: light;
+}
+.dark {
+  --bg: #0F1729;
+  --surface: #18243B;
+  --surface-2: #22314F;
+  --text: #F1F5FA;
+  --muted: #A3B1C8;
+  --line: #2D3F63;
+  color-scheme: dark;
+}
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
+  text-rendering: optimizeLegibility;
+}
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+:focus-visible { outline: 3px solid var(--color-sun); outline-offset: 2px; border-radius: 10px; }
+input, textarea, select { font: inherit; }
+.app-h { height: var(--vvh); }
+.surface { background: var(--surface); }
+.surface-2 { background: var(--surface-2); }
+.text-muted { color: var(--muted); }
+.border-line { border-color: var(--line); }
+.ltr { direction: ltr; unicode-bidi: isolate; }
+
+/* Chunky "game" button with a pressable bottom edge */
+.btn3d {
+  position: relative;
+  border-radius: 18px;
+  font-weight: 800;
+  transition: transform .08s ease, box-shadow .08s ease, filter .15s;
+  box-shadow: 0 5px 0 0 var(--edge, rgba(0,0,0,.25)), 0 8px 18px -6px rgba(24,36,59,.35);
+}
+.btn3d:hover:not(:disabled) { filter: brightness(1.05); }
+.btn3d:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 1px 0 0 var(--edge, rgba(0,0,0,.25)), 0 3px 8px -4px rgba(24,36,59,.35); }
+.btn3d:disabled { filter: grayscale(.6) opacity(.6); }
+
+.card {
+  background: var(--surface);
+  border-radius: 24px;
+  box-shadow: 0 1px 0 var(--line), 0 12px 32px -16px rgba(24,36,59,.28);
+}
+
+/* Kilim-inspired diamond band (geometric motif common to Kurdish woven rugs) */
+.kilim {
+  height: 12px;
+  background:
+    linear-gradient(135deg, transparent 37%, var(--k1, #FF746A) 37% 63%, transparent 63%) 0 0 / 24px 12px,
+    linear-gradient(45deg, transparent 37%, var(--k1, #FF746A) 37% 63%, transparent 63%) 0 0 / 24px 12px,
+    linear-gradient(135deg, transparent 44%, var(--k2, #FFCA45) 44% 56%, transparent 56%) 12px 0 / 24px 12px,
+    linear-gradient(45deg, transparent 44%, var(--k2, #FFCA45) 44% 56%, transparent 56%) 12px 0 / 24px 12px,
+    var(--k0, #20C5C5);
+}
+
+.scroll-thin { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+.canvas-paper {
+  touch-action: none;
+  background: #fff;
+  image-rendering: auto;
+}
+
+@keyframes floatUp { 0% { transform: translateY(0) scale(.6); opacity: 0 } 15% { opacity: 1; transform: translateY(-10px) scale(1.1) } 100% { transform: translateY(-160px) scale(1); opacity: 0 } }
+@keyframes wiggle { 0%,100% { transform: rotate(-6deg) } 50% { transform: rotate(6deg) } }
+@keyframes bob { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-6px) } }
+@keyframes flicker { 0%,100% { transform: scaleY(1) } 50% { transform: scaleY(1.08) } }
+.anim-wiggle { animation: wiggle 2.4s ease-in-out infinite; transform-origin: 50% 80%; }
+.anim-bob { animation: bob 3s ease-in-out infinite; }
+.anim-flicker { animation: flicker .9s ease-in-out infinite; transform-origin: 50% 100%; transform-box: fill-box; }
+
+.reduce-motion *, .reduce-motion *::before, .reduce-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .anim-wiggle, .anim-bob, .anim-flicker { animation: none; }
+}

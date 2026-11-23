@@ -40,3 +40,9 @@ describe('Kurdish normalisation', () => {
     expect(compareGuess('چ', 'چا')).toBe('wrong'); // too short to be "close"
   });
 });
+
+describe('nickname normalisation', () => {
+  it('keeps the case of Latin nicknames', () => {
+    expect(normalizeKurdish('Bawan', { foldCase: false })).toBe('Bawan');
+  });
+});
