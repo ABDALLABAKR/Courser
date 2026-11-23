@@ -5,6 +5,7 @@ import type { Settings, ThemePref } from '../hooks/useSettings';
 import { LANGUAGES, kuNum } from '../i18n';
 import { ACCEPTED_GUESS_COUNT, ANSWERS, DICTIONARY_MODE } from '../data/dictionary';
 import { ckb as t } from '../i18n/ckb';
+import { useInstall } from '../hooks/useInstall';
 
 interface Props {
   open: boolean;
@@ -14,6 +15,8 @@ interface Props {
   update: <K extends keyof Settings>(key: K, value: Settings[K]) => void;
   onHelp: () => void;
   onReset: () => void;
+  onReport: () => void;
+  hardLocked: boolean;
 }
 
 function Toggle({ label, hint, checked, onChange, disabled }: {
@@ -43,7 +46,8 @@ function Toggle({ label, hint, checked, onChange, disabled }: {
   );
 }
 
-export function SettingsModal({ open, onClose, settings, reducedMotion, update, onHelp, onReset }: Props) {
+export function SettingsModal({ open, onClose, settings, reducedMotion, update, onHelp, onReset, onReport, hardLocked }: Props) {
+  const { state: installState, install } = useInstall();
   const themes: Array<[ThemePref, string]> = [
     ['system', t.themeSystem],
     ['light', t.themeLight],
@@ -70,6 +74,12 @@ export function SettingsModal({ open, onClose, settings, reducedMotion, update, 
         </fieldset>
 
         <div className="divide-y divide-line border-y border-line">
+          <Toggle
+            label={t.hardMode}
+            hint={hardLocked && !settings.hardMode ? t.hardModeLocked : t.hardModeHint}
+            checked={settings.hardMode}
+            onChange={(v) => update('hardMode', v)}
+          />
           <Toggle label={t.sound} hint={t.soundHint} checked={settings.sound} onChange={(v) => update('sound', v)} />
           <Toggle
             label={t.animations}
@@ -98,9 +108,30 @@ export function SettingsModal({ open, onClose, settings, reducedMotion, update, 
           </div>
         </div>
 
-        <button type="button" onClick={onHelp} className="focus-ring mt-4 h-11 rounded-2xl bg-surface-2 font-bold hover:brightness-95">
-          {t.howToPlay}
-        </button>
+        <section className="mt-4 flex flex-col gap-2 rounded-2xl border border-line p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col">
+              <span className="font-bold">📲 {t.install}</span>
+              <span className="text-xs text-muted">
+                {installState === 'installed' ? t.installed : installState === 'ios' ? t.installIos : installState === 'manual' ? t.installOther : t.installHint}
+              </span>
+            </div>
+            {installState === 'available' && (
+              <button type="button" onClick={install} className="focus-ring h-10 shrink-0 rounded-xl bg-brand px-4 text-sm font-extrabold text-white hover:brightness-110">
+                {t.installButton}
+              </button>
+            )}
+          </div>
+        </section>
+
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button type="button" onClick={onHelp} className="focus-ring h-11 rounded-2xl bg-surface-2 text-sm font-bold hover:brightness-95">
+            {t.howToPlay}
+          </button>
+          <button type="button" onClick={onReport} className="focus-ring h-11 rounded-2xl bg-surface-2 text-sm font-bold hover:brightness-95">
+            {t.report}
+          </button>
+        </div>
 
         {DICTIONARY_MODE === 'demo' && (
           <p className="mt-4 rounded-2xl border border-present/40 bg-present/10 p-3 text-xs leading-relaxed">

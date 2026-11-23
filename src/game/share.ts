@@ -30,11 +30,16 @@ export interface ShareOptions {
 export function buildShareText(game: GameState, opts: ShareOptions = {}): string {
   const score = game.status === 'won' ? String(game.guesses.length) : 'X';
   const title =
-    game.mode === 'daily' ? `وشەی ڕۆژ #${game.puzzleNumber}` : 'وشە — یاریی بێسنوور';
+    game.mode === 'daily'
+      ? `وشەی ڕۆژ #${game.puzzleNumber}`
+      : game.mode === 'archive'
+        ? `وشەی ڕۆژ #${game.puzzleNumber} (ئەرشیف)`
+        : 'وشە — یاریی بێسنوور';
+  const extras = `${game.hard ? '*' : ''}${game.hints?.length ? ` 💡${game.hints.length}` : ''}`;
   const lines = [
     'وشە | WUSHA',
     title,
-    `${LRM}${score}/${MAX_GUESSES}${LRM}`,
+    `${LRM}${score}/${MAX_GUESSES}${extras}${LRM}`,
     '',
     ...game.guesses.map((g) => emojiRow(g.states, opts.highContrast)),
   ];

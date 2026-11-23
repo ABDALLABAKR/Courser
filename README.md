@@ -11,7 +11,7 @@
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # 63 unit + integration tests
+npm test           # 72 unit + integration tests
 npm run build      # type-check + production build → dist/
 npm run preview    # serve the production build (service worker active)
 ```
@@ -30,7 +30,12 @@ Requires Node.js ≥ 20.
 | **Statistics** | Played, wins, win %, current & best streak, guess distribution, daily history — Daily and Unlimited tracked separately |
 | **Sharing** | Native share sheet, WhatsApp, Telegram, Facebook (when a site URL is set), copy-to-clipboard fallback. The answer is never included |
 | **Settings** | Light / dark / system theme, sound, animations, colour-blind high-contrast palette, Latin key mapping, language selector (ready for more languages), reset data |
-| **Extras** | First-run onboarding tutorial, 10 achievements, PWA (installable, offline), respects `prefers-reduced-motion`, privacy notice |
+| **Archive** | Play any past daily puzzle; results are kept separately and never affect statistics |
+| **Hard mode** | Revealed letters must be reused (greens in place); can be turned on only before a round starts |
+| **Hints** | Unlimited mode: reveal up to 2 letters per round (never the last unknown one); marked 💡 in shares |
+| **Share image** | 1080×1350 result card (logo, flag, coloured grid, score) via the share sheet or download — no letters revealed |
+| **Report a word** | Players can suggest missing words or flag wrong words/definitions — opens their email (`VITE_REPORT_EMAIL`) or a pre-filled GitHub issue |
+| **Extras** | First-run onboarding tutorial, 10 achievements, install-app button (Android/desktop prompt, iOS instructions), PWA offline mode, Kurdistan flag, respects `prefers-reduced-motion` |
 
 ## Architecture
 
@@ -80,7 +85,7 @@ src/data/
 
 ### ⚠️ Current status: demonstration dictionary
 
-The bundled list contains **157 answers + 200 extra guesses (149 of them from a contributed word list)** — common, everyday Sorani words in standard orthography, each with a short Kurdish definition and an English gloss for reviewers. **None has yet been reviewed by a native speaker**, so every entry is `status: 'unreviewed'`, the dictionary runs in `DICTIONARY_MODE = 'demo'`, and the Settings screen shows a clear "demo dictionary" notice to players.
+The bundled list contains **366 answers** (a full year of daily puzzles) **+ about 140 extra guesses**, including words from a contributed word list — common, everyday Sorani words in standard orthography, each with a short Kurdish definition and an English gloss for reviewers. **None has yet been reviewed by a native speaker**, so every entry is `status: 'unreviewed'`, the dictionary runs in `DICTIONARY_MODE = 'demo'`, and the Settings screen shows a clear "demo dictionary" notice to players.
 
 Because the accepted-guess list is small, many real Kurdish words will be rejected as "not in the dictionary" until it is expanded. This is the biggest thing to address before a public launch.
 
@@ -94,13 +99,17 @@ Because the accepted-guess list is small, many real Kurdish words will be reject
 
 ### Changing the daily list safely
 
-`DAILY_ORDER` is **append-only**: puzzle *N* uses `DAILY_ORDER[(N − 1) mod length]`, so reordering or deleting lines would change today's word for everyone. Append new words at the end. To retire a word, replace it only at positions that are still in the future and bump `DAILY_LIST_VERSION`. If an unfinished daily game's word changes under a player, the game restarts; finished games are kept.
+The schedule in `src/data/daily.ts` is a list of frozen **eras**. Puzzle *N* uses the last era whose `fromPuzzle ≤ N`, at index `(N − fromPuzzle) mod length`. Era 1 (the original 157 words) runs until puzzle #334; era 2 (366 words) starts at #335 = 2026‑12‑01.
+
+To change the list: **never edit an era that has started**. Add a new era whose `fromPuzzle` is a few days in the future and bump `DAILY_LIST_VERSION`. That way no player's word changes in the middle of a day, whenever the update is deployed.
 
 ## Deployment
 
 The build is a static site in `dist/` with relative asset paths, so it works at a domain root or any sub-path.
 
-**Optional:** set `VITE_SITE_URL` (see `.env.example`) at build time to append your link to shared results and enable the Facebook button (Facebook can only share URLs).
+**Optional build settings** (see `.env.example`; on GitHub add them as repository variables):
+- `VITE_SITE_URL`: appended to shared results; enables the Facebook button.
+- `VITE_REPORT_EMAIL`: where "report a word" messages go. Without it, reports open a pre-filled GitHub issue (players need a GitHub account).
 
 ### GitHub Pages (workflow included)
 1. Repository **Settings → Pages → Source: GitHub Actions**.
@@ -115,7 +124,7 @@ Build command `npm run build`, output directory `dist`. No server configuration 
 
 ## Testing and verification status
 
-**Automated (`npm test`, 63 tests, all passing):**
+**Automated (`npm test`, 72 tests, all passing):**
 - Unicode normalization (Arabic/Persian variants, presentation forms, decomposed letters, invisible characters) and that distinct Kurdish letters are never merged
 - Grapheme counting (`وو`, combining marks, emoji)
 - Two-pass evaluation incl. repeated letters, green-over-yellow precedence, `وو` answers, keyboard colour priority

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addLetter, addText, isValidSavedGame, newGame, removeLetter, submitGuess, type GameState } from '../src/game/engine';
+import { addLetter, addText, hintablePositions, isValidSavedGame, newGame, removeLetter, revealHint, submitGuess, type GameState } from '../src/game/engine';
 import { dailyEntry, dailyNumber, formatCountdown, kurdistanDateKey, msUntilNextDaily } from '../src/game/daily';
 import { DAILY_ORDER_V1, DAILY_ORDER_V2 } from '../src/data/daily';
 import { effectiveDailyStreak, emptyStats, hydrateStats, recordDaily, recordUnlimited, winRate } from '../src/game/stats';
@@ -174,5 +174,76 @@ describe('sharing', () => {
     const text = buildShareText(lost, { url: 'https://example.org' });
     expect(text).toContain('X/6');
     expect(text.trim().endsWith('https://example.org')).toBe(true);
+  });
+});
+
+describe('hard mode', () => {
+  const start = () => newGame('daily', 1, 'باران');
+  const hardGuess = (g: GameState, w: string, hard = true) => submitGuess(addText(g, w), { hard });
+
+  it('requires green letters to stay in place', () => {
+    const first = hardGuess(start(), 'ئاسان'); // ا green at 2 and 4, ن green at 5
+    if (!first.ok) throw new Error();
+    const bad = hardGuess(first.state, 'هاوین');
+    expect(bad.ok).toBe(false);
+    expect(!bad.ok && bad.error).toBe('hard-green');
+  });
+
+  it('requires revealed yellow letters to be reused', () => {
+    // answer دەریا, guess باران → ر green (3rd), ا yellow
+    const first = hardGuess(newGame('daily', 1, 'دەریا'), 'باران');
+    if (!first.ok) throw new Error();
+    const noAlef = hardGuess(first.state, 'کورسی'); // keeps ر but drops ا
+    expect(!noAlef.ok && noAlef.error).toBe('hard-present');
+    expect(!noAlef.ok && noAlef.letter).toBe('ا');
+    expect(hardGuess(first.state, 'زەریا').ok).toBe(true);
+  });
+
+  it('reports which green letter moved and where it belongs', () => {
+    // answer باران, guess ئاسان → greens at positions 2, 4, 5
+    const first = hardGuess(start(), 'ئاسان');
+    if (!first.ok) throw new Error();
+    const r = hardGuess(first.state, 'هاوین'); // keeps ا at 2 but not at 4
+    expect(!r.ok && r.error).toBe('hard-green');
+    expect(!r.ok && r.letter).toBe('ا');
+    expect(!r.ok && r.position).toBe(3);
+  });
+
+  it('cannot be switched on mid-game, but can be switched off', () => {
+    const first = hardGuess(start(), 'ئاسان', false);
+    if (!first.ok) throw new Error();
+    expect(first.state.hard).toBe(false);
+    expect(hardGuess(first.state, 'هاوین', true).ok).toBe(true); // still easy
+    const hardFirst = hardGuess(start(), 'ئاسان', true);
+    if (!hardFirst.ok) throw new Error();
+    expect(hardGuess(hardFirst.state, 'هاوین', false).ok).toBe(true); // switched off
+  });
+});
+
+describe('hints', () => {
+  it('reveals unknown positions only, at most twice, never the last letter', () => {
+    let g = newGame('unlimited', 1, 'باران');
+    g = revealHint(g, () => 0);
+    g = revealHint(g, () => 0);
+    expect(g.hints).toEqual([0, 1]);
+    expect(revealHint(g)).toBe(g); // max reached
+    const almost = submitGuess(addText(newGame('unlimited', 1, 'باران'), 'باران'.slice(0, 4) + 'ن'));
+    expect(almost.ok).toBe(true);
+  });
+
+  it('skips letters that are already green', () => {
+    const r = submitGuess(addText(newGame('unlimited', 1, 'باران'), 'ئاسان'));
+    if (!r.ok) throw new Error();
+    expect(hintablePositions(r.state)).toEqual([0, 2]);
+    expect(revealHint(r.state, () => 0.99).hints).toEqual([2]);
+  });
+
+  it('marks hard mode and hints in the share text', () => {
+    let g = newGame('unlimited', 1, 'باران');
+    g = revealHint(g, () => 0);
+    const r = submitGuess(addText(g, 'باران'), { hard: true });
+    if (!r.ok) throw new Error();
+    const text = buildShareText(r.state);
+    expect(text).toContain('1/6* 💡1');
   });
 });

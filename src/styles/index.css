@@ -304,3 +304,10 @@ body {
   0%, 55% { transform: translateX(0); }
   100% { transform: translateX(1350px); }
 }
+
+.tile[data-state='hint'] {
+  --final-border: var(--present);
+  --final-fg: var(--muted);
+  border-style: dashed;
+  opacity: 0.75;
+}

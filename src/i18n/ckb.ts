@@ -103,6 +103,57 @@ export const ckb = {
   confirmDelete: 'بەڵێ، بیسڕەوە',
   cancel: 'پاشگەزبوونەوە',
 
+
+  // Hard mode
+  hardMode: 'دۆخی سەخت',
+  hardModeHint: 'پیتە دۆزراوەکان دەبێت لە هەوڵەکانی دواتردا بەکاربهێنرێن',
+  hardModeLocked: 'لە ناوەڕاستی یارییەکدا ناتوانرێت چالاک بکرێت؛ لە یاریی داهاتوودا دەست پێ دەکات',
+  errHardGreen: (l: string, pos: string) => `پیتی «${l}» دەبێت لە خانەی ژمارە ${pos} بێت`,
+  errHardPresent: (l: string) => `دەبێت پیتی «${l}» بەکاربهێنیت`,
+
+  // Hints (unlimited)
+  hint: 'یارمەتی',
+  hintLeft: (n: string) => `یارمەتی — ${n} ماوە`,
+  hintNone: 'یارمەتی نەماوە',
+  hintRevealed: (pos: string, l: string) => `خانەی ${pos}: «${l}»`,
+
+  // Archive
+  modeArchive: 'ئەرشیف',
+  archive: 'ئەرشیف',
+  archiveTitle: 'ئەرشیفی ئاڵنگارییەکان',
+  archiveIntro: 'ئاڵنگارییەکانی ڕۆژانی ڕابردوو یاری بکە. ئەنجامەکانیان کار لە ئامارەکانت ناکەن.',
+  archivePlayedAsDaily: 'لە ڕۆژی خۆیدا',
+  archiveNotPlayed: 'یاری نەکراوە',
+  archiveInProgress: 'نیوەچڵ',
+  archiveEmpty: 'هێشتا هیچ ئاڵنگارییەکی ڕابردوو نییە',
+  backToDaily: 'گەڕانەوە بۆ ئەمڕۆ',
+
+  // Share image
+  shareImage: 'وێنە',
+  shareImageFailed: 'دروستکردنی وێنە سەرکەوتوو نەبوو',
+  imageSaved: 'وێنەکە دابەزێنرا',
+
+  // Report a word
+  report: 'ڕاپۆرت یان پێشنیاری وشە',
+  reportThisWord: 'ڕاپۆرتکردنی ئەم وشەیە',
+  reportIntro: 'یارمەتیمان بدە فەرهەنگەکە باشتر بکەین. پەیامەکەت لە ڕێگەی ئیمەیڵ یان GitHub دەنێردرێت.',
+  reportTypeMissing: 'وشەیەک زیاد بکرێت',
+  reportTypeWrong: 'ئەم وشەیە هەڵەیە',
+  reportTypeDefinition: 'واتاکەی هەڵەیە',
+  reportWord: 'وشە',
+  reportNote: 'تێبینی (ئارەزوومەندانە)',
+  reportSend: 'ناردن',
+  reportThanks: 'سوپاس بۆ یارمەتییەکەت!',
+  suggestWord: (w: string) => `«${w}» بخرێتە فەرهەنگەکەوە؟`,
+
+  // Install
+  install: 'دابەزاندنی ئەپ',
+  installHint: 'وشە وەک ئەپێک بخە سەر شاشەی سەرەکیی مۆبایلەکەت',
+  installButton: 'دابەزاندن',
+  installed: 'ئەپەکە دابەزێنراوە ✓',
+  installIos: 'لە Safari، دوگمەی هاوبەشکردن ⬆️ دابگرە و پاشان «Add to Home Screen» هەڵبژێرە.',
+  installOther: 'لە مێنیوی وێبگەڕەکەت «Install app» یان «Add to Home screen» هەڵبژێرە.',
+
   // Onboarding / help
   helpTitle: 'چۆن یاری بکەم؟',
   helpIntro: 'وشە شاراوەکە لە شەش هەوڵدا بدۆزەرەوە.',

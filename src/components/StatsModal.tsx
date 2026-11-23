@@ -3,7 +3,7 @@ import { Modal } from './Modal';
 import { Countdown } from './Feedback';
 import { ACHIEVEMENTS } from '../game/achievements';
 import { effectiveDailyStreak, winRate, type ModeStats, type Stats } from '../game/stats';
-import type { GameMode, GameState } from '../game/engine';
+import type { GameState } from '../game/engine';
 import { ckb as t } from '../i18n/ckb';
 import { kuNum } from '../i18n';
 
@@ -13,7 +13,7 @@ interface Props {
   stats: Stats;
   unlocked: string[];
   todayPuzzle: number;
-  initialTab: GameMode;
+  initialTab: 'daily' | 'unlimited';
   daily: GameState;
 }
 
@@ -54,7 +54,7 @@ function Distribution({ s, highlight }: { s: ModeStats; highlight?: number }) {
 }
 
 export function StatsModal({ open, onClose, stats, unlocked, todayPuzzle, initialTab, daily }: Props) {
-  const [tab, setTab] = useState<GameMode>(initialTab);
+  const [tab, setTab] = useState<'daily' | 'unlimited'>(initialTab);
   const s: ModeStats = tab === 'daily' ? stats.daily : stats.unlimited;
   const streak = tab === 'daily' ? effectiveDailyStreak(stats.daily, todayPuzzle) : stats.unlimited.currentStreak;
   const dailyHighlight =
