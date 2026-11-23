@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Modal } from './Modal';
 import { Tile } from './Board';
 import { LogoMark } from './Logo';
+import { KurdistanFlag } from './KurdistanFlag';
 import type { LetterState } from '../game/evaluate';
 import { graphemes } from '../game/kurdish';
 import { ckb as t } from '../i18n/ckb';
@@ -36,6 +37,8 @@ function sections(): Array<{ key: string; body: ReactNode }> {
           <LogoMark size={64} />
           <h3 className="text-xl font-extrabold">{t.welcome}</h3>
           <p className="text-muted">{t.welcomeBody}</p>
+          <KurdistanFlag width={120} shimmer className="mt-2" />
+          <p className="text-xs font-bold text-muted">{t.madeWithLove}</p>
         </div>
       ),
     },
