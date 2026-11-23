@@ -1,5 +1,6 @@
 import { ANSWER_SOURCE } from './answers';
 import { EXTRA_GUESS_SOURCE } from './guesses';
+import { EXTERNAL_GUESS_SOURCE } from './externalGuesses';
 import { DAILY_ERAS } from './daily';
 import { buildEntry, type DictionaryEntry } from './schema';
 import { normalizeKurdish } from '../game/kurdish';
@@ -26,7 +27,7 @@ export const ANSWERS: readonly DictionaryEntry[] = ANSWER_SOURCE.map(buildEntry)
 
 /** Collection 2: everything a player may type (answers ∪ extra guesses). */
 const GUESS_INDEX = new Map<string, DictionaryEntry>();
-for (const e of [...ANSWER_SOURCE, ...EXTRA_GUESS_SOURCE].map(buildEntry)) {
+for (const e of [...ANSWER_SOURCE, ...EXTRA_GUESS_SOURCE, ...EXTERNAL_GUESS_SOURCE].map(buildEntry)) {
   if (usable(e) && !GUESS_INDEX.has(e.normalized)) GUESS_INDEX.set(e.normalized, e);
 }
 

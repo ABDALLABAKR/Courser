@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ANSWER_SOURCE } from '../src/data/answers';
 import { EXTRA_GUESS_SOURCE } from '../src/data/guesses';
+import { EXTERNAL_GUESS_SOURCE } from '../src/data/externalGuesses';
 import { DAILY_ERAS } from '../src/data/daily';
 import {
   ANSWERS, DAILY_ERA_ENTRIES, DICTIONARY_MODE, isValidGuess, lookupEntry, WORD_LENGTH,
@@ -9,7 +10,7 @@ import { graphemes, isSoraniLetter, normalizeKurdish } from '../src/game/kurdish
 import { KEY_ROWS } from '../src/components/Keyboard';
 
 describe('dictionary integrity', () => {
-  const all = [...ANSWER_SOURCE, ...EXTRA_GUESS_SOURCE];
+  const all = [...ANSWER_SOURCE, ...EXTRA_GUESS_SOURCE, ...EXTERNAL_GUESS_SOURCE];
 
   it('every word is exactly 5 Sorani letters', () => {
     for (const e of all) {
@@ -49,6 +50,11 @@ describe('dictionary integrity', () => {
 
   it('every answer is an accepted guess', () => {
     for (const e of ANSWERS) expect(isValidGuess(e.word), e.word).toBe(true);
+  });
+
+  it('accepts every external (KLPT) word as a guess', () => {
+    expect(EXTERNAL_GUESS_SOURCE.length).toBeGreaterThan(3000);
+    for (const e of EXTERNAL_GUESS_SOURCE) expect(isValidGuess(e.word), e.word).toBe(true);
   });
 
   it('accepts guesses typed with Arabic code points', () => {
