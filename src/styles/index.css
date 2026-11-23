@@ -43,7 +43,6 @@
   --tile-filled-border: #8c99ab;
   --key-bg: #e3e9f0;
   --key-fg: #0f172a;
-  --key-unused: 0.45;
   --shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 8px 24px -12px rgb(15 23 42 / 0.18);
   --pattern-opacity: 0.07;
 }
@@ -254,7 +253,6 @@ body {
 .key[data-state='correct'] { background: var(--correct); color: var(--on-state); }
 .key[data-state='present'] { background: var(--present); color: var(--on-state); }
 .key[data-state='absent'] { background: var(--absent); color: var(--on-state); opacity: 0.9; }
-.key[data-unused='true'] { opacity: var(--key-unused); }
 .key-wide { flex-grow: 1.6; font-size: 0.95rem; }
 .key-enter { background: var(--brand); color: #fff; }
 
@@ -292,4 +290,17 @@ body {
 .tile-grid > .tile {
   aspect-ratio: 1;
   border-radius: 10px;
+}
+
+/* ── Kurdistan flag ───────────────────────────────────────────── */
+.kurdistan-flag {
+  border-radius: 4px;
+  filter: drop-shadow(0 1px 1.5px rgb(15 23 42 / 0.25));
+}
+[data-motion='on'] .kurdistan-flag .flag-sweep {
+  animation: flag-sweep 7s ease-in-out infinite;
+}
+@keyframes flag-sweep {
+  0%, 55% { transform: translateX(0); }
+  100% { transform: translateX(1350px); }
 }

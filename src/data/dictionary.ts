@@ -47,8 +47,3 @@ export const ACCEPTED_GUESS_COUNT = GUESS_INDEX.size;
 export const DAILY_ENTRIES: readonly DictionaryEntry[] = DAILY_ORDER.map((w) =>
   ANSWER_INDEX.get(normalizeKurdish(w)),
 ).filter((e): e is DictionaryEntry => Boolean(e));
-
-/** Letters that occur anywhere in the dictionary (used to dim unused keys). */
-export const LETTERS_IN_USE: ReadonlySet<string> = new Set(
-  [...GUESS_INDEX.values()].flatMap((e) => e.letters),
-);

@@ -1,3 +1,5 @@
+import { KurdistanFlag } from './KurdistanFlag';
+
 /**
  * WUSHA identity: a rounded "tile" mark carrying a stylised sun (a nod to the
  * Kurdish sun motif) above the wordmark وشە with the Latin transliteration.
@@ -34,6 +36,7 @@ export function Logo() {
         </span>
         <span className="latin text-[0.62rem] font-bold tracking-[0.42em] text-muted">WUSHA</span>
       </div>
+      <KurdistanFlag width={26} className="ms-0.5 self-center" />
     </div>
   );
 }

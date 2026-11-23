@@ -1,6 +1,5 @@
 import { useRef, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import type { LetterState } from '../game/evaluate';
-import { LETTERS_IN_USE } from '../data/dictionary';
 import { BackspaceIcon } from './Icons';
 import { ckb as t } from '../i18n/ckb';
 
@@ -90,7 +89,6 @@ export function Keyboard({ keyStates, onLetter, onEnter, onBackspace, disabled }
                 {...common}
                 className="key focus-ring"
                 data-state={state}
-                data-unused={!state && !LETTERS_IN_USE.has(k) ? 'true' : undefined}
                 onClick={() => onLetter(k)}
                 aria-label={state ? `${k}، ${STATE_LABEL[state]}` : k}
                 lang="ckb"

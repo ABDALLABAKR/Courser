@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { Modal } from './Modal';
+import { KurdistanFlag } from './KurdistanFlag';
 import type { Settings, ThemePref } from '../hooks/useSettings';
 import { LANGUAGES, kuNum } from '../i18n';
 import { ACCEPTED_GUESS_COUNT, ANSWERS, DICTIONARY_MODE } from '../data/dictionary';
@@ -116,7 +117,11 @@ export function SettingsModal({ open, onClose, settings, reducedMotion, update, 
         <button type="button" onClick={onReset} className="focus-ring mt-3 self-start rounded-full px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-500/10 dark:text-red-400">
           {t.resetData}
         </button>
-        <p className="latin mt-2 text-center text-[0.7rem] text-muted">WUSHA v{__APP_VERSION__}</p>
+        <div className="mt-4 flex flex-col items-center gap-1.5 border-t border-line pt-4">
+          <KurdistanFlag width={44} shimmer />
+          <p className="text-xs font-bold text-muted">{t.madeWithLove}</p>
+          <p className="latin text-[0.7rem] text-muted">WUSHA v{__APP_VERSION__}</p>
+        </div>
       </div>
     </Modal>
   );
