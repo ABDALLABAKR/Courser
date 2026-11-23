@@ -155,3 +155,12 @@ window.DEFAULT_QUESTIONS = (function () {
   ];
   return Q.map((q, i) => Object.assign({ id: 'b' + (i + 1), t: 'mcq' }, q));
 })();
+
+// Register the Grade 10 set (the game can switch between grades).
+window.QUESTION_SETS = window.QUESTION_SETS || {};
+window.QUESTION_SETS.g10 = {
+  label: 'Grade 10',
+  book: 'Chapter 2 & Section 3-1',
+  topics: window.BANK_TOPICS,
+  questions: window.DEFAULT_QUESTIONS.map(q => Object.assign({ s: 'g10' }, q))
+};

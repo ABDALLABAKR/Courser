@@ -482,6 +482,14 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--cyan); outl
 .timers-row input { width: 100%; }
 .setup-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
 
+/* Grade picker (setup) */
+.grade-pick { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 14px auto 4px; max-width: 760px; }
+.grade-pick button { border: 3px solid var(--line); border-radius: 18px; padding: 12px 16px; background: rgba(255, 255, 255, .05); color: var(--text); font-family: var(--display); text-align: center; }
+.grade-pick button b { display: block; font-size: 28px; }
+.grade-pick button small { font-family: var(--body); color: var(--muted); font-size: 14px; }
+.grade-pick button.on { border-color: var(--gold); background: linear-gradient(160deg, rgba(251, 191, 36, .25), rgba(124, 58, 237, .25)); box-shadow: 0 0 24px rgba(251, 191, 36, .35); }
+.grade-pick button.on small { color: #fde68a; }
+
 /* Bank */
 .bank-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
 .bank-tools input.inp { flex: 1; min-width: 160px; }

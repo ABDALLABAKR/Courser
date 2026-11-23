@@ -16,7 +16,7 @@ def read(rel):
 
 html = read('index.html')
 css = read('css/style.css')
-scripts = {rel: read(rel) for rel in ('js/questions.js', 'js/game.js')}
+scripts = {rel: read(rel) for rel in ('js/questions.js', 'js/questions-g11.js', 'js/game.js')}
 
 for rel, js in scripts.items():
     if re.search(r'</script', js, re.I):

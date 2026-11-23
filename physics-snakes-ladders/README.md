@@ -7,6 +7,13 @@ When the repository is published with GitHub Pages it is at `/physics-snakes-lad
 ## Offline version
 `physics-championship.html` is the whole game in a single file. Save it on the classroom laptop (or a USB stick) and double-click it to play in Chrome or Edge with no internet. Games save in that browser on that laptop. After changing the game or questions, rebuild it with `python3 build-offline.py`.
 
+## Grade 10 and Grade 11
+Pick the grade at the top of the setup screen. Each grade has its own question set, topics and titles:
+- **Grade 10** – 118 questions from Chapter 2 (Strength of Solids) and Section 3-1 (Fluids and Buoyant Force) (`js/questions.js`).
+- **Grade 11** – 127 questions from Chapters 1–3 (Motion in One Dimension; Vectors and Two-Dimensional Motion; Forces and the Laws of Motion) (`js/questions-g11.js`). Calculations use small numbers and g = 10 m/s² so they can be done mentally.
+
+The question bank screen, imports and new questions always apply to the grade that is selected.
+
 ## Quick start
 1. Name the four groups and (optionally) list each group's students — they take turns answering.
 2. Choose a 100- or 50-square board, the competition time limit and the question timers, then press **Start championship**.

@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════
- *  Grade 10 Physics — Snakes & Ladders Championship
+ *  Physics Snakes & Ladders Championship (Grade 10 / Grade 11)
  *  Pure browser game: no build step, no dependencies, works offline.
  * ═══════════════════════════════════════════════════════════════════ */
 'use strict';
@@ -27,11 +27,12 @@
   const KEYS = { prefs: 'pslc.prefs.v1', bank: 'pslc.bank.v1', save: 'pslc.save.v1', bankVer: 'pslc.bankver' };
 
   /* ───────────────────────── Constants ───────────────────────── */
-  // Topics come from the question bank file (book chapters), with a fallback.
-  const CATS = window.BANK_TOPICS || {
-    1: { name: 'Topic 1', icon: '📘' }, 2: { name: 'Topic 2', icon: '📗' }, 3: { name: 'Topic 3', icon: '📙' }, 4: { name: 'Topic 4', icon: '📕' },
-    5: { name: 'Topic 5', icon: '📓' }, 6: { name: 'Topic 6', icon: '📔' }, 7: { name: 'Topic 7', icon: '📒' }, 8: { name: 'Topic 8', icon: '📚' }
-  };
+  // Question sets (one per grade/book) come from js/questions*.js.
+  const SETS = window.QUESTION_SETS || {};
+  const SET_IDS = Object.keys(SETS).sort();
+  const ALL_DEFAULTS = () => [].concat(...SET_IDS.map(k => clone(SETS[k].questions)));
+  // CATS always holds the topics of the grade currently shown (see applySet).
+  const CATS = {};
   const DIFF = { E: { name: 'Easy', icon: '🌱' }, M: { name: 'Moderate', icon: '🔥' }, C: { name: 'Challenging', icon: '💥' } };
   const TYPES = { mcq: 'Multiple Choice', tf: 'True or False', short: 'Short Answer', num: 'Numerical Problem', mistake: 'Identify the Mistake', reason: 'Reasoning & Prediction' };
   const POINTS = { E: 5, M: 10, C: 15, ladder: 15, snake: 15, final: 15, challenge: 10, bonus: 10 };
@@ -83,7 +84,7 @@
   function defaultSetup() {
     return {
       names: TEAMS.map(t => t.name), members: ['', '', '', ''], sections: ['', '', '', ''], lifelines: 1, size: 100, minutes: 45,
-      timers: { E: 30, M: 30, C: 30, LS: 30, F: 30 }, exactFinish: false, cats: [1, 2, 3, 4, 5, 6, 7, 8]
+      timers: { E: 30, M: 30, C: 30, LS: 30, F: 30 }, exactFinish: false, cats: [1, 2, 3, 4, 5, 6, 7, 8], set: 'g10'
     };
   }
   const prefs = Object.assign({ sound: true, used: [] }, STORE.get(KEYS.prefs, {}));
@@ -100,14 +101,16 @@
   prefs.used = (prefs.used || []).filter(id => !/^q\d+$/.test(id)); // drop ids of the old built-in bank
 
   let bank = STORE.get(KEYS.bank, null);
-  if (!Array.isArray(bank)) bank = clone(window.DEFAULT_QUESTIONS || []);
-  else if (STORE.get(KEYS.bankVer, 1) < 3) {
-    // v3: built-in questions now come from the course book (Ch. 2 and Section 3-1).
-    // Keep the teacher's own multiple-choice questions, replace the old built-ins.
-    bank = clone(window.DEFAULT_QUESTIONS || []).concat(bank.filter(q => /^u/.test(q.id) && q.o && q.o.length >= 3 && q.a != null));
+  const ownQuestions = list => list.filter(q => /^u/.test(q.id) && q.o && q.o.length >= 3 && q.a != null).map(q => Object.assign({ s: 'g10' }, q));
+  if (!Array.isArray(bank)) bank = ALL_DEFAULTS();
+  else if (STORE.get(KEYS.bankVer, 1) < 4) {
+    // v4: built-in Grade 10 (book Ch. 2 & 3-1) and Grade 11 (book Ch. 1–3) sets.
+    // Keep the teacher's own multiple-choice questions (they belong to Grade 10), replace the built-ins.
+    bank = ALL_DEFAULTS().concat(ownQuestions(bank));
     STORE.set(KEYS.bank, bank);
   }
-  STORE.set(KEYS.bankVer, 3);
+  bank.forEach(q => { if (!q.s) q.s = 'g10'; });
+  STORE.set(KEYS.bankVer, 4);
   const saveBank = () => STORE.set(KEYS.bank, bank);
 
   /* ───────────────────────── Sound (Web Audio synth) ───────────────────────── */
@@ -204,6 +207,16 @@
   const override = {};       // token positions during slide animations
 
   const B = () => BOARDS[game ? game.size : prefs.setup.size];
+  // Grade shown right now: the setup screen's choice while it is open, otherwise the match's grade.
+  const viewSet = () => { const id = setupOpen || !game ? prefs.setup.set : game.set; return SETS[id] ? id : (SET_IDS[0] || 'g10'); };
+  const setLabel = id => (SETS[id] ? SETS[id].label : 'Grade 10');
+  function applySet(id) {
+    id = SETS[id] ? id : viewSet();
+    Object.keys(CATS).forEach(k => delete CATS[k]);
+    Object.assign(CATS, (SETS[id] && SETS[id].topics) || {});
+    const sub = document.querySelector('.brand-sub'); if (sub) sub.textContent = setLabel(id) + ' Championship';
+    document.title = setLabel(id) + ' Physics Snakes & Ladders';
+  }
   const cur = () => game.teams[game.turn];
   const timers = () => (game ? game.settings.timers : prefs.setup.timers);
   const studentOf = t => t.members[t.memberIdx % t.members.length];
@@ -214,7 +227,7 @@
 
   function newGame(s) {
     return {
-      v: 1, size: s.size,
+      v: 1, size: s.size, set: SETS[s.set] ? s.set : 'g10',
       settings: { timers: Object.assign({}, s.timers), exactFinish: !!s.exactFinish, cats: s.cats.slice() },
       teams: TEAMS.map((d, i) => ({
         id: i, name: (String(s.names[i] || '').trim() || d.name).slice(0, 32), color: d.color, light: d.light, icon: d.icon, letter: d.letter,
@@ -526,9 +539,10 @@
 
   /* ───────────────────────── Questions ───────────────────────── */
   function activeBank() {
-    const cats = game ? game.settings.cats : prefs.setup.cats;
-    const list = bank.filter(q => cats.includes(q.c));
-    return list.length ? list : bank;
+    const cats = game ? game.settings.cats : prefs.setup.cats, set = game ? game.set : prefs.setup.set;
+    const inSet = bank.filter(q => q.s === set);
+    const list = inSet.filter(q => cats.includes(q.c));
+    return list.length ? list : inSet.length ? inSet : bank;
   }
   function drawQuestion(prefDiffs, excludeId) {
     const all = activeBank();
@@ -1031,6 +1045,8 @@
     game = g; history = opts.keepHistory ? history : [];
     if (game.phase === 'busy') game.phase = 'roll';
     game.teams.forEach(t => { if (t.lifelines == null) t.lifelines = 1; if (t.section == null) t.section = ''; });
+    if (!SETS[game.set]) game.set = 'g10';
+    applySet(game.set);
     game.paused = false;
     hidePodium(); closeTool(); setupOpen = false;
     buildBoard(); render(); saveAuto();
@@ -1192,7 +1208,7 @@
     return c;
   }
   function closeTool() {
-    $('#toolModal').classList.remove('show'); if (setupOpen && game) setupOpen = false;
+    $('#toolModal').classList.remove('show'); if (setupOpen && game) { setupOpen = false; applySet(game.set); }
     if (audienceOpen) { audienceOpen = false; stopQTimer(); QT.onEnd = null; }
     toolKeys = null;
   }
@@ -1213,13 +1229,15 @@
   /* ───────────────────────── Setup screen ───────────────────────── */
   function openSetup() {
     setupOpen = true;
+    applySet(prefs.setup.set);
     const s = prefs.setup, saved = STORE.get(KEYS.save, null);
     const canResume = saved && validGame(saved.game);
     const savedInfo = canResume ? `${saved.game.teams.map(t => t.name).join(', ')} · ${new Date(saved.savedAt).toLocaleString()}${saved.game.phase === 'over' ? ' (finished)' : ''}` : '';
     const card = openTool(`
       <div class="setup-hero"><div class="logo"><span>🐍</span><span>🎲</span><span>🪜</span></div>
         <h1>Physics Snakes &amp; Ladders Championship</h1>
-        <p>Grade 10 Physics · four groups · answer to move · first to the top who solves the final challenge wins!</p></div>
+        <p>${esc(setLabel(s.set))} Physics · four groups · answer to move · first to the top who solves the final challenge wins!</p></div>
+      <div class="grade-pick">${SET_IDS.map(id => `<button data-set="${id}" class="${s.set === id ? 'on' : ''}"><b>${esc(SETS[id].label)}</b><small>${esc(SETS[id].book)} · ${bank.filter(q => q.s === id).length} questions</small></button>`).join('')}</div>
       ${canResume ? `<div class="panel" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px;border-color:var(--gold)">
         <div style="flex:1;min-width:200px"><b style="font-size:18px">💾 Saved game found</b><div class="muted">${esc(savedInfo)}</div></div>
         <button class="btn big gold" data-s="resume">▶ Resume saved game</button></div>` : ''}
@@ -1242,8 +1260,8 @@
         <div class="timers-row">
           ${[['E', '🌱 Easy'], ['M', '🔥 Moderate'], ['C', '💥 Challenging'], ['LS', '🪜🐍 Ladder/Snake'], ['F', '🏆 Final']].map(([k, l]) => `<label class="field">${l}<input class="inp" type="number" min="5" max="600" data-t="${k}" value="${s.timers[k]}"></label>`).join('')}
         </div></div>
-      <h3>📚 Topics in play <small class="muted" style="font-size:14px">(${bank.length} questions in the bank)</small></h3>
-      <div class="cat-list">${Object.entries(CATS).map(([k, c]) => `<label class="check"><input type="checkbox" data-cat="${k}" ${s.cats.includes(+k) ? 'checked' : ''}> ${c.icon} ${esc(c.name)} <span class="muted">(${bank.filter(q => q.c === +k).length})</span></label>`).join('')}</div>
+      <h3>📚 ${esc(setLabel(s.set))} topics in play <small class="muted" style="font-size:14px">(${bank.filter(q => q.s === s.set).length} questions)</small></h3>
+      <div class="cat-list">${Object.entries(CATS).map(([k, c]) => `<label class="check"><input type="checkbox" data-cat="${k}" ${s.cats.includes(+k) ? 'checked' : ''}> ${c.icon} ${esc(c.name)} <span class="muted">(${bank.filter(q => q.s === s.set && q.c === +k).length})</span></label>`).join('')}</div>
       <div class="setup-actions">
         ${game ? '<button class="btn big" data-s="cancel">✕ Back to current game</button>' : ''}
         <button class="btn big" data-s="bank">📚 Question bank</button>
@@ -1262,7 +1280,7 @@
         size: +$('[data-seg="size"] .on', card).dataset.v,
         minutes: clamp(+$('[data-f="minutes"]', card).value || 0, 0, 300),
         exactFinish: $('[data-f="exactFinish"]', card).checked,
-        timers: {}, cats: $$('[data-cat]', card).filter(x => x.checked).map(x => +x.dataset.cat)
+        timers: {}, cats: $$('[data-cat]', card).filter(x => x.checked).map(x => +x.dataset.cat), set: prefs.setup.set
       };
       ['E', 'M', 'C', 'LS', 'F'].forEach(k => { n.timers[k] = clamp(+$(`[data-t="${k}"]`, card).value || 30, 5, 600); });
       if (!n.cats.length) n.cats = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -1273,6 +1291,10 @@
       if (!game) { prefs.setup.size = +b.dataset.v; buildBoard(); }
     }));
     card.addEventListener('input', () => { prefs.setup = read(); savePrefs(); });
+    $$('[data-set]', card).forEach(b => b.addEventListener('click', () => {
+      prefs.setup = read(); prefs.setup.set = b.dataset.set; prefs.setup.cats = [1, 2, 3, 4, 5, 6, 7, 8];
+      savePrefs(); applySet(prefs.setup.set); openSetup(); SFX.click();
+    }));
     $$('[data-s]', card).forEach(b => b.addEventListener('click', async () => {
       const a = b.dataset.s;
       if (a === 'start') {
@@ -1337,7 +1359,7 @@
     const teams = game ? game.teams : TEAMS.map((t, i) => Object.assign({}, t, { name: prefs.setup.names[i] || t.name, section: (prefs.setup.sections || [])[i] || '' }));
     const size = game ? game.size : prefs.setup.size;
     return [
-      `<div class="w-kicker">Welcome to the</div><h1 class="w-title">Grade 10 Physics<br>Snakes &amp; Ladders Championship</h1>
+      `<div class="w-kicker">Welcome to the</div><h1 class="w-title">${esc(setLabel(game ? game.set : prefs.setup.set))} Physics<br>Snakes &amp; Ladders Championship</h1>
        <div class="w-teams">${teams.map(t => `<div class="w-team" style="--c:${t.color};--l:${t.light}"><div class="w-tok">${t.icon}</div><div class="w-name">${esc(t.name)}</div>${t.section ? `<div class="w-sec">📣 Supporters: ${esc(t.section)}</div>` : ''}</div>`).join('')}</div>
        <div class="w-foot">🎲 Four groups · 🧠 Physics questions · 🏆 One champion</div>`,
       `<h2 class="w-h">🎲 How to play</h2><ul class="w-list">
@@ -1416,12 +1438,13 @@
   /* ───────────────────────── Question bank editor ───────────────────────── */
   const bankView = { cat: 0, diff: '', text: '' };
   function openBank(fromSetup) {
-    const usedSet = new Set(prefs.used);
-    const card = openTool(`<h2>📚 Question Bank</h2>
+    const usedSet = new Set(prefs.used), gset = viewSet(), gbank = bank.filter(q => q.s === gset);
+    applySet(gset);
+    const card = openTool(`<h2>📚 Question Bank — ${esc(setLabel(gset))}</h2>
       <div class="bank-stats">
-        <span class="chip">Total: ${bank.length}</span>
-        ${['E', 'M', 'C'].map(d => `<span class="chip ${d}">${DIFF[d].name}: ${bank.filter(q => q.d === d).length}</span>`).join('')}
-        <span class="chip">Used this cycle: ${bank.filter(q => usedSet.has(q.id)).length}</span>
+        <span class="chip">Total: ${gbank.length}</span>
+        ${['E', 'M', 'C'].map(d => `<span class="chip ${d}">${DIFF[d].name}: ${gbank.filter(q => q.d === d).length}</span>`).join('')}
+        <span class="chip">Used this cycle: ${gbank.filter(q => usedSet.has(q.id)).length}</span>
       </div>
       <div class="bank-tools">
         <select class="inp" data-b="cat"><option value="0">All topics</option>${Object.entries(CATS).map(([k, c]) => `<option value="${k}" ${bankView.cat === +k ? 'selected' : ''}>${c.icon} ${esc(c.name)}</option>`).join('')}</select>
@@ -1434,7 +1457,7 @@
         <button class="btn" data-bk="export">⬇ Export JSON</button>
         <button class="btn" data-bk="template">⬇ CSV template</button>
         <button class="btn" data-bk="resetUsed">♻️ Reset “used”</button>
-        <button class="btn red" data-bk="defaults">↺ Restore 100 defaults</button>
+        <button class="btn red" data-bk="defaults">↺ Restore built-in questions</button>
       </div>
       <div class="bank-list" id="bankList"></div>
       <div class="row end" style="margin-top:14px"><button class="btn big gold" data-bk="close">${fromSetup ? '← Back to setup' : 'Close'}</button></div>`, 'bank');
@@ -1442,7 +1465,7 @@
     const list = $('#bankList', card);
     const paint = () => {
       const t = bankView.text.toLowerCase();
-      const items = bank.filter(q => (!bankView.cat || q.c === bankView.cat) && (!bankView.diff || q.d === bankView.diff) && (!t || (q.q + ' ' + (q.ans || '') + ' ' + (q.o || []).join(' ')).toLowerCase().includes(t)));
+      const items = gbank.filter(q => (!bankView.cat || q.c === bankView.cat) && (!bankView.diff || q.d === bankView.diff) && (!t || (q.q + ' ' + (q.ans || '') + ' ' + (q.o || []).join(' ')).toLowerCase().includes(t)));
       list.innerHTML = items.length ? items.map(q => `<div class="bank-item ${usedSet.has(q.id) ? 'used' : ''}">
           <span class="chip cat" title="${esc((CATS[q.c] || {}).name)}">${(CATS[q.c] || {}).icon || '?'}</span><span class="chip ${q.d}">${q.d}</span>
           <div class="bi-q">${esc(q.q)}<small>${esc(TYPES[q.t] || q.t)} · ${esc(q.o && q.a != null ? q.o[q.a] : q.ans || '')}${usedSet.has(q.id) ? ' · used' : ''}</small></div>
@@ -1472,8 +1495,8 @@
         '8,Challenging,mcq,"An object weighs 10 N in air and 6 N in water. What is the buoyant force?",16 N,6 N,4 N,10 N,C,FB = 10 − 6 = 4 N\n', 'text/csv');
       else if (a === 'resetUsed') { prefs.used = []; savePrefs(); toast('♻️ All questions are available again'); openBank(fromSetup); }
       else if (a === 'defaults') {
-        if (await confirmBox('Replace the whole bank with the 100 built-in questions? Your custom questions will be removed.', 'Restore defaults')) {
-          bank = clone(window.DEFAULT_QUESTIONS); saveBank(); prefs.used = []; savePrefs(); openBank(fromSetup); toast('↺ Default questions restored');
+        if (await confirmBox(`Restore the built-in ${setLabel(gset)} questions? Your own ${setLabel(gset)} questions will be removed.`, 'Restore defaults')) {
+          bank = bank.filter(q => q.s !== gset).concat(clone(SETS[gset].questions)); saveBank(); prefs.used = []; savePrefs(); openBank(fromSetup); toast('↺ Default questions restored');
         }
       } else if (a === 'import') pickFile('.json,.csv,application/json,text/csv', (txt, name) => importQuestions(txt, name, fromSetup));
     }));
@@ -1496,7 +1519,7 @@
       <div class="row end" style="margin-top:14px"><button class="btn big" data-ed="cancel">Cancel</button><button class="btn big gold" data-ed="save">💾 Save question</button></div>`, 'bank');
     $('[data-ed="cancel"]', card).addEventListener('click', () => openBank(fromSetup));
     $('[data-ed="save"]', card).addEventListener('click', () => {
-      const n = { id: isNew ? 'u' + Date.now().toString(36) + rand(1000) : q.id, c: +$('[data-e="c"]', card).value, d: $('[data-e="d"]', card).value, t: 'mcq', q: $('[data-e="q"]', card).value.trim(), x: $('[data-e="x"]', card).value.trim() };
+      const n = { id: isNew ? 'u' + Date.now().toString(36) + rand(1000) : q.id, s: isNew ? viewSet() : (q.s || viewSet()), c: +$('[data-e="c"]', card).value, d: $('[data-e="d"]', card).value, t: 'mcq', q: $('[data-e="q"]', card).value.trim(), x: $('[data-e="x"]', card).value.trim() };
       if (!n.q) { toast('⚠️ Please type the question.'); return; }
       const raw = [0, 1, 2, 3].map(i => $(`[data-o="${i}"]`, card).value.trim());
       const sel = $('input[name="corr"]:checked', card);
@@ -1536,7 +1559,7 @@
     let opts = Array.isArray(o.o) ? o.o : Array.isArray(o.options) ? o.options : [o.optionA, o.optionB, o.optionC, o.optionD];
     opts = opts.map(s).filter(Boolean);
     const ansRaw = s(o.ans != null ? o.ans : o.answer);
-    const n = { id: 'u' + Date.now().toString(36) + '_' + i, c, d, t: 'mcq', q: text, x: s(o.x != null ? o.x : o.explanation) };
+    const n = { id: 'u' + Date.now().toString(36) + '_' + i, s: viewSet(), c, d, t: 'mcq', q: text, x: s(o.x != null ? o.x : o.explanation) };
     if (opts.length < 3 || opts.every(x => /^(true|false)$/i.test(x))) return null; // multiple choice only
     let a = o.a != null ? +o.a : o.correct != null && /^\d+$/.test(String(o.correct)) ? +o.correct : -1;
     if (a < 0 && /^[A-Da-d]$/.test(ansRaw)) a = 'abcd'.indexOf(ansRaw.toLowerCase());
@@ -1559,8 +1582,8 @@
     } catch (e) { toast('⚠️ Could not read that file.'); return; }
     const good = raw.map(normQ).filter(Boolean), bad = raw.length - good.length;
     if (!good.length) { toast('⚠️ No valid multiple-choice questions found. Check the CSV template.'); return; }
-    const replace = await confirmBox(`Found ${good.length} valid question(s)${bad ? ` (${bad} skipped)` : ''}. Add them to the bank, or replace the whole bank?`, 'Replace bank', 'Add to bank');
-    if (replace) { bank = good; prefs.used = []; savePrefs(); } else bank = bank.concat(good);
+    const replace = await confirmBox(`Found ${good.length} valid question(s)${bad ? ` (${bad} skipped)` : ''} for ${setLabel(viewSet())}. Add them, or replace all ${setLabel(viewSet())} questions?`, 'Replace bank', 'Add to bank');
+    if (replace) { bank = bank.filter(q => q.s !== viewSet()).concat(good); prefs.used = []; savePrefs(); } else bank = bank.concat(good);
     saveBank(); toast(`⬆ Imported ${good.length} question(s)`); openBank(fromSetup);
   }
 
@@ -1714,7 +1737,7 @@
     confirmBox('Restart the championship with the same groups and settings? All positions and points reset to zero.', 'Restart').then(ok => {
       if (!ok) return;
       const s = Object.assign({}, prefs.setup, {
-        size: game.size, names: game.teams.map(t => t.name), sections: game.teams.map(t => t.section || ''), members: game.teams.map(t => t.members.join('\n')),
+        size: game.size, set: game.set, names: game.teams.map(t => t.name), sections: game.teams.map(t => t.section || ''), members: game.teams.map(t => t.members.join('\n')),
         minutes: Math.round(game.timeLimit / 60) || 0, timers: game.settings.timers,
         exactFinish: game.settings.exactFinish, cats: game.settings.cats
       });
@@ -1791,6 +1814,7 @@
   addEventListener('beforeunload', saveAuto);
 
   /* ───────────────────────── Boot ───────────────────────── */
+  applySet(prefs.setup.set);
   buildDie();
   buildBoard();
   render();
