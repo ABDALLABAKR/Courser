@@ -4,8 +4,9 @@ import type { GameState } from '../game/engine';
 import { MAX_GUESSES, WORD_LENGTH } from '../data/dictionary';
 import { ckb as t } from '../i18n/ckb';
 import { kuNum } from '../i18n';
+import { graphemes } from '../game/kurdish';
 
-type TileState = LetterState | 'empty' | 'filled';
+type TileState = LetterState | 'empty' | 'filled' | 'hint';
 type TileAnim = 'none' | 'pop' | 'flip' | 'bounce';
 
 const STATE_LABEL: Record<LetterState, string> = {
@@ -22,7 +23,9 @@ interface TileProps {
 }
 
 export const Tile = memo(function Tile({ letter, state, anim, index }: TileProps) {
-  const label = letter
+  const label = state === 'hint'
+    ? `${t.hint}: ${letter}`
+    : letter
     ? state === 'correct' || state === 'present' || state === 'absent'
       ? `${letter}، ${STATE_LABEL[state]}`
       : letter
@@ -65,6 +68,7 @@ export function Board({ game, revealRow, shakeRow, winBounce }: BoardProps) {
         const guess = game.guesses[r];
         const isCurrent = r === currentRow && game.status === 'playing';
         const letters = guess ? guess.letters : isCurrent ? game.current : [];
+        const answerLetters = isCurrent && game.hints?.length ? graphemes(game.answer) : [];
         const rowLabel = `${t.row(kuNum(r + 1))}${guess ? `: ${guess.letters.join('')}` : ''}`;
         const isWinningRow = winBounce && game.status === 'won' && r === game.guesses.length - 1;
 
@@ -81,6 +85,10 @@ export function Board({ game, revealRow, shakeRow, winBounce }: BoardProps) {
               const letter = letters[i];
               let state: TileState = letter ? 'filled' : 'empty';
               let anim: TileAnim = 'none';
+              if (!letter && isCurrent && game.hints?.includes(i)) {
+                // Hinted letter: shown faintly until the player types it.
+                return <Tile key={i} index={i} letter={answerLetters[i]} state="hint" anim="none" />;
+              }
               if (guess) {
                 state = guess.states[i];
                 if (revealRow === r) anim = 'flip';

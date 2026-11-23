@@ -31,6 +31,8 @@ jobs:
         env:
           # Optional: set a repository variable SITE_URL to include links in shared results.
           VITE_SITE_URL: ${{ vars.SITE_URL }}
+          # Optional: repository variable REPORT_EMAIL receives "report a word" messages.
+          VITE_REPORT_EMAIL: ${{ vars.REPORT_EMAIL }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

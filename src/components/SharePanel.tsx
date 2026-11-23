@@ -1,7 +1,8 @@
 import { useMemo, type ReactNode } from 'react';
 import type { GameState } from '../game/engine';
 import { buildShareText, copyToClipboard, shareUrl, type ShareTarget } from '../game/share';
-import { CopyIcon, FacebookIcon, ShareIcon, TelegramIcon, WhatsAppIcon } from './Icons';
+import { CopyIcon, FacebookIcon, ImageIcon, ShareIcon, TelegramIcon, WhatsAppIcon } from './Icons';
+import { renderShareImage } from '../game/shareImage';
 import { ckb as t } from '../i18n/ckb';
 
 export const SITE_URL: string | undefined = import.meta.env.VITE_SITE_URL || undefined;
@@ -27,6 +28,27 @@ export function SharePanel({ game, highContrast, notify }: Props) {
     } catch (e) {
       // AbortError = user closed the sheet; anything else → fall back to copy.
       if ((e as DOMException)?.name !== 'AbortError') await copy();
+    }
+  };
+
+  const shareImage = async () => {
+    try {
+      const blob = await renderShareImage(game, { highContrast, url: SITE_URL });
+      const file = new File([blob], `wusha-${game.mode}-${game.puzzleNumber}.png`, { type: 'image/png' });
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file] });
+        return;
+      }
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+      notify(t.imageSaved, 'success');
+    } catch (e) {
+      if ((e as DOMException)?.name !== 'AbortError') notify(t.shareImageFailed, 'error');
     }
   };
 
@@ -80,6 +102,15 @@ export function SharePanel({ game, highContrast, notify }: Props) {
           title={t.copy}
         >
           <CopyIcon />
+        </button>
+        <button
+          type="button"
+          onClick={shareImage}
+          className="focus-ring grid h-11 w-11 place-items-center rounded-full bg-surface-2 text-fg transition hover:brightness-95"
+          aria-label={t.shareImage}
+          title={t.shareImage}
+        >
+          <ImageIcon />
         </button>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import { ANSWER_SOURCE } from './answers';
 import { EXTRA_GUESS_SOURCE } from './guesses';
-import { DAILY_ORDER } from './daily';
+import { DAILY_ERAS } from './daily';
 import { buildEntry, type DictionaryEntry } from './schema';
 import { normalizeKurdish } from '../game/kurdish';
 
@@ -43,7 +43,11 @@ export function lookupEntry(word: string): DictionaryEntry | undefined {
 
 export const ACCEPTED_GUESS_COUNT = GUESS_INDEX.size;
 
-/** Daily words in order, filtered to those still allowed as answers. */
-export const DAILY_ENTRIES: readonly DictionaryEntry[] = DAILY_ORDER.map((w) =>
-  ANSWER_INDEX.get(normalizeKurdish(w)),
-).filter((e): e is DictionaryEntry => Boolean(e));
+/** Daily schedule eras resolved to dictionary entries (see data/daily.ts). */
+export const DAILY_ERA_ENTRIES: ReadonlyArray<{ fromPuzzle: number; entries: readonly DictionaryEntry[] }> =
+  DAILY_ERAS.map((era) => ({
+    fromPuzzle: era.fromPuzzle,
+    entries: era.words
+      .map((w) => ANSWER_INDEX.get(normalizeKurdish(w)))
+      .filter((e): e is DictionaryEntry => Boolean(e)),
+  }));

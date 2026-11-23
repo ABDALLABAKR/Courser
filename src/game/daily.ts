@@ -1,5 +1,5 @@
 import { DAILY_EPOCH, DAILY_TIME_ZONE } from '../data/daily';
-import { DAILY_ENTRIES } from '../data/dictionary';
+import { DAILY_ERA_ENTRIES } from '../data/dictionary';
 import type { DictionaryEntry } from '../data/schema';
 
 const DAY_MS = 86_400_000;
@@ -53,9 +53,9 @@ export function dailyNumber(date: Date = new Date()): number {
 
 export function dailyEntry(puzzleNumber: number): DictionaryEntry {
   const n = Math.max(1, puzzleNumber);
-  const list = DAILY_ENTRIES;
-  if (list.length === 0) throw new Error('Daily answer list is empty');
-  return list[(n - 1) % list.length];
+  const era = [...DAILY_ERA_ENTRIES].reverse().find((e) => e.fromPuzzle <= n);
+  if (!era || era.entries.length === 0) throw new Error('Daily answer list is empty');
+  return era.entries[(n - era.fromPuzzle) % era.entries.length];
 }
 
 /** Milliseconds until the next midnight in Asia/Baghdad. */

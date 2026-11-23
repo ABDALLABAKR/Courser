@@ -2,7 +2,7 @@ import { Modal } from './Modal';
 import { SharePanel } from './SharePanel';
 import { Countdown } from './Feedback';
 import { Tile } from './Board';
-import { RefreshIcon, StatsIcon } from './Icons';
+import { ArchiveIcon, FlagWordIcon, RefreshIcon, StatsIcon } from './Icons';
 import { lookupEntry } from '../data/dictionary';
 import { CATEGORY_LABELS } from '../data/schema';
 import { graphemes } from '../game/kurdish';
@@ -21,9 +21,11 @@ interface Props {
   onNewRound: () => void;
   onShowStats: () => void;
   onTryUnlimited: () => void;
+  onReport: () => void;
+  onArchive: () => void;
 }
 
-export function ResultModal({ open, onClose, game, highContrast, notify, achievements, onNewRound, onShowStats, onTryUnlimited }: Props) {
+export function ResultModal({ open, onClose, game, highContrast, notify, achievements, onNewRound, onShowStats, onTryUnlimited, onReport, onArchive }: Props) {
   const won = game.status === 'won';
   const entry = lookupEntry(game.answer);
   const letters = graphemes(game.answer);
@@ -75,7 +77,7 @@ export function ResultModal({ open, onClose, game, highContrast, notify, achieve
 
         <SharePanel game={game} highContrast={highContrast} notify={notify} />
 
-        {game.mode === 'daily' ? (
+        {game.mode === 'daily' && (
           <div className="flex flex-col items-center gap-1 rounded-2xl border border-line p-4 text-center">
             <span className="text-sm font-bold text-muted">{t.nextDaily}</span>
             <Countdown />
@@ -83,7 +85,8 @@ export function ResultModal({ open, onClose, game, highContrast, notify, achieve
               {t.tryUnlimited} ←
             </button>
           </div>
-        ) : (
+        )}
+        {game.mode === 'unlimited' && (
           <button
             type="button"
             onClick={onNewRound}
@@ -93,11 +96,27 @@ export function ResultModal({ open, onClose, game, highContrast, notify, achieve
             {t.playAgain}
           </button>
         )}
+        {game.mode === 'archive' && (
+          <button
+            type="button"
+            onClick={onArchive}
+            className="focus-ring flex h-12 items-center justify-center gap-2 rounded-2xl border-2 border-brand text-base font-extrabold text-brand transition hover:bg-brand hover:text-white"
+          >
+            <ArchiveIcon />
+            {t.archiveTitle}
+          </button>
+        )}
 
-        <button type="button" onClick={onShowStats} className="focus-ring mx-auto flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold text-muted hover:bg-surface-2 hover:text-fg">
-          <StatsIcon width={18} height={18} />
-          {t.stats}
-        </button>
+        <div className="flex flex-wrap items-center justify-center gap-1">
+          <button type="button" onClick={onShowStats} className="focus-ring flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold text-muted hover:bg-surface-2 hover:text-fg">
+            <StatsIcon width={18} height={18} />
+            {t.stats}
+          </button>
+          <button type="button" onClick={onReport} className="focus-ring flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold text-muted hover:bg-surface-2 hover:text-fg">
+            <FlagWordIcon width={17} height={17} />
+            {t.reportThisWord}
+          </button>
+        </div>
       </div>
     </Modal>
   );

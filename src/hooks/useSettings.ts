@@ -10,6 +10,7 @@ export interface Settings {
   animations: boolean;
   highContrast: boolean;
   latinKeys: boolean;
+  hardMode: boolean;
   language: LanguageCode;
 }
 
@@ -19,6 +20,7 @@ const DEFAULTS: Settings = {
   animations: true,
   highContrast: false,
   latinKeys: true,
+  hardMode: false,
   language: 'ckb',
 };
 
