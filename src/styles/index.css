@@ -1,0 +1,295 @@
+@import 'tailwindcss';
+@import '@fontsource/noto-sans-arabic/arabic-400.css';
+@import '@fontsource/noto-sans-arabic/arabic-500.css';
+@import '@fontsource/noto-sans-arabic/arabic-700.css';
+@import '@fontsource/noto-sans-arabic/arabic-800.css';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Noto Sans Arabic', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-latin: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-sun: var(--sun);
+  --color-correct: var(--correct);
+  --color-present: var(--present);
+  --color-absent: var(--absent);
+}
+
+/* ── Design tokens ─────────────────────────────────────────────── */
+:root {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-2: #eef2f6;
+  --fg: #0f172a;
+  --muted: #64748b;
+  --line: #dbe2ea;
+  --brand: #22a06b;
+  --sun: #e8a913;
+
+  --correct: #22a06b;
+  --present: #d4a72c;
+  --absent: #64748b;
+  --on-state: #ffffff;
+
+  --tile-border: #d5dde7;
+  --tile-filled-border: #8c99ab;
+  --key-bg: #e3e9f0;
+  --key-fg: #0f172a;
+  --key-unused: 0.45;
+  --shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 8px 24px -12px rgb(15 23 42 / 0.18);
+  --pattern-opacity: 0.07;
+}
+
+.dark {
+  --bg: #0f172a;
+  --surface: #162033;
+  --surface-2: #1e293b;
+  --fg: #f1f5f9;
+  --muted: #94a3b8;
+  --line: #263449;
+  --brand: #2fbf80;
+  --sun: #f2b929;
+
+  --absent: #3b4659;
+  --tile-border: #2a3a52;
+  --tile-filled-border: #64748b;
+  --key-bg: #334155;
+  --key-fg: #f1f5f9;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 30px -12px rgb(0 0 0 / 0.6);
+  --pattern-opacity: 0.09;
+}
+
+/* Colour-blind friendly palette (orange / blue). */
+[data-contrast='high'] {
+  --correct: #f5793a;
+  --present: #3d8fd6;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+  text-rendering: optimizeLegibility;
+}
+
+.latin {
+  font-family: var(--font-latin);
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* ── Kurdish rug-inspired decorative band ──────────────────────── */
+.kilim {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='14' viewBox='0 0 28 14'%3E%3Cpath d='M0 7 7 0l7 7-7 7zM14 7l7-7 7 7-7 7z' fill='none' stroke='%2322A06B' stroke-width='1.2'/%3E%3Cpath d='M7 4.5 9.5 7 7 9.5 4.5 7zM21 4.5 23.5 7 21 9.5 18.5 7z' fill='%23E8A913'/%3E%3C/svg%3E");
+  background-size: 28px 14px;
+  background-repeat: repeat-x;
+  opacity: 0.55;
+}
+
+.pattern-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--pattern-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%2394A3B8' stroke-width='1'%3E%3Cpath d='M32 4 60 32 32 60 4 32z'/%3E%3Cpath d='M32 18 46 32 32 46 18 32z'/%3E%3C/g%3E%3C/svg%3E");
+  mask-image: radial-gradient(ellipse at center, transparent 35%, #000 85%);
+  -webkit-mask-image: radial-gradient(ellipse at center, transparent 35%, #000 85%);
+}
+
+/* ── Board ─────────────────────────────────────────────────────── */
+.board-wrap {
+  container-type: size;
+}
+
+.board {
+  --gap: clamp(4px, 1.4cqmin, 7px);
+  width: min(100cqw - 24px, (100cqh - 16px) * 5 / 6, 350px);
+  aspect-ratio: 5 / 6;
+  display: grid;
+  grid-template-rows: repeat(6, 1fr);
+  gap: var(--gap);
+}
+
+.board-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--gap);
+}
+
+.tile {
+  --final-bg: transparent;
+  --final-border: var(--tile-border);
+  --final-fg: var(--fg);
+  position: relative;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  border: 2px solid var(--final-border);
+  background: var(--final-bg);
+  color: var(--final-fg);
+  font-weight: 800;
+  font-size: min(2rem, 9cqmin);
+  line-height: 1;
+  user-select: none;
+  transition: border-color 120ms ease;
+  /* keep Arabic letters in their isolated form and centred */
+  unicode-bidi: isolate;
+}
+
+.tile[data-state='filled'] {
+  --final-border: var(--tile-filled-border);
+  box-shadow: var(--shadow);
+}
+
+.tile[data-state='correct'],
+.tile[data-state='present'],
+.tile[data-state='absent'] {
+  --final-fg: var(--on-state);
+  box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.12);
+}
+.tile[data-state='correct'] { --final-bg: var(--correct); --final-border: var(--correct); }
+.tile[data-state='present'] { --final-bg: var(--present); --final-border: var(--present); }
+.tile[data-state='absent']  { --final-bg: var(--absent);  --final-border: var(--absent); }
+
+[data-motion='on'] .tile[data-anim='pop'] {
+  animation: pop 110ms ease-out;
+}
+
+[data-motion='on'] .tile[data-anim='flip'] {
+  animation: flip 520ms ease-in-out backwards;
+  animation-delay: calc(var(--i) * 260ms);
+}
+
+[data-motion='on'] .tile[data-anim='bounce'] {
+  animation: bounce 900ms ease backwards;
+  animation-delay: calc(var(--i) * 90ms);
+}
+
+[data-motion='on'] .board-row[data-shake='true'] {
+  animation: shake 480ms ease;
+}
+
+@keyframes pop {
+  from { transform: scale(0.88); }
+  60% { transform: scale(1.08); }
+  to { transform: scale(1); }
+}
+
+@keyframes flip {
+  0% {
+    transform: rotateX(0);
+    background: transparent;
+    border-color: var(--tile-filled-border);
+    color: var(--fg);
+  }
+  49.9% {
+    transform: rotateX(90deg);
+    background: transparent;
+    border-color: var(--tile-filled-border);
+    color: var(--fg);
+  }
+  50% {
+    transform: rotateX(90deg);
+    background: var(--final-bg);
+    border-color: var(--final-border);
+    color: var(--final-fg);
+  }
+  100% { transform: rotateX(0); }
+}
+
+@keyframes bounce {
+  0%, 20% { transform: translateY(0); }
+  40% { transform: translateY(-28%); }
+  50% { transform: translateY(4%); }
+  60% { transform: translateY(-12%); }
+  80% { transform: translateY(2%); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes shake {
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(4px); }
+  30%, 50%, 70% { transform: translateX(-7px); }
+  40%, 60% { transform: translateX(7px); }
+}
+
+/* ── Keyboard ──────────────────────────────────────────────────── */
+.key {
+  --key-h: clamp(42px, 6.6dvh, 58px);
+  height: var(--key-h);
+  min-width: 0;
+  flex: 1 1 0;
+  border-radius: 10px;
+  background: var(--key-bg);
+  color: var(--key-fg);
+  font-weight: 700;
+  font-size: clamp(1rem, 4.4vw, 1.3rem);
+  display: grid;
+  place-items: center;
+  touch-action: manipulation;
+  user-select: none;
+  box-shadow: inset 0 -2px 0 rgb(0 0 0 / 0.08);
+  transition: background-color 180ms ease, color 180ms ease, transform 80ms ease, opacity 180ms;
+}
+.key:active { transform: translateY(1px) scale(0.97); }
+.key:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+.key[data-state='correct'] { background: var(--correct); color: var(--on-state); }
+.key[data-state='present'] { background: var(--present); color: var(--on-state); }
+.key[data-state='absent'] { background: var(--absent); color: var(--on-state); opacity: 0.9; }
+.key[data-unused='true'] { opacity: var(--key-unused); }
+.key-wide { flex-grow: 1.6; font-size: 0.95rem; }
+.key-enter { background: var(--brand); color: #fff; }
+
+/* ── Modals & toasts ───────────────────────────────────────────── */
+[data-motion='on'] .modal-panel { animation: rise 220ms cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+[data-motion='on'] .modal-backdrop { animation: fade 180ms ease-out; }
+[data-motion='on'] .toast { animation: toast-in 220ms ease-out; }
+
+@keyframes rise { from { opacity: 0; transform: translateY(16px) scale(0.98); } }
+@keyframes fade { from { opacity: 0; } }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-8px) scale(0.96); } }
+
+.focus-ring:focus-visible {
+  outline: 3px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.sr-only-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+.tile-grid > .tile {
+  aspect-ratio: 1;
+  border-radius: 10px;
+}

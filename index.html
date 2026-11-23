@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ckb" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+    <title>وشە | WUSHA</title>
+    <meta name="description" content="وشە (WUSHA) — یاریی ڕۆژانەی دۆزینەوەی وشەی کوردی (سۆرانی). هەموو ڕۆژێک وشەیەکی نوێ." />
+    <meta name="theme-color" content="#F8FAFC" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="وشە" />
+    <meta property="og:title" content="وشە | WUSHA" />
+    <meta property="og:description" content="یاریی ڕۆژانەی دۆزینەوەی وشەی کوردی" />
+    <meta property="og:type" content="website" />
+    <link rel="icon" type="image/svg+xml" href="./icons/icon.svg" />
+    <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <script>
+      // Apply the saved theme before first paint to avoid a flash.
+      try {
+        var s = JSON.parse(localStorage.getItem('wusha:v1:settings') || '{}');
+        var d = s.theme === 'dark' || ((!s.theme || s.theme === 'system') && matchMedia('(prefers-color-scheme: dark)').matches);
+        if (d) document.documentElement.classList.add('dark');
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>تکایە JavaScript چالاک بکە بۆ یاریکردن.</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
